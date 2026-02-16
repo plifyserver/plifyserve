@@ -195,7 +195,8 @@ export function TemplateEditor({
 
   const setPlan = (index: number, upd: Partial<ProposalPlan>) => {
     const next = [...plans]
-    next[index] = { ...next[index], name: '', price: 0, includes: [], ...next[index], ...upd }
+    const current = next[index] ?? { name: '', price: 0, includes: [] }
+    next[index] = { ...current, ...upd }
     setContent({ ...content, plans: next, pricingMode: 'plans' })
   }
 
