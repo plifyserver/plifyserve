@@ -131,8 +131,8 @@ export default function AgendaPage() {
           endAccessor="end"
           date={date}
           view={view}
-          onNavigate={(d) => setDate(d)}
-          onView={(v) => setView(v as View)}
+          onNavigate={(d: Date) => setDate(d)}
+          onView={(v: string) => setView(v as View)}
           style={{ height: '100%' }}
           onSelectSlot={handleSelectSlot}
           selectable
@@ -149,7 +149,7 @@ export default function AgendaPage() {
             time: 'Hora',
             event: 'Evento',
             noEventsInRange: 'Nenhum compromisso neste período.',
-            showMore: (n) => `+${n} mais`,
+            showMore: (n: number) => `+${n} mais`,
             allDay: 'Dia inteiro',
             yesterday: 'Ontem',
             tomorrow: 'Amanhã',
