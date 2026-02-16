@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Palette, Upload, Plus, Trash2 } from 'lucide-react'
+import { Palette, Upload, Plus, Trash2, Eye } from 'lucide-react'
 import type { TemplateStructure, ProposalPlan } from '@/types'
 import { COLOR_PALETTES } from '@/types'
+import { ProposalTemplate3D } from '@/components/ProposalTemplate3D'
 
 /** Parse BR format: "2.000" = 2000, "2.000,50" = 2000.50, "2000" = 2000 */
 function parseCurrencyInput(raw: string): number | null {
@@ -29,6 +30,9 @@ interface TemplateEditorProps {
   editsRemaining: number
   /** Ao editar proposta existente, para uploads no bucket */
   proposalId?: string
+  /** Valores iniciais ao editar (senão usa padrões) */
+  initialConfirmButtonText?: string
+  initialColorPalette?: string
 }
 
 export function TemplateEditor({
@@ -37,19 +41,35 @@ export function TemplateEditor({
   isPro,
   editsRemaining,
   proposalId,
+  initialConfirmButtonText,
+  initialColorPalette,
 }: TemplateEditorProps) {
   const [content, setContent] = useState<TemplateStructure>(initialContent)
-  const [confirmButtonText, setConfirmButtonText] = useState('CONFIRMAR PROPOSTA')
-  const [colorPalette, setColorPalette] = useState('default')
+  const [confirmButtonText, setConfirmButtonText] = useState(initialConfirmButtonText ?? 'CONFIRMAR PROPOSTA')
+  const [colorPalette, setColorPalette] = useState(initialColorPalette ?? 'default')
   const [showPalette, setShowPalette] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
   const [uploadingProduct, setUploadingProduct] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingFooterLogo, setUploadingFooterLogo] = useState(false)
+  const [uploadingMiddle, setUploadingMiddle] = useState(false)
+  const [logoVersion, setLogoVersion] = useState(0)
+  const [footerLogoVersion, setFooterLogoVersion] = useState(0)
+  const [productPhotoVersion, setProductPhotoVersion] = useState(0)
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const productInputRef = useRef<HTMLInputElement>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const footerLogoInputRef = useRef<HTMLInputElement>(null)
+  const middlePhoto1Ref = useRef<HTMLInputElement>(null)
+  const middlePhoto2Ref = useRef<HTMLInputElement>(null)
 
   const palette = COLOR_PALETTES.find((p) => p.id === colorPalette) || COLOR_PALETTES[0]
   const canEdit = true
   const emailsList = content.companyEmails?.length ? content.companyEmails : content.companyEmail ? [content.companyEmail] : ['']
+  const phonesList = content.companyPhones?.length ? content.companyPhones : content.companyPhone ? [content.companyPhone] : ['']
+  const phonesValue = phonesList.join('\n')
+  const emailsValue = emailsList.join('\n')
+  const social = content.socialLinks || {}
   const plans = (content.plans || []) as ProposalPlan[]
 
   const handleSave = () => {
@@ -57,7 +77,7 @@ export function TemplateEditor({
     onSave(content, confirmButtonText, colorPalette)
   }
 
-  const uploadFile = async (file: File, type: 'gallery' | 'product') => {
+  const uploadFile = async (file: File, type: 'gallery' | 'product' | 'logo') => {
     const fd = new FormData()
     fd.set('file', file)
     fd.set('type', type)
@@ -81,7 +101,7 @@ export function TemplateEditor({
         const url = await uploadFile(files[i], 'gallery')
         urls.push(url)
       }
-      setContent({ ...content, gallery: [...(content.gallery || []), ...urls] })
+      setContent((prev) => ({ ...prev, gallery: [...(prev.gallery || []), ...urls] }))
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao enviar fotos')
     }
@@ -95,12 +115,82 @@ export function TemplateEditor({
     setUploadingProduct(true)
     try {
       const url = await uploadFile(file, 'product')
-      setContent({ ...content, productPhotoUrl: url })
+      const urlWithCache = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`
+      setContent((prev) => ({ ...prev, productPhotoUrl: urlWithCache }))
+      setProductPhotoVersion((v) => v + 1)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao enviar foto')
     }
     setUploadingProduct(false)
     if (productInputRef.current) productInputRef.current.value = ''
+  }
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !canEdit) return
+    setUploadingLogo(true)
+    try {
+      const fd = new FormData()
+      fd.set('file', file)
+      fd.set('type', 'logo')
+      if (proposalId) fd.set('proposalId', proposalId)
+      const res = await fetch('/api/proposals/upload', { method: 'POST', credentials: 'include', body: fd })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Erro no upload')
+      }
+      const { url } = await res.json()
+      const urlWithCache = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`
+      setContent((prev) => ({ ...prev, companyLogo: urlWithCache }))
+      setLogoVersion((v) => v + 1)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao enviar logo')
+    }
+    setUploadingLogo(false)
+    if (logoInputRef.current) logoInputRef.current.value = ''
+  }
+
+  const handleFooterLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !canEdit) return
+    setUploadingFooterLogo(true)
+    try {
+      const fd = new FormData()
+      fd.set('file', file)
+      fd.set('type', 'footer_logo')
+      if (proposalId) fd.set('proposalId', proposalId)
+      const res = await fetch('/api/proposals/upload', { method: 'POST', credentials: 'include', body: fd })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Erro no upload')
+      }
+      const { url } = await res.json()
+      const urlWithCache = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`
+      setContent((prev) => ({ ...prev, footerLogo: urlWithCache }))
+      setFooterLogoVersion((v) => v + 1)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao enviar logo do rodapé')
+    }
+    setUploadingFooterLogo(false)
+    if (footerLogoInputRef.current) footerLogoInputRef.current.value = ''
+  }
+
+  const handleMiddlePhotoChange = async (index: 0 | 1, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !canEdit) return
+    setUploadingMiddle(true)
+    try {
+      const url = await uploadFile(file, 'gallery')
+      const prev = content.middlePhotos || []
+      const next = [...prev]
+      next[index] = url
+      setContent({ ...content, middlePhotos: next })
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao enviar foto')
+    }
+    setUploadingMiddle(false)
+    if (index === 0 && middlePhoto1Ref.current) middlePhoto1Ref.current.value = ''
+    if (index === 1 && middlePhoto2Ref.current) middlePhoto2Ref.current.value = ''
   }
 
   const setPlan = (index: number, upd: Partial<ProposalPlan>) => {
@@ -120,7 +210,9 @@ export function TemplateEditor({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr,minmax(380px,440px)] gap-8 xl:gap-10 items-start">
+      {/* Formulário */}
+      <div className="space-y-6">
       <div className="grid md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-zinc-300 mb-2">Nome da empresa</label>
@@ -132,31 +224,96 @@ export function TemplateEditor({
             className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-2">Telefone</label>
-          <input
-            type="text"
-            value={content.companyPhone}
-            onChange={(e) => setContent({ ...content, companyPhone: e.target.value })}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-zinc-300 mb-2">Logo da empresa</label>
+          <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoChange} disabled={!canEdit || uploadingLogo} className="hidden" />
+          <div className="flex items-center gap-4">
+            {content.companyLogo && (
+              <img
+                src={`${content.companyLogo}${content.companyLogo.includes('?') ? '&' : '?'}v=${logoVersion}`}
+                alt="Logo"
+                className="h-14 w-auto object-contain rounded border border-gray-200"
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={!canEdit || uploadingLogo}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+            >
+              {uploadingLogo ? 'Enviando...' : <Upload className="w-4 h-4" />}
+              {content.companyLogo ? 'Trocar logo' : 'Enviar logo'}
+            </button>
+          </div>
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-zinc-300 mb-2">Logo do rodapé (opcional, pode ser diferente)</label>
+          <input ref={footerLogoInputRef} type="file" accept="image/*" onChange={handleFooterLogoChange} disabled={!canEdit || uploadingFooterLogo} className="hidden" />
+          <div className="flex flex-wrap items-center gap-4">
+            {content.footerLogo && (
+              <img
+                src={`${content.footerLogo}${content.footerLogo.includes('?') ? '&' : '?'}v=${footerLogoVersion}`}
+                alt="Logo rodapé"
+                className="h-14 w-auto object-contain rounded border border-gray-200"
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => footerLogoInputRef.current?.click()}
+              disabled={!canEdit || uploadingFooterLogo}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+            >
+              {uploadingFooterLogo ? 'Enviando...' : <Upload className="w-4 h-4" />}
+              {content.footerLogo ? 'Trocar logo do rodapé' : 'Enviar logo do rodapé'}
+            </button>
+            {content.footerLogo && canEdit && (
+              <button
+                type="button"
+                onClick={() => setContent((prev) => ({ ...prev, footerLogo: undefined }))}
+                className="text-sm text-red-500 hover:underline"
+              >
+                Remover
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-zinc-300 mb-2">Telefones de contato (um por linha)</label>
+          <textarea
+            value={phonesValue}
+            onChange={(e) => {
+              const raw = e.target.value
+              const lines = raw.split('\n').map((s) => s.trim())
+              const filled = lines.filter(Boolean)
+              setContent({
+                ...content,
+                companyPhones: lines.length ? lines : undefined,
+                companyPhone: filled[0] || content.companyPhone,
+              })
+            }}
             disabled={!canEdit}
+            rows={4}
+            placeholder={'(11) 99999-9999\n(11) 88888-8888'}
             className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
           />
         </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-zinc-300 mb-2">E-mails de contato (um por linha)</label>
           <textarea
-            value={emailsList.join('\n')}
+            value={emailsValue}
             onChange={(e) => {
-              const lines = e.target.value.split('\n').map((s) => s.trim()).filter(Boolean)
+              const raw = e.target.value
+              const lines = raw.split('\n').map((s) => s.trim())
+              const filled = lines.filter(Boolean)
               setContent({
                 ...content,
                 companyEmails: lines.length ? lines : undefined,
-                companyEmail: lines[0] || content.companyEmail,
+                companyEmail: filled[0] || content.companyEmail,
               })
             }}
             disabled={!canEdit}
-            rows={2}
-            placeholder="contato@empresa.com"
+            rows={5}
+            placeholder={'contato@empresa.com\noutro@empresa.com'}
             className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
           />
         </div>
@@ -230,10 +387,10 @@ export function TemplateEditor({
                     <button
                       type="button"
                       onClick={() =>
-                        setContent({
-                          ...content,
-                          gallery: content.gallery!.filter((_, j) => j !== i),
-                        })
+                        setContent((prev) => ({
+                          ...prev,
+                          gallery: (prev.gallery || []).filter((_, j) => j !== i),
+                        }))
                       }
                       className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600"
                     >
@@ -266,38 +423,13 @@ export function TemplateEditor({
           />
         </div>
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-zinc-300 mb-2">Descrição do serviço</label>
+          <label className="block text-sm font-medium text-zinc-300 mb-2">Descrição do serviço / produto</label>
           <textarea
-            value={content.serviceDescription}
-            onChange={(e) => setContent({ ...content, serviceDescription: e.target.value })}
-            disabled={!canEdit}
-            rows={3}
-            className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-zinc-300 mb-2">
-            O que está incluso (um por linha)
-          </label>
-          <textarea
-            value={content.includes?.join('\n') || ''}
-            onChange={(e) =>
-              setContent({
-                ...content,
-                includes: e.target.value.split('\n').filter(Boolean),
-              })
-            }
-            disabled={!canEdit}
-            rows={4}
-            placeholder="Item 1&#10;Item 2&#10;Item 3"
-            className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-zinc-300 mb-2">Descrição do produto/serviço</label>
-          <textarea
-            value={content.productDescription ?? content.serviceDescription}
-            onChange={(e) => setContent({ ...content, productDescription: e.target.value || undefined, serviceDescription: e.target.value })}
+            value={content.serviceDescription ?? content.productDescription ?? ''}
+            onChange={(e) => {
+              const v = e.target.value
+              setContent({ ...content, serviceDescription: v, productDescription: v })
+            }}
             disabled={!canEdit}
             rows={4}
             placeholder="Descreva o que você está oferecendo..."
@@ -307,26 +439,110 @@ export function TemplateEditor({
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-zinc-300 mb-2">Foto do produto</label>
           <input ref={productInputRef} type="file" accept="image/*" onChange={handleProductPhotoChange} disabled={!canEdit || uploadingProduct} className="hidden" />
-          <button
-            type="button"
-            onClick={() => productInputRef.current?.click()}
-            disabled={!canEdit || uploadingProduct}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
-          >
-            {uploadingProduct ? 'Enviando...' : <Upload className="w-4 h-4" />}
-            Enviar foto do produto
-          </button>
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              type="button"
+              onClick={() => productInputRef.current?.click()}
+              disabled={!canEdit || uploadingProduct}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+            >
+              {uploadingProduct ? 'Enviando...' : <Upload className="w-4 h-4" />}
+              {content.productPhotoUrl ? 'Trocar foto' : 'Enviar foto do produto'}
+            </button>
+            {content.productPhotoUrl && (
+              <div className="relative group w-40 h-40 rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center bg-gray-100">
+                <img
+                  src={`${content.productPhotoUrl}${content.productPhotoUrl.includes('?') ? '&' : '?'}v=${productPhotoVersion}`}
+                  alt="Foto do produto"
+                  className="w-full h-full object-contain"
+                />
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setContent((prev) => ({ ...prev, productPhotoUrl: undefined }))}
+                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-sm hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-zinc-300 mb-2">Texto do rolo (marquee) – passa na tela</label>
-          <input
-            type="text"
-            value={content.marqueeText || ''}
-            onChange={(e) => setContent({ ...content, marqueeText: e.target.value || undefined })}
-            disabled={!canEdit}
-            placeholder="Ex: 15% de desconto até o fim do mês"
-            className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
-          />
+          <label className="block text-sm font-medium text-zinc-300 mb-2">Textos do rolo (marquee) – até 3 frases que passam na tela</label>
+          {[0, 1, 2].map((i) => {
+            const texts = content.marqueeTexts?.length ? content.marqueeTexts : content.marqueeText ? [content.marqueeText] : []
+            const value = texts[i] ?? ''
+            return (
+              <input
+                key={i}
+                type="text"
+                value={value}
+                onChange={(e) => {
+                  const next = [...(content.marqueeTexts || content.marqueeText ? (content.marqueeTexts || [content.marqueeText!]) : [])]
+                  next[i] = e.target.value.trim()
+                  const filtered = next.filter(Boolean)
+                  setContent({
+                    ...content,
+                    marqueeTexts: filtered.length ? filtered : undefined,
+                    marqueeText: filtered[0] || content.marqueeText,
+                  })
+                }}
+                disabled={!canEdit}
+                placeholder={i === 0 ? 'Ex: 15% de desconto até o fim do mês' : `Texto ${i + 2} (opcional)`}
+                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50 mt-2 first:mt-0"
+              />
+            )
+          })}
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-zinc-300 mb-2">2 fotos (entre rolo de texto e planos)</label>
+          <div className="flex flex-wrap gap-4 mt-2">
+            {[0, 1].map((i) => {
+              const ref = i === 0 ? middlePhoto1Ref : middlePhoto2Ref
+              const url = content.middlePhotos?.[i]
+              return (
+                <div key={i} className="flex flex-col items-start gap-2">
+                  <input
+                    ref={ref}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleMiddlePhotoChange(i as 0 | 1, e)}
+                    disabled={!canEdit || uploadingMiddle}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => ref.current?.click()}
+                    disabled={!canEdit || uploadingMiddle}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+                  >
+                    {uploadingMiddle ? 'Enviando...' : <Upload className="w-4 h-4" />}
+                    {url ? `Trocar foto ${i + 1}` : `Enviar foto ${i + 1}`}
+                  </button>
+                  {url && (
+                    <div className="relative group">
+                      <img src={url} alt="" className="w-24 h-24 object-cover rounded-lg border border-gray-200" />
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = [...(content.middlePhotos || [])]
+                            next.splice(i, 1)
+                            setContent({ ...content, middlePhotos: next.length ? next : undefined })
+                          }}
+                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-zinc-300 mb-2">Forma de preço</label>
@@ -370,22 +586,6 @@ export function TemplateEditor({
                 className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
               />
             </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-zinc-300 mb-2">O que inclui no pacote (um por linha)</label>
-              <textarea
-                value={(content.singleIncludes || content.includes || []).join('\n')}
-                onChange={(e) =>
-                  setContent({
-                    ...content,
-                    singleIncludes: e.target.value.split('\n').filter(Boolean),
-                    includes: e.target.value.split('\n').filter(Boolean),
-                  })
-                }
-                disabled={!canEdit}
-                rows={3}
-                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
-              />
-            </div>
           </>
         )}
         {content.pricingMode === 'plans' && (
@@ -418,9 +618,9 @@ export function TemplateEditor({
                 <textarea
                   placeholder="O que inclui (um por linha)"
                   value={(plan.includes || []).join('\n')}
-                  onChange={(e) => setPlan(i, { includes: e.target.value.split('\n').filter(Boolean) })}
+                  onChange={(e) => setPlan(i, { includes: e.target.value.split('\n') })}
                   disabled={!canEdit}
-                  rows={2}
+                  rows={4}
                   className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm"
                 />
               </div>
@@ -460,8 +660,91 @@ export function TemplateEditor({
           />
         </div>
         <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-zinc-300 mb-2">Site da empresa (opcional)</label>
+          <input
+            type="url"
+            placeholder="https://www.suaempresa.com.br"
+            value={content.companyWebsite || ''}
+            onChange={(e) => setContent({ ...content, companyWebsite: e.target.value.trim() || undefined })}
+            disabled={!canEdit}
+            className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50 mb-3"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-zinc-300 mb-2">Redes sociais (links completos)</label>
+          <div className="grid md:grid-cols-2 gap-3">
+            <input
+              type="url"
+              placeholder="Instagram (https://instagram.com/suaempresa)"
+              value={social.instagram || ''}
+              onChange={(e) =>
+                setContent({
+                  ...content,
+                  socialLinks: {
+                    ...social,
+                    instagram: e.target.value.trim() || undefined,
+                  },
+                })
+              }
+              disabled={!canEdit}
+              className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
+            />
+            <input
+              type="url"
+              placeholder="Facebook (https://facebook.com/suaempresa)"
+              value={social.facebook || ''}
+              onChange={(e) =>
+                setContent({
+                  ...content,
+                  socialLinks: {
+                    ...social,
+                    facebook: e.target.value.trim() || undefined,
+                  },
+                })
+              }
+              disabled={!canEdit}
+              className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
+            />
+            <input
+              type="url"
+              placeholder="TikTok (https://www.tiktok.com/@suaempresa)"
+              value={social.tiktok || ''}
+              onChange={(e) =>
+                setContent({
+                  ...content,
+                  socialLinks: {
+                    ...social,
+                    tiktok: e.target.value.trim() || undefined,
+                  },
+                })
+              }
+              disabled={!canEdit}
+              className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
+            />
+            <input
+              type="url"
+              placeholder="X / Twitter (https://x.com/suaempresa)"
+              value={social.x || ''}
+              onChange={(e) =>
+                setContent({
+                  ...content,
+                  socialLinks: {
+                    ...social,
+                    x: e.target.value.trim() || undefined,
+                  },
+                })
+              }
+              disabled={!canEdit}
+              className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
+            />
+          </div>
+          <p className="mt-1 text-xs text-zinc-400">
+            Esses links só aparecem na proposta se você preencher. Campos vazios são ignorados.
+          </p>
+        </div>
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-zinc-300 mb-2">
-            Texto do botão de confirmação
+            Texto do botão de confirmação (valor único)
           </label>
           <input
             type="text"
@@ -469,6 +752,19 @@ export function TemplateEditor({
             onChange={(e) => setConfirmButtonText(e.target.value)}
             disabled={!canEdit}
             placeholder="CONFIRMAR PROPOSTA, ACEITAR, ENTRE AGORA..."
+            className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-zinc-300 mb-2">
+            Texto do botão em cada plano (quando há vários planos)
+          </label>
+          <input
+            type="text"
+            value={content.acceptPlanButtonText ?? 'Aceitar plano'}
+            onChange={(e) => setContent({ ...content, acceptPlanButtonText: e.target.value.trim() || undefined })}
+            disabled={!canEdit}
+            placeholder="Aceitar plano, Escolher este plano..."
             className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
           />
         </div>
@@ -519,6 +815,36 @@ export function TemplateEditor({
       >
         Salvar e gerar link
       </button>
+      </div>
+
+      {/* Pré-visualização */}
+      <div className="xl:sticky xl:top-6 space-y-2">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-400">
+          <Eye className="w-4 h-4" />
+          Pré-visualização
+        </h3>
+        <div className="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-lg">
+          <div className="max-h-[calc(100vh-7rem)] overflow-y-auto">
+            <ProposalTemplate3D
+              content={{
+                ...content,
+                companyLogo: content.companyLogo
+                  ? `${content.companyLogo}${content.companyLogo.includes('?') ? '&' : '?'}v=${logoVersion}`
+                  : content.companyLogo,
+                footerLogo: content.footerLogo
+                  ? `${content.footerLogo}${content.footerLogo.includes('?') ? '&' : '?'}v=${footerLogoVersion}`
+                  : content.footerLogo,
+                productPhotoUrl: content.productPhotoUrl
+                  ? `${content.productPhotoUrl}${content.productPhotoUrl.includes('?') ? '&' : '?'}v=${productPhotoVersion}`
+                  : content.productPhotoUrl,
+              }}
+              confirmButtonText={confirmButtonText}
+              colorPalette={colorPalette}
+              isViewMode
+            />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

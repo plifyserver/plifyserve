@@ -78,7 +78,7 @@ export default function NovoProposalPage() {
       <TemplateEditor
         initialContent={{
           ...DEFAULT_STRUCTURE,
-          companyLogo: profile?.avatar_url || undefined,
+          companyLogo: undefined,
         }}
         onSave={handleSave}
         isPro={isPro}

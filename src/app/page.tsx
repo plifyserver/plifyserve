@@ -1,24 +1,60 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { BarChart3, FileText, Zap, Shield, ArrowRight, ChevronDown, CheckCircle2 } from 'lucide-react'
+import { BarChart3, FileText, Zap, Shield, ArrowRight, ChevronDown, CheckCircle2, PenTool, PieChart, Network, Calendar, DollarSign, FolderOpen } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { AnimatedChartsSection } from '@/components/AnimatedChartsSection'
 import { TestimonialsChat } from '@/components/TestimonialsChat'
 
+const STATS = [
+  { target: 500, suffix: '+', label: 'Usuários ativos' },
+  { target: 10, suffix: 'k+', label: 'Propostas criadas' },
+  { target: 98, suffix: '%', label: 'Taxa de satisfação' },
+  { target: 2, suffix: ' min', label: 'Para começar' },
+] as const
+
+function easeOutCubic(t: number) {
+  return 1 - (1 - t) ** 3
+}
+
 export default function LandingPage() {
   const { user } = useAuth()
+  const [statsTick, setStatsTick] = useState(0)
+  const [displayed, setDisplayed] = useState([0, 0, 0, 0])
+
+  useEffect(() => {
+    const interval = setInterval(() => setStatsTick((t) => t + 1), 4000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    setDisplayed([0, 0, 0, 0])
+    const duration = 1200
+    const start = performance.now()
+    let rafId: number
+
+    const tick = (now: number) => {
+      const elapsed = now - start
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = easeOutCubic(progress)
+      setDisplayed(STATS.map((s) => Math.round(s.target * eased)))
+      if (progress < 1) rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [statsTick])
 
   return (
     <div className="min-h-screen overflow-x-hidden">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 glass">
+      {/* Header - fundo escuro (preto mais claro) */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-gray-800/95 backdrop-blur-md border-b border-gray-700/50">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-            <Image src="/plify.png" alt="Plify" width={56} height={56} className="rounded-xl logo-avocado" />
+            <Image src="/plify.png" alt="Plify" width={56} height={56} className="rounded-xl logo-avocado brightness-110" />
           </Link>
-          <Link href="/cadastro" className="sm:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-avocado/20 text-avocado text-xs whitespace-nowrap">
+          <Link href="/cadastro" className="sm:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-avocado font-semibold text-xs whitespace-nowrap shadow border border-avocado/20">
             <Zap className="w-3.5 h-3.5 text-avocado" />
             R$ 4,90/mês
           </Link>
@@ -26,15 +62,15 @@ export default function LandingPage() {
             <div className="flex items-center gap-6 animate-marquee">
               {[1, 2].map((dup) => (
                 <span key={dup} className="flex items-center gap-6 shrink-0">
-                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-avocado/20 text-avocado text-sm whitespace-nowrap">
+                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-avocado font-semibold text-sm whitespace-nowrap shadow-md border border-avocado/20">
                     <Zap className="w-4 h-4 text-avocado flex-shrink-0" />
                     Oferta relâmpago: de R$ 59,80 por apenas R$ 4,90/mês
                   </span>
-                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-avocado/20 text-avocado text-sm whitespace-nowrap">
+                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-avocado font-semibold text-sm whitespace-nowrap shadow-md border border-avocado/20">
                     <Zap className="w-4 h-4 text-avocado flex-shrink-0" />
                     Plano Pro: R$ 4,90/mês — propostas ilimitadas
                   </span>
-                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-avocado/20 text-avocado text-sm whitespace-nowrap">
+                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-avocado font-semibold text-sm whitespace-nowrap shadow-md border border-avocado/20">
                     <Zap className="w-4 h-4 text-avocado flex-shrink-0" />
                     Economize R$ 55/mês com a oferta especial
                   </span>
@@ -46,18 +82,18 @@ export default function LandingPage() {
             {user ? (
               <Link
                 href="/dashboard"
-                className="px-4 py-2 rounded-lg bg-avocado hover:bg-avocado-light text-black font-medium transition-colors"
+                className="px-4 py-2 rounded-lg bg-avocado hover:bg-avocado-light text-white font-medium transition-colors"
               >
                 Ir para o Painel
               </Link>
             ) : (
               <>
-                <Link href="/login" className="text-gray-600 hover:text-gray-900 transition-colors">
+                <Link href="/login" className="text-gray-300 hover:text-white transition-colors">
                   Entrar
                 </Link>
                 <Link
                   href="/cadastro"
-                  className="px-4 py-2 rounded-lg bg-avocado hover:bg-avocado-light text-black font-medium transition-colors"
+                  className="px-4 py-2 rounded-lg bg-avocado hover:bg-avocado-light text-white font-medium transition-colors"
                 >
                   Começar Grátis
                 </Link>
@@ -127,26 +163,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Stats - prova social */}
-      <section className="py-12 px-4 border-y border-gray-200 bg-white">
+      {/* Stats - prova social (fundo preto mais claro, números sobem de 0 até o valor a cada 4s) */}
+      <section className="py-12 px-4 border-y border-gray-700 bg-gray-800">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <p className="text-3xl md:text-4xl font-bold text-avocado">500+</p>
-              <p className="text-gray-500 text-sm mt-1">Usuários ativos</p>
-            </div>
-            <div>
-              <p className="text-3xl md:text-4xl font-bold text-avocado">10k+</p>
-              <p className="text-gray-500 text-sm mt-1">Propostas criadas</p>
-            </div>
-            <div>
-              <p className="text-3xl md:text-4xl font-bold text-avocado">98%</p>
-              <p className="text-gray-500 text-sm mt-1">Taxa de satisfação</p>
-            </div>
-            <div>
-              <p className="text-3xl md:text-4xl font-bold text-avocado">2 min</p>
-              <p className="text-gray-500 text-sm mt-1">Para começar</p>
-            </div>
+            {STATS.map(({ target, suffix, label }, i) => (
+              <div key={label}>
+                <p className="text-3xl md:text-4xl font-bold text-avocado-light tabular-nums">
+                  {displayed[i]}
+                  {suffix}
+                </p>
+                <p className="text-gray-400 text-sm mt-1">{label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -171,11 +200,16 @@ export default function LandingPage() {
           <p className="text-center text-gray-600 mb-16 max-w-2xl mx-auto">
             Recursos pensados para valorizar seu serviço e acompanhar resultados.
           </p>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: BarChart3, title: 'Dashboard Meta Ads', desc: 'Métricas de impressões, cliques, CPC, leads e conversões.' },
-              { icon: FileText, title: 'Propostas Profissionais', desc: 'Templates editáveis com logo, textos e valores.' },
-              { icon: Zap, title: 'Minha Página', desc: 'Mini-site da empresa: nome, logo, slogan, contato.' },
+              { icon: BarChart3, title: 'Métricas Meta Ads', desc: 'Impressões, cliques, CPC, leads e conversões dos seus anúncios.' },
+              { icon: FileText, title: 'Templates', desc: 'Modelos de proposta para personalizar com logo, textos e planos.' },
+              { icon: FolderOpen, title: 'Propostas', desc: 'Crie, envie e acompanhe propostas com link para o cliente.' },
+              { icon: PenTool, title: 'Assinaturas Digitais', desc: 'Envie PDFs para assinatura com canvas e registro de local e horário.' },
+              { icon: PieChart, title: 'Relatórios', desc: 'Gráficos de assinaturas e propostas aceitas, evolução semanal.' },
+              { icon: Network, title: 'Mapa Mental', desc: 'Organize ideias e planejamento em nós conectados.' },
+              { icon: Calendar, title: 'Agenda', desc: 'Calendário para agendar compromissos e eventos.' },
+              { icon: DollarSign, title: 'Faturamento', desc: 'Acompanhe propostas aceitas e valores confirmados.' },
               { icon: Shield, title: 'Leve e Gratuito', desc: 'Interface rápida. Comece sem custo.' },
             ].map((feature) => (
               <div
@@ -232,21 +266,21 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-16 px-4 border-t border-gray-200">
+      {/* Footer - preto */}
+      <footer className="py-16 px-4 bg-gray-900 border-t border-gray-800">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-8">
             <Link href="/" className="flex items-center gap-2">
-              <Image src="/plify.png" alt="Plify" width={44} height={44} className="rounded-xl logo-avocado" />
+              <Image src="/plify.png" alt="Plify" width={64} height={64} className="rounded-xl logo-avocado brightness-110" />
             </Link>
             <div className="flex flex-wrap justify-center gap-6 text-sm">
-              <Link href="/termos-privacidade" className="text-gray-500 hover:text-avocado transition-colors">
+              <Link href="/termos-privacidade" className="text-gray-400 hover:text-avocado-light transition-colors">
                 Termos de Privacidade
               </Link>
-              <Link href="/suporte" className="text-gray-500 hover:text-avocado transition-colors">
+              <Link href="/suporte" className="text-gray-400 hover:text-avocado-light transition-colors">
                 Suporte
               </Link>
-              <Link href="/termos-uso" className="text-gray-500 hover:text-avocado transition-colors">
+              <Link href="/termos-uso" className="text-gray-400 hover:text-avocado-light transition-colors">
                 Termos de Uso
               </Link>
             </div>

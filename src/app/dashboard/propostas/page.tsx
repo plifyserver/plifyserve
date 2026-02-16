@@ -5,6 +5,14 @@ import Link from 'next/link'
 import { Copy, Edit, Trash2, Files, CheckCircle, XCircle } from 'lucide-react'
 import type { Proposal } from '@/types'
 
+function getAcceptedValue(proposal: Proposal): number {
+  const v = proposal.proposal_value
+  if (v != null && !Number.isNaN(Number(v))) return Number(v)
+  const plan = (proposal.content as { acceptedPlan?: { price?: number } })?.acceptedPlan
+  if (plan && typeof plan.price === 'number') return plan.price
+  return 0
+}
+
 export default function PropostasPage() {
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [acceptedProposals, setAcceptedProposals] = useState<Proposal[]>([])
@@ -33,7 +41,7 @@ export default function PropostasPage() {
   }
 
   const duplicateProposal = async (proposal: Proposal) => {
-    const newSlug = `${proposal.slug}-${Date.now()}`
+    const newSlug = `prop-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const res = await fetch('/api/proposals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -46,12 +54,19 @@ export default function PropostasPage() {
         content: proposal.content,
         color_palette: proposal.color_palette,
         confirm_button_text: proposal.confirm_button_text,
+        client_name: proposal.client_name ?? null,
+        client_email: proposal.client_email ?? null,
+        client_phone: proposal.client_phone ?? null,
+        proposal_value: proposal.proposal_value ?? null,
       }),
     })
-    const newProposal = await res.json()
-    if (res.ok && newProposal) {
-      setProposals((prev) => [newProposal as Proposal, ...prev])
+    const data = await res.json().catch(() => null)
+    if (res.ok && data) {
+      setProposals((prev) => [data as Proposal, ...prev])
+      return data as Proposal
     }
+    alert((data as { error?: string })?.error || 'Erro ao duplicar proposta')
+    return null
   }
 
   const deleteProposal = async (id: string) => {
@@ -77,7 +92,7 @@ export default function PropostasPage() {
     <div>
       <h1 className="text-2xl font-bold mb-2">Propostas</h1>
       <p className="text-gray-500 mb-6">
-        Gerencie suas propostas: edite, duplique ou exclua
+        Gerencie suas propostas: edite, duplique ou exclua. Você pode gerar várias propostas com o mesmo template — use Duplicar e edite depois o que quiser.
       </p>
 
       <div className="flex gap-2 mb-6">
@@ -163,7 +178,7 @@ export default function PropostasPage() {
                   <button
                     onClick={() => duplicateProposal(proposal)}
                     className="p-2 rounded-lg hover:bg-gray-200 transition-colors"
-                    title="Duplicar"
+                    title="Duplicar proposta (nova com mesmo template)"
                   >
                     <Files className="w-4 h-4" />
                   </button>
@@ -211,15 +226,28 @@ export default function PropostasPage() {
                     Aceita em {proposal.accepted_at ? new Date(proposal.accepted_at).toLocaleDateString('pt-BR') : '-'}
                   </p>
                   <p className="text-sm text-emerald-400 mt-1">
-                    Valor: R$ {Number(proposal.proposal_value || 0).toFixed(2)}
+                    Valor: R$ {Number(getAcceptedValue(proposal)).toFixed(2)}
                   </p>
                 </div>
-                <Link
-                  href={`/dashboard/propostas/${proposal.id}/visualizar`}
-                  className="text-avocado hover:text-avocado-light text-sm font-medium"
-                >
-                  Ver como era o template →
-                </Link>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Link
+                    href={`/dashboard/propostas/${proposal.id}/visualizar`}
+                    className="text-avocado hover:text-avocado-light text-sm font-medium"
+                  >
+                    Ver como era o template →
+                  </Link>
+                  <button
+                    onClick={async () => {
+                      const newP = await duplicateProposal(proposal)
+                      if (newP) setActiveTab('all')
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-sm font-medium text-gray-700 transition-colors"
+                    title="Duplicar e editar como nova proposta"
+                  >
+                    <Files className="w-4 h-4" />
+                    Duplicar e editar
+                  </button>
+                </div>
               </div>
             ))
           )}

@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null
-  const type = (formData.get('type') as string) || 'gallery' // 'gallery' | 'product'
+  const type = (formData.get('type') as string) || 'gallery' // 'gallery' | 'product' | 'logo' | 'footer_logo'
   const proposalId = (formData.get('proposalId') as string) || ''
 
   if (!file) {
@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
 
   const folder = proposalId ? `proposal_${proposalId}` : 'draft'
   const ext = file.name.split('.').pop() || 'jpg'
-  const name = type === 'product' ? `product.${ext}` : `gallery_${Date.now()}.${ext}`
-  const path = `${userId}/${folder}/${type}/${name}`
+  const name = type === 'product' ? `product.${ext}` : type === 'logo' ? `logo.${ext}` : type === 'footer_logo' ? `footer.${ext}` : `gallery_${Date.now()}.${ext}`
+  const path = type === 'logo' || type === 'footer_logo' ? `${userId}/logo/${name}` : `${userId}/${folder}/${type}/${name}`
 
   const supabase = await createClient()
   const { data, error } = await supabase.storage
@@ -37,7 +37,11 @@ export async function POST(request: NextRequest) {
     .upload(path, file, { upsert: true })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const message =
+      error.message === 'Bucket not found'
+        ? 'Bucket "proposal-assets" não existe. No Supabase, execute o trecho de Storage do schema.sql (criar buckets e políticas).'
+        : error.message
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 
   const { data: urlData } = supabase.storage.from('proposal-assets').getPublicUrl(data.path)

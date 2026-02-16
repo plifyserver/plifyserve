@@ -33,11 +33,24 @@ export interface ProposalPlan {
 
 export interface TemplateStructure {
   companyLogo?: string
+  /** Logo exibida no rodapé (pode ser diferente da do cabeçalho) */
+  footerLogo?: string
   companyName: string
   companyPhone: string
+  /** Múltiplos telefones (um por linha); usa este se preenchido, senão [companyPhone] */
+  companyPhones?: string[]
   companyEmail: string
   /** Múltiplos e-mails de contato (usa este se preenchido, senão [companyEmail]) */
   companyEmails?: string[]
+  /** Site da empresa (opcional) */
+  companyWebsite?: string
+  /** Links de redes sociais da empresa (exibidos só se preenchidos) */
+  socialLinks?: {
+    instagram?: string
+    facebook?: string
+    tiktok?: string
+    x?: string
+  }
   proposalType: string
   serviceType: string
   serviceDescription: string
@@ -56,8 +69,12 @@ export interface TemplateStructure {
   productDescription?: string
   /** URL da foto do produto */
   productPhotoUrl?: string
-  /** Texto que passa no rolo (marquee) */
+  /** Texto que passa no rolo (marquee) – um único texto (legado) */
   marqueeText?: string
+  /** Até 3 textos para o rolo (marquee); se preenchido, usa estes em vez de marqueeText */
+  marqueeTexts?: string[]
+  /** Até 2 fotos exibidas entre o rolo de texto e os planos/valores */
+  middlePhotos?: string[]
   /** 'single' = valor único + o que inclui; 'plans' = até 6 planos */
   pricingMode?: 'single' | 'plans'
   /** Para valor único: o que inclui no pacote */
@@ -68,6 +85,8 @@ export interface TemplateStructure {
   whyChooseMe?: string
   /** Texto chamativo para contato e incentivo a aceitar */
   contactCta?: string
+  /** Texto do botão em cada plano (quando há vários planos); ex: "Aceitar plano" */
+  acceptPlanButtonText?: string
 }
 
 export interface Proposal {
@@ -90,11 +109,8 @@ export interface Proposal {
 }
 
 export const COLOR_PALETTES = [
-  { id: 'default', name: 'Padrão', colors: ['#000000', '#84cc16', '#ffffff'] },
-  { id: 'lime-dark', name: 'Lima Escuro', colors: ['#0a0a0a', '#a3e635', '#d4d4d4'] },
+  { id: 'default', name: 'Padrão (verde)', colors: ['#000000', '#84cc16', '#ffffff'] },
   { id: 'lime-forest', name: 'Lima Floresta', colors: ['#171717', '#65a30d', '#fafafa'] },
-  { id: 'lime-mint', name: 'Lima Menta', colors: ['#000000', '#bef264', '#ffffff'] },
-  { id: 'lime-neon', name: 'Lima Neon', colors: ['#09090b', '#84cc16', '#e4e4e7'] },
   { id: 'lime-subtle', name: 'Lima Suave', colors: ['#0c0c0c', '#4d7c0f', '#a1a1aa'] },
   { id: 'red', name: 'Vermelho', colors: ['#1c1917', '#dc2626', '#fef2f2'] },
   { id: 'red-dark', name: 'Vermelho Escuro', colors: ['#0a0a0a', '#ef4444', '#fecaca'] },

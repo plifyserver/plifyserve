@@ -10,6 +10,14 @@ interface BillingData {
   proposals: { title: string; value: number; accepted_at: string }[]
 }
 
+function getAcceptedValue(p: { proposal_value?: number | null; content?: { acceptedPlan?: { price?: number } } }): number {
+  const v = p.proposal_value
+  if (v != null && !Number.isNaN(Number(v))) return Number(v)
+  const plan = p.content?.acceptedPlan
+  if (plan && typeof plan.price === 'number') return plan.price
+  return 0
+}
+
 export default function FaturamentoPage() {
   const [data, setData] = useState<BillingData[]>([])
   const [selectedMonth, setSelectedMonth] = useState(0)
@@ -21,14 +29,10 @@ export default function FaturamentoPage() {
       if (!res.ok) return
 
       const all = await res.json()
-      const accepted = all.filter((p: { status: string }) => p.status === 'accepted') as {
-        title: string
-        proposal_value: number
-        accepted_at: string
-      }[]
+      const accepted = all.filter((p: { status: string }) => p.status === 'accepted')
 
       const byMonth: Record<string, BillingData> = {}
-      accepted.forEach((p) => {
+      accepted.forEach((p: { accepted_at: string; title: string; proposal_value?: number | null; content?: { acceptedPlan?: { price?: number } } }) => {
         const date = new Date(p.accepted_at)
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
         if (!byMonth[key]) {
@@ -39,11 +43,12 @@ export default function FaturamentoPage() {
             proposals: [],
           }
         }
+        const value = getAcceptedValue(p)
         byMonth[key].accepted += 1
-        byMonth[key].totalValue += Number(p.proposal_value || 0)
+        byMonth[key].totalValue += value
         byMonth[key].proposals.push({
           title: p.title,
-          value: Number(p.proposal_value || 0),
+          value,
           accepted_at: p.accepted_at,
         })
       })

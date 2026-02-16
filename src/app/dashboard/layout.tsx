@@ -17,6 +17,8 @@ import {
   Network,
   Calendar,
   Settings,
+  PenTool,
+  PieChart,
 } from 'lucide-react'
 import { useState } from 'react'
 import { NextEventNotification } from '@/components/NextEventNotification'
@@ -26,6 +28,8 @@ const navItems = [
   { href: '/dashboard/metricas', icon: BarChart3, label: 'Métricas Meta' },
   { href: '/dashboard/templates', icon: FileText, label: 'Templates' },
   { href: '/dashboard/propostas', icon: FolderOpen, label: 'Propostas' },
+  { href: '/dashboard/assinaturas-digitais', icon: PenTool, label: 'Assinaturas Digitais' },
+  { href: '/dashboard/relatorios', icon: PieChart, label: 'Relatórios' },
   { href: '/dashboard/mapa-mental', icon: Network, label: 'Mapa Mental' },
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/faturamento', icon: DollarSign, label: 'Faturamento' },
@@ -61,14 +65,14 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen flex">
-      {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white/80 border-r border-gray-200 fixed h-full">
-        <div className="p-6 border-b border-gray-200">
+      {/* Sidebar - Desktop (preto, letras claras) */}
+      <aside className="hidden lg:flex flex-col w-64 bg-gray-900 border-r border-gray-800 fixed h-full">
+        <div className="p-6 border-b border-gray-800 flex-shrink-0">
           <Link href="/dashboard" className="flex justify-center">
-            <Image src="/plify.png" alt="Plify" width={56} height={56} className="rounded-xl logo-avocado" />
+            <Image src="/plify.png" alt="Plify" width={56} height={56} className="rounded-xl logo-avocado brightness-110" />
           </Link>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1 min-h-0">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -76,7 +80,7 @@ export default function DashboardLayout({
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 pathname === item.href
                   ? 'bg-avocado text-white'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  : 'text-gray-300 hover:text-white hover:bg-gray-800'
               }`}
             >
               <item.icon className="w-5 h-5" />
@@ -84,23 +88,23 @@ export default function DashboardLayout({
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-200 space-y-2">
+        <div className="p-4 border-t border-gray-800 space-y-2 flex-shrink-0 bg-gray-900">
           {!isPro && (
             <Link
               href="/dashboard/assinatura"
-              className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border border-amber-500/30"
+              className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
             >
               <DollarSign className="w-5 h-5" />
               Assinar Pro - R$ 4,90/mês
             </Link>
           )}
-          <p className="px-4 py-2 text-sm text-gray-500">
+          <p className="px-4 py-2 text-sm text-gray-400">
             Propostas ilimitadas
           </p>
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-gray-600 hover:text-red-500 hover:bg-red-50 transition-colors text-left"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-gray-300 hover:text-red-400 hover:bg-gray-800 transition-colors text-left"
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
             Sair
@@ -127,26 +131,26 @@ export default function DashboardLayout({
         />
       )}
 
-      {/* Mobile sidebar */}
+      {/* Mobile sidebar (preto, letras claras) */}
       <aside
-        className={`lg:hidden fixed top-0 left-0 z-50 h-full w-72 bg-white border-r border-gray-200 shadow-xl transform transition-transform ${
+        className={`lg:hidden fixed top-0 left-0 z-50 flex flex-col h-full w-72 bg-gray-900 border-r border-gray-800 shadow-xl transform transition-transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-6 flex justify-between items-center border-b border-gray-200">
-          <span className="font-bold">Menu</span>
-          <button onClick={() => setSidebarOpen(false)}>
+        <div className="p-6 flex justify-between items-center border-b border-gray-800 flex-shrink-0">
+          <span className="font-bold text-white">Menu</span>
+          <button onClick={() => setSidebarOpen(false)} className="text-gray-300 hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <nav className="p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1 min-h-0">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
-                pathname === item.href ? 'bg-avocado text-white' : 'text-gray-600'
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                pathname === item.href ? 'bg-avocado text-white' : 'text-gray-300 hover:text-white hover:bg-gray-800'
               }`}
             >
               <item.icon className="w-5 h-5" />
@@ -154,11 +158,11 @@ export default function DashboardLayout({
             </Link>
           ))}
         </nav>
-        <div className="p-4">
+        <div className="p-4 border-t border-gray-800 flex-shrink-0">
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-gray-600 hover:text-red-500 hover:bg-red-50 transition-colors text-left"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-gray-300 hover:text-red-400 hover:bg-gray-800 transition-colors text-left"
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
             Sair

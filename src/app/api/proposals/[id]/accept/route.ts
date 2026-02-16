@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
@@ -22,13 +22,27 @@ export async function POST(
     return NextResponse.json({ error: 'Proposta já foi processada' }, { status: 400 })
   }
 
+  let updatePayload: Record<string, unknown> = {
+    status: 'accepted',
+    accepted_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+  try {
+    const body = await request.json().catch(() => ({}))
+    if (body?.selectedPlan && typeof body.selectedPlan === 'object') {
+      updatePayload.content = { ...(proposal.content as object), acceptedPlan: body.selectedPlan }
+      const planPrice = body.selectedPlan.price
+      if (typeof planPrice === 'number' && !Number.isNaN(planPrice)) {
+        updatePayload.proposal_value = planPrice
+      }
+    }
+  } catch {
+    // body vazio ou inválido: mantém content como está
+  }
+
   const { data: updated, error } = await supabase
     .from('proposals')
-    .update({
-      status: 'accepted',
-      accepted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', id)
     .select()
     .single()
