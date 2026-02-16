@@ -63,9 +63,9 @@ export default function CadastroPage() {
       return
     }
 
-    setSuccess(data.message || 'Conta criada! Verifique seu email.')
+    setSuccess(data.message || 'Conta criada! Faça login para continuar.')
     if (data.userId) {
-      setTimeout(() => router.push('/dashboard'), 2000)
+      setTimeout(() => router.push('/login'), 2000)
     }
   }
 

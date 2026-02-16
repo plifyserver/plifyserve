@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recuperar senha - Plify</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden;">
+          <!-- Header com logo -->
+          <tr>
+            <td style="padding: 40px 40px 24px 40px; text-align: center; background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%); border-bottom: 1px solid #eee;">
+              <img src="https://plifyserve.vercel.app/plify.png" alt="Plify" width="72" height="72" style="display: block; margin: 0 auto 16px; border-radius: 14px;" />
+              <span style="font-size: 22px; font-weight: 700; color: #1a1a1a; letter-spacing: -0.02em;">Plify</span>
+            </td>
+          </tr>
+          <!-- Conteúdo -->
+          <tr>
+            <td style="padding: 32px 40px 40px 40px;">
+              <h1 style="margin: 0 0 12px; font-size: 20px; font-weight: 700; color: #1a1a1a;">Recuperar senha</h1>
+              <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: #525252;">
+                Você pediu para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha. O link expira em 1 hora.
+              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="border-radius: 10px; background-color: #568203;">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" rel="noopener" style="display: inline-block; padding: 14px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">
+                      Redefinir senha
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 24px 0 0; font-size: 13px; line-height: 1.5; color: #737373;">
+                Se você não pediu essa alteração, ignore este email. Sua senha não será alterada.
+              </p>
+              <p style="margin: 16px 0 0; font-size: 12px; color: #a3a3a3;">
+                — Equipe Plify
+              </p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin: 24px 0 0; font-size: 12px; color: #a3a3a3;">
+          Métricas, propostas e sua página.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
