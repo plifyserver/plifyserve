@@ -252,7 +252,7 @@ export default function AgendaPage() {
               endAccessor="end"
               date={date}
               view={view}
-              onNavigate={(d) => setDate(d)}
+              onNavigate={(d: Date) => setDate(d)}
               onView={(v) => setView(v as View)}
               style={{ height: '100%' }}
               onSelectSlot={handleSelectSlot}
