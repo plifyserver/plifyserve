@@ -1,5 +1,19 @@
 export type ProposalStatus = 'open' | 'accepted' | 'ignored'
 
+/** Status do cliente (modelo Base44) */
+export type ClientStatus = 'active' | 'inactive' | 'lead' | 'archived'
+
+export interface Client {
+  id: string
+  user_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  status: ClientStatus
+  created_at: string
+  updated_at: string
+}
+
 export interface Profile {
   id: string
   email: string | null

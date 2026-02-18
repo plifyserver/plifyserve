@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Palette, Upload, Plus, Trash2 } from 'lucide-react'
 import type { TemplateStructure, ProposalPlan } from '@/types'
 import { COLOR_PALETTES } from '@/types'
+import type { Client } from '@/types'
 
 /** Parse BR format: "2.000" = 2000, "2.000,50" = 2000.50, "2000" = 2000 */
 function parseCurrencyInput(raw: string): number | null {
@@ -44,8 +45,17 @@ export function TemplateEditor({
   const [showPalette, setShowPalette] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
   const [uploadingProduct, setUploadingProduct] = useState(false)
+  const [clients, setClients] = useState<Client[]>([])
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const productInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (content.clientesGerais) return
+    fetch('/api/clients', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: Client[]) => setClients(data ?? []))
+      .catch(() => setClients([]))
+  }, [content.clientesGerais])
 
   const palette = COLOR_PALETTES.find((p) => p.id === colorPalette) || COLOR_PALETTES[0]
   const canEdit = true
@@ -179,17 +189,68 @@ export function TemplateEditor({
           </label>
         </div>
         {!content.clientesGerais && (
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Nome do cliente</label>
-            <input
-              type="text"
-              value={content.clientName || ''}
-              onChange={(e) => setContent({ ...content, clientName: e.target.value || undefined })}
-              disabled={!canEdit}
-              placeholder="Opcional"
-              className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
-            />
-          </div>
+          <>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-zinc-300 mb-2">Cliente cadastrado</label>
+              <select
+                value=""
+                onChange={(e) => {
+                  const id = e.target.value
+                  const c = clients.find((x) => x.id === id)
+                  if (c) {
+                    setContent({
+                      ...content,
+                      clientName: c.name,
+                      clientEmail: c.email ?? undefined,
+                      clientPhone: c.phone ?? undefined,
+                    })
+                  }
+                }}
+                disabled={!canEdit}
+                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
+              >
+                <option value="">Selecionar cliente (opcional)</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.email ? `(${c.email})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-zinc-300 mb-2">Nome do cliente</label>
+              <input
+                type="text"
+                value={content.clientName || ''}
+                onChange={(e) => setContent({ ...content, clientName: e.target.value || undefined })}
+                disabled={!canEdit}
+                placeholder="Opcional"
+                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">E-mail do cliente</label>
+              <input
+                type="email"
+                value={content.clientEmail || ''}
+                onChange={(e) => setContent({ ...content, clientEmail: e.target.value || undefined })}
+                disabled={!canEdit}
+                placeholder="Opcional"
+                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">Telefone do cliente</label>
+              <input
+                type="text"
+                value={content.clientPhone || ''}
+                onChange={(e) => setContent({ ...content, clientPhone: e.target.value || undefined })}
+                disabled={!canEdit}
+                placeholder="Opcional"
+                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 disabled:opacity-50"
+              />
+            </div>
+          </>
         )}
         <div>
           <label className="block text-sm font-medium text-zinc-300 mb-2">Data da proposta</label>
