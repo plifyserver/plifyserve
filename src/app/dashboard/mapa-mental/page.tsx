@@ -88,16 +88,18 @@ function CustomNode({ data, id }: NodeProps<NodeData>) {
           )
         )
       }
+      const onMoveListener = onMove as EventListener
+      const touchOpts = { passive: false } as AddEventListenerOptions
       const onUp = () => {
         startRef.current = null
         window.removeEventListener('mousemove', onMove)
         window.removeEventListener('mouseup', onUp)
-        window.removeEventListener('touchmove', onMove, { passive: false })
+        window.removeEventListener('touchmove', onMoveListener, touchOpts)
         window.removeEventListener('touchend', onUp)
       }
       window.addEventListener('mousemove', onMove)
       window.addEventListener('mouseup', onUp)
-      window.addEventListener('touchmove', onMove, { passive: false })
+      window.addEventListener('touchmove', onMoveListener, touchOpts)
       window.addEventListener('touchend', onUp)
     },
     [id, w, h, setNodes]
@@ -488,15 +490,17 @@ function MindMapEditor() {
   }
 
   const onConnect = useCallback((params: Connection) => {
-    if (!params.source || !params.target) return
+    const source = params.source ?? ''
+    const target = params.target ?? ''
+    if (!source || !target) return
     setEdges((eds) => [
       ...eds,
       {
-        id: `e-${params.source}-${params.target}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        source: params.source,
-        target: params.target,
-        sourceHandle: params.sourceHandle,
-        targetHandle: params.targetHandle,
+        id: `e-${source}-${target}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        source,
+        target,
+        sourceHandle: params.sourceHandle ?? null,
+        targetHandle: params.targetHandle ?? null,
       },
     ])
     showToast('Nós conectados')
@@ -683,8 +687,7 @@ function MindMapEditor() {
         onNodeDoubleClick={onNodeDoubleClick}
         nodeTypes={nodeTypes}
         fitView
-        className="bg-gray-50"
-        edgeClassName="!stroke-[#568203]"
+        className="bg-gray-50 [&_.react-flow__edge-path]:!stroke-[#568203]"
       >
         <Background color="#d1d5db" gap={16} />
         <Controls className="!bg-white !border-gray-200 !rounded-lg [&>button]:!bg-gray-100 [&>button]:!text-gray-700 [&>button:hover]:!bg-gray-200" />

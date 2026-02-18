@@ -9,6 +9,14 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
+function getAcceptedValue(proposal: Proposal): number {
+  const v = proposal.proposal_value
+  if (v != null && !Number.isNaN(Number(v))) return Number(v)
+  const plan = (proposal.content as { acceptedPlan?: { price?: number } })?.acceptedPlan
+  if (plan && typeof plan.price === 'number') return plan.price
+  return 0
+}
+
 export default function PropostasPage() {
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [acceptedProposals, setAcceptedProposals] = useState<Proposal[]>([])
@@ -38,7 +46,7 @@ export default function PropostasPage() {
   }
 
   const duplicateProposal = async (proposal: Proposal) => {
-    const newSlug = `${proposal.slug}-${Date.now()}`
+    const newSlug = `prop-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const res = await fetch('/api/proposals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -51,12 +59,19 @@ export default function PropostasPage() {
         content: proposal.content,
         color_palette: proposal.color_palette,
         confirm_button_text: proposal.confirm_button_text,
+        client_name: proposal.client_name ?? null,
+        client_email: proposal.client_email ?? null,
+        client_phone: proposal.client_phone ?? null,
+        proposal_value: proposal.proposal_value ?? null,
       }),
     })
-    const newProposal = await res.json()
-    if (res.ok && newProposal) {
-      setProposals((prev) => [newProposal as Proposal, ...prev])
+    const data = await res.json().catch(() => null)
+    if (res.ok && data) {
+      setProposals((prev) => [data as Proposal, ...prev])
+      return data as Proposal
     }
+    alert((data as { error?: string })?.error || 'Erro ao duplicar proposta')
+    return null
   }
 
   const deleteProposal = async (id: string) => {
@@ -242,7 +257,7 @@ export default function PropostasPage() {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </div>
+                    </div>
                 </CardContent>
               </Card>
             ))

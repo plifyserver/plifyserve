@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       userId: data.user?.id,
-      message: 'Conta criada! Verifique seu email para confirmar.',
+      message: 'Conta criada! Faça login para continuar.',
     })
   } catch {
     return NextResponse.json({ error: 'Erro ao criar conta' }, { status: 500 })

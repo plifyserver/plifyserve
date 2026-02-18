@@ -2,8 +2,10 @@
 
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import confetti from 'canvas-confetti'
 import { ProposalTemplate3D } from '@/components/ProposalTemplate3D'
-import type { Proposal } from '@/types'
+import { COLOR_PALETTES } from '@/types'
+import type { Proposal, ProposalPlan } from '@/types'
 
 export default function PublicProposalPage() {
   const params = useParams()
@@ -25,14 +27,44 @@ export default function PublicProposalPage() {
     fetchProposal()
   }, [slug])
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (selectedPlan?: ProposalPlan) => {
     if (!proposal) return
 
     const res = await fetch(`/api/proposals/${proposal.id}/accept`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: selectedPlan ? JSON.stringify({ selectedPlan }) : undefined,
     })
     if (res.ok) setConfirmed(true)
   }
+
+  // Confetes com cores da paleta ao aceitar
+  useEffect(() => {
+    if (!confirmed || !proposal) return
+    const palette = COLOR_PALETTES.find((p) => p.id === proposal.color_palette) || COLOR_PALETTES[0]
+    const colors = [...palette.colors]
+
+    const duration = 2500
+    const end = Date.now() + duration
+    const frame = () => {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors,
+      })
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors,
+      })
+      if (Date.now() < end) requestAnimationFrame(frame)
+    }
+    frame()
+  }, [confirmed, proposal])
 
   if (loading) {
     return (

@@ -93,6 +93,8 @@ export default function EditarProposalPage() {
           clientPhone: content.clientPhone || proposal.client_phone || undefined,
           value: content.value ?? proposal.proposal_value ?? undefined,
         }}
+        initialConfirmButtonText={proposal.confirm_button_text}
+        initialColorPalette={proposal.color_palette}
         onSave={handleSave}
         isPro={isPro}
         editsRemaining={editsRemaining}

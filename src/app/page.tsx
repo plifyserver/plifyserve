@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Globe } from 'lucide-react'
@@ -38,8 +39,43 @@ const distributionData = [
   { name: 'Recorrentes', value: 40, color: '#e2e8f0' },
 ]
 
+const STATS = [
+  { target: 500, suffix: '+', label: 'Usuários ativos' },
+  { target: 10, suffix: 'k+', label: 'Propostas criadas' },
+  { target: 98, suffix: '%', label: 'Taxa de satisfação' },
+  { target: 2, suffix: ' min', label: 'Para começar' },
+] as const
+
+function easeOutCubic(t: number) {
+  return 1 - (1 - t) ** 3
+}
+
 export default function LandingPage() {
   const { user } = useAuth()
+  const [statsTick, setStatsTick] = useState(0)
+  const [displayed, setDisplayed] = useState([0, 0, 0, 0])
+
+  useEffect(() => {
+    const interval = setInterval(() => setStatsTick((t) => t + 1), 4000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    setDisplayed([0, 0, 0, 0])
+    const duration = 1200
+    const start = performance.now()
+    let rafId: number
+
+    const tick = (now: number) => {
+      const elapsed = now - start
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = easeOutCubic(progress)
+      setDisplayed(STATS.map((s) => Math.round(s.target * eased)))
+      if (progress < 1) rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [statsTick])
 
   return (
     <div className="min-h-screen bg-white">

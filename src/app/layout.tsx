@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SpaceKeyFix } from "@/components/SpaceKeyFix";
 
 export const metadata: Metadata = {
   title: "Plify - Gestão e Propostas",
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="antialiased">
+        <SpaceKeyFix />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
