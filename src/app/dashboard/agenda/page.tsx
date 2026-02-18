@@ -11,6 +11,8 @@ import { X, Loader2, Link2, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { View } from 'react-big-calendar'
+
 
 const locales = { 'pt-BR': ptBR }
 const localizer = dateFnsLocalizer({
@@ -253,8 +255,8 @@ export default function AgendaPage() {
               date={date}
               view={view}
               onNavigate={(d: Date) => setDate(d)}
-              onView={(v) => setView(v as View)}
-              style={{ height: '100%' }}
+              onView={(v: View) => setView(v)}
+                            style={{ height: '100%' }}
               onSelectSlot={handleSelectSlot}
               selectable
               eventPropGetter={eventStyleGetter}
