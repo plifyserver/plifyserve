@@ -233,11 +233,19 @@ export async function generateSignedPDF(
 }
 
 export function downloadPDF(pdfBytes: Uint8Array, filename: string): void {
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+  // Cria um ArrayBuffer REAL (não ArrayBufferLike)
+  const arrayBuffer = new ArrayBuffer(pdfBytes.byteLength)
+  const view = new Uint8Array(arrayBuffer)
+  view.set(pdfBytes)
+
+  const blob = new Blob([arrayBuffer], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
+
   const link = document.createElement('a')
   link.href = url
   link.download = filename
   link.click()
+
   URL.revokeObjectURL(url)
 }
+

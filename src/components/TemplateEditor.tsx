@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Palette, Upload, Plus, Trash2 } from 'lucide-react'
+import { Palette, Upload, Plus, Trash2, Eye } from 'lucide-react'
 import type { TemplateStructure, ProposalPlan } from '@/types'
 import { COLOR_PALETTES } from '@/types'
 import type { Client } from '@/types'
+import { ProposalTemplate3D } from '@/components/ProposalTemplate3D'
+
 
 /** Parse BR format: "2.000" = 2000, "2.000,50" = 2000.50, "2000" = 2000 */
 function parseCurrencyInput(raw: string): number | null {
@@ -44,7 +46,14 @@ export function TemplateEditor({
   initialConfirmButtonText,
   initialColorPalette,
 }: TemplateEditorProps) {
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+const [uploadingFooterLogo, setUploadingFooterLogo] = useState(false)
+const [uploadingMiddle, setUploadingMiddle] = useState(false)
+
+const [logoVersion, setLogoVersion] = useState(0)
+const [footerLogoVersion, setFooterLogoVersion] = useState(0)
   const [content, setContent] = useState<TemplateStructure>(initialContent)
+  const [productPhotoVersion, setProductPhotoVersion] = useState(0)
   const [confirmButtonText, setConfirmButtonText] = useState(initialConfirmButtonText ?? 'CONFIRMAR PROPOSTA')
   const [colorPalette, setColorPalette] = useState(initialColorPalette ?? 'default')
   const [showPalette, setShowPalette] = useState(false)

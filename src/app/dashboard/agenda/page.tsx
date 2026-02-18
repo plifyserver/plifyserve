@@ -272,7 +272,7 @@ export default function AgendaPage() {
                 time: 'Hora',
                 event: 'Evento',
                 noEventsInRange: 'Nenhum compromisso neste período.',
-                showMore: (n) => `+${n} mais`,
+                showMore: (n: number) => `+${n} mais`,
                 allDay: 'Dia inteiro',
                 yesterday: 'Ontem',
                 tomorrow: 'Amanhã',
