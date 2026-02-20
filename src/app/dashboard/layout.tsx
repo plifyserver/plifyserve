@@ -114,15 +114,20 @@ export default function DashboardLayout({
     if (settings.app_name) document.title = settings.app_name
   }, [settings])
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     setSidebarOpen(false)
     setProfileOpen(false)
     try {
       await signOut()
-    } finally {
-      router.push('/login')
-      router.refresh()
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error)
     }
+    // Força redirecionamento usando window.location para garantir limpeza completa
+    window.location.href = '/login'
   }
 
   const accentColor = settings?.primary_color || '#dc2626'
@@ -219,7 +224,7 @@ export default function DashboardLayout({
           {!sidebarCollapsed ? (
             <button
               type="button"
-              onClick={handleSignOut}
+              onClick={(e) => handleSignOut(e)}
               className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-white/70 hover:bg-white/10 text-left"
             >
               <LogOut className="w-5 h-5 flex-shrink-0" />
@@ -228,7 +233,7 @@ export default function DashboardLayout({
           ) : (
             <button
               type="button"
-              onClick={handleSignOut}
+              onClick={(e) => handleSignOut(e)}
               className="flex items-center justify-center w-full p-2.5 rounded-lg text-white/70 hover:bg-white/10"
               title="Sair"
             >
@@ -308,7 +313,7 @@ export default function DashboardLayout({
           )}
           <button
             type="button"
-            onClick={handleSignOut}
+            onClick={(e) => handleSignOut(e)}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-white/70 hover:bg-white/10"
           >
             <LogOut className="w-5 h-5" />
@@ -391,10 +396,7 @@ export default function DashboardLayout({
                     <div className="border-t border-slate-100 my-1" />
                     <button
                       type="button"
-                      onClick={() => {
-                        setProfileOpen(false)
-                        handleSignOut()
-                      }}
+                      onClick={(e) => handleSignOut(e)}
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
                     >
                       <LogOut className="w-4 h-4" />
