@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { generateProposalSlug } from '@/lib/generateProposalSlug'
 
 export async function GET() {
   const userId = await getCurrentUserId()
@@ -30,6 +31,10 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json()
   const supabase = await createClient()
+  
+  // Gerar slug único
+  const publicSlug = body.public_slug || generateProposalSlug(body.title || 'proposta', body.client_name || 'cliente')
+  
   const { data, error } = await supabase
     .from('proposals')
     .insert({
@@ -37,7 +42,8 @@ export async function POST(request: NextRequest) {
       template_base_id: body.template_base_id ?? null,
       title: body.title,
       slug: body.slug,
-      status: body.status || 'open',
+      public_slug: publicSlug,
+      status: body.status || 'draft',
       content: body.content ?? {},
       color_palette: body.color_palette || 'default',
       confirm_button_text: body.confirm_button_text || 'CONFIRMAR PROPOSTA',
@@ -45,6 +51,7 @@ export async function POST(request: NextRequest) {
       client_email: body.client_email ?? null,
       client_phone: body.client_phone ?? null,
       proposal_value: body.proposal_value ?? null,
+      views: 0,
     })
     .select()
     .single()

@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Users,
   FileText,
-  PenLine,
   Briefcase,
   Calendar,
   BarChart3,
@@ -29,14 +28,17 @@ import {
   Bell,
   ChevronDown,
   User,
+  Sparkles,
+  CreditCard,
 } from 'lucide-react'
+import { UpgradeModal } from '@/components/UpgradeModal'
+import NotificationsDropdown from '@/components/NotificationsDropdown'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/clientes', icon: Users, label: 'Clientes' },
   { href: '/dashboard/propostas', icon: FileText, label: 'Propostas' },
   { href: '/dashboard/documentos', icon: FileSignature, label: 'Contratos' },
-  { href: '/dashboard/criar-assinatura', icon: PenLine, label: 'Criar Assinatura' },
   { href: '/dashboard/wello', icon: LayoutGrid, label: 'Wello' },
   { href: '/dashboard/projetos', icon: Briefcase, label: 'Projetos' },
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
@@ -47,6 +49,7 @@ const navItems = [
   { href: '/dashboard/tarefas', icon: CheckSquare, label: 'Tarefas' },
   { href: '/dashboard/kanban', icon: Columns3, label: 'Kanban' },
   { href: '/dashboard/personalizacao', icon: Palette, label: 'Personalização' },
+  { href: '/dashboard/planos', icon: CreditCard, label: 'Planos' },
   { href: '/dashboard/configuracoes', icon: Settings, label: 'Configurações' },
 ]
 
@@ -66,18 +69,19 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { profile, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const headerRef = useRef<HTMLDivElement>(null)
+
+  const isPro = profile?.plan === 'pro' || profile?.plan_type === 'pro' || profile?.account_type === 'admin'
 
   useEffect(() => {
     const closeDropdowns = (e: MouseEvent) => {
       if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
-        setNotifOpen(false)
         setProfileOpen(false)
       }
     }
@@ -112,15 +116,19 @@ export default function DashboardLayout({
 
   const handleSignOut = async () => {
     setSidebarOpen(false)
-    await signOut()
-    router.push('/')
-    router.refresh()
+    setProfileOpen(false)
+    try {
+      await signOut()
+    } finally {
+      router.push('/login')
+      router.refresh()
+    }
   }
 
   const accentColor = settings?.primary_color || '#dc2626'
   const sidebarBg = settings?.secondary_color || '#1e293b'
-  const appName = settings?.app_name || 'plify'
-  const logoUrl = settings?.logo_url || '/plify.png'
+  const appName = settings?.app_name || ''
+  const logoUrl = settings?.logo_url && settings.logo_url.trim() !== '' ? settings.logo_url : '/logobranco.png'
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -139,30 +147,30 @@ export default function DashboardLayout({
           backgroundColor: sidebarBg,
         }}
       >
-        <div className="p-4 flex items-center justify-between min-h-[64px] border-b border-white/10">
+        <div className="px-4 py-3 flex items-center justify-between min-h-[64px] border-b border-white/10">
           {!sidebarCollapsed && (
-            <Link href="/dashboard" className="flex items-center gap-2 overflow-hidden">
-              {logoUrl.startsWith('http') ? (
-                <img src={logoUrl} alt={appName} className="h-9 w-9 object-contain rounded-lg" />
-              ) : (
-                <Image src={logoUrl} alt={appName} width={36} height={36} className="rounded-lg" />
-              )}
-              <span className="font-semibold text-white truncate lowercase">{appName}</span>
+            <Link href="/dashboard" className="flex-1 min-w-0">
+              <Image 
+                src={logoUrl} 
+                alt="Logo" 
+                width={160} 
+                height={40} 
+                className="h-10 w-auto object-contain object-left" 
+                priority 
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  if (target.src !== '/logobranco.png') {
+                    target.src = '/logobranco.png'
+                  }
+                }}
+              />
             </Link>
           )}
-          {sidebarCollapsed && (
-            <Link href="/dashboard" className="flex justify-center w-full">
-              {logoUrl.startsWith('http') ? (
-                <img src={logoUrl} alt={appName} className="h-8 w-8 object-contain rounded-lg" />
-              ) : (
-                <Image src={logoUrl} alt={appName} width={32} height={32} className="rounded-lg" />
-              )}
-            </Link>
-          )}
+          {sidebarCollapsed && <div className="flex-1" />}
           <button
             type="button"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-white/80"
+            className="p-1.5 rounded-lg hover:bg-white/10 text-white/80 flex-shrink-0"
             title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
           >
             <Menu className="w-5 h-5" />
@@ -187,15 +195,28 @@ export default function DashboardLayout({
           ))}
         </nav>
         <div className="p-2 border-t border-white/10 flex flex-col gap-0.5">
-          <button
-            type="button"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="flex items-center justify-center w-full p-2.5 rounded-lg text-white/70 hover:bg-white/10"
-            title="Recolher menu"
-          >
-            <ChevronDown className="w-5 h-5 rotate-[-90deg]" />
-          </button>
-          {!sidebarCollapsed && (
+          {/* Upgrade Pro button */}
+          {!sidebarCollapsed && !isPro && (
+            <button
+              type="button"
+              onClick={() => setShowUpgradeModal(true)}
+              className="flex items-center gap-3 w-full px-3 py-2.5 mb-1 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium transition-all"
+            >
+              <Sparkles className="w-5 h-5 flex-shrink-0" />
+              <span>Upgrade Pro</span>
+            </button>
+          )}
+          {sidebarCollapsed && !isPro && (
+            <button
+              type="button"
+              onClick={() => setShowUpgradeModal(true)}
+              className="flex items-center justify-center w-full p-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              title="Upgrade Pro"
+            >
+              <Sparkles className="w-5 h-5 text-white" />
+            </button>
+          )}
+          {!sidebarCollapsed ? (
             <button
               type="button"
               onClick={handleSignOut}
@@ -203,6 +224,15 @@ export default function DashboardLayout({
             >
               <LogOut className="w-5 h-5 flex-shrink-0" />
               <span>Sair</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex items-center justify-center w-full p-2.5 rounded-lg text-white/70 hover:bg-white/10"
+              title="Sair"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -213,13 +243,8 @@ export default function DashboardLayout({
         <button onClick={() => setSidebarOpen(true)} className="p-2">
           <Menu className="w-6 h-6 text-slate-700" />
         </button>
-        <Link href="/dashboard" className="flex items-center gap-2">
-          {logoUrl.startsWith('http') ? (
-            <img src={logoUrl} alt={appName} className="h-9 w-9 object-contain rounded-lg" />
-          ) : (
-            <Image src={logoUrl} alt={appName} width={36} height={36} className="rounded-lg" />
-          )}
-          <span className="font-semibold text-slate-900">{appName}</span>
+        <Link href="/dashboard" className="flex items-center">
+          <Image src="/logopreto.png" alt="Logo" width={140} height={36} className="h-9 max-w-[140px] object-contain" priority />
         </Link>
         <div className="w-10" />
       </div>
@@ -237,7 +262,16 @@ export default function DashboardLayout({
         style={{ backgroundColor: sidebarBg }}
       >
         <div className="p-4 flex justify-between items-center border-b border-white/10">
-          <span className="font-semibold text-white">Menu</span>
+          <Link href="/dashboard" onClick={() => setSidebarOpen(false)}>
+            <Image 
+              src={logoUrl} 
+              alt="Logo" 
+              width={120} 
+              height={32} 
+              className="h-8 w-auto object-contain" 
+              priority 
+            />
+          </Link>
           <button onClick={() => setSidebarOpen(false)} className="p-2 text-white/80">
             <X className="w-5 h-5" />
           </button>
@@ -258,7 +292,20 @@ export default function DashboardLayout({
             </Link>
           ))}
         </nav>
-        <div className="p-2">
+        <div className="p-2 space-y-1">
+          {!isPro && (
+            <button
+              type="button"
+              onClick={() => {
+                setSidebarOpen(false)
+                setShowUpgradeModal(true)
+              }}
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium"
+            >
+              <Sparkles className="w-5 h-5" />
+              Upgrade Pro
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSignOut}
@@ -274,7 +321,6 @@ export default function DashboardLayout({
       <div className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <header ref={headerRef} className="bg-white border-b border-slate-200 px-4 lg:px-6 py-3 relative">
           <div className="flex items-center justify-between gap-4">
-            <span className="font-semibold text-slate-800 lowercase lg:hidden">{appName}</span>
             <div className="flex-1 max-w-md hidden sm:block">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -287,44 +333,15 @@ export default function DashboardLayout({
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
               {/* Notificações */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setProfileOpen(false)
-                    setNotifOpen((v) => !v)
-                  }}
-                  className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
-                  aria-expanded={notifOpen}
-                  aria-haspopup="true"
-                >
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" aria-hidden />
-                </button>
-                {notifOpen && (
-                  <div
-                    className="absolute right-0 top-full mt-1 w-80 rounded-xl border border-slate-200 bg-white shadow-lg py-2 z-50"
-                    role="menu"
-                  >
-                    <div className="px-4 py-2 border-b border-slate-100">
-                      <p className="font-semibold text-slate-900">Notificações</p>
-                    </div>
-                    <div className="max-h-72 overflow-y-auto">
-                      <div className="px-4 py-6 text-center text-slate-500 text-sm">
-                        Nenhuma notificação no momento.
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {user?.id && (
+                <NotificationsDropdown userId={user.id} />
+              )}
               {/* Perfil */}
               <div className="relative pl-2 border-l border-slate-200">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
-                    setNotifOpen(false)
                     setProfileOpen((v) => !v)
                   }}
                   className="flex items-center gap-2 rounded-lg py-1 pr-1 hover:bg-slate-100 transition-colors text-left min-w-0"
@@ -391,6 +408,13 @@ export default function DashboardLayout({
         </header>
         <main className="p-4 lg:p-6 bg-slate-100">{children}</main>
       </div>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        open={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+        type="plan" 
+      />
     </div>
   )
 }

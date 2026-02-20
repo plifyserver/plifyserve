@@ -4,6 +4,9 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
+export type AccountType = 'admin' | 'socio' | 'usuario'
+export type PlanType = 'free' | 'essential' | 'pro' | 'admin'
+
 export interface Profile {
   id: string
   email: string | null
@@ -11,14 +14,19 @@ export interface Profile {
   company_name: string | null
   phone: string | null
   avatar_url: string | null
-  plan: 'free' | 'pro'
+  plan: PlanType
+  plan_type?: PlanType
+  account_type: AccountType
+  banned?: boolean
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
   edits_remaining: number
+  templates_count: number
   created_at: string
   updated_at: string
-  /** Compatível com código que usa is_pro */
   is_pro?: boolean
+  is_socio?: boolean
+  is_admin?: boolean
 }
 
 
@@ -28,6 +36,9 @@ interface AuthContextType {
   loading: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  updateProfile: (updates: Partial<Profile>) => Promise<boolean>
+  canCreateTemplate: () => boolean
+  getTemplateLimit: () => number | null
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -45,7 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('id', userId)
       .single()
     if (!data) return null
-    return { ...data, is_pro: data.plan === 'pro' } as Profile
+    return {
+      ...data,
+      account_type: data.account_type || 'usuario',
+      templates_count: data.templates_count || 0,
+      is_pro: data.plan === 'pro',
+      is_socio: data.account_type === 'socio' || data.account_type === 'admin',
+      is_admin: data.account_type === 'admin',
+    } as Profile
   }
 
   useEffect(() => {
@@ -86,18 +104,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    setUser(null)
+    setProfile(null)
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // continua mesmo se falhar
+    }
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
     } catch {
       // continua mesmo se a API falhar
     }
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
+  }
+
+  const updateProfile = async (updates: Partial<Profile>): Promise<boolean> => {
+    if (!user) return false
+    const { error } = await supabase
+      .from('profiles')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', user.id)
+    if (error) {
+      console.error('Error updating profile:', error)
+      return false
+    }
+    await refreshProfile()
+    return true
+  }
+
+  const getTemplateLimit = (): number | null => {
+    if (!profile) return 0
+    if (profile.plan === 'pro' || profile.is_admin) return null
+    if (profile.plan === 'essential') return 50
+    return 10
+  }
+
+  const canCreateTemplate = (): boolean => {
+    if (!profile) return false
+    const limit = getTemplateLimit()
+    if (limit === null) return true
+    return profile.templates_count < limit
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile, 
+      loading, 
+      signOut, 
+      refreshProfile,
+      updateProfile,
+      canCreateTemplate,
+      getTemplateLimit,
+    }}>
       {children}
     </AuthContext.Provider>
   )

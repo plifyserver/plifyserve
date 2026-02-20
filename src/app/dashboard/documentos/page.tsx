@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download } from 'lucide-react'
+import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -28,8 +28,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import SignatureCanvas from '@/components/contracts/SignatureCanvas'
+import SignatureCanvas, { type SignatureData } from '@/components/contracts/SignatureCanvas'
+import ContractUploader from '@/components/contracts/ContractUploader'
 import { generateSignedPDF, downloadPDF } from '@/lib/pdf-generator'
+import { useAuth } from '@/contexts/AuthContext'
+import { toast } from 'sonner'
 
 interface Signatory {
   name: string
@@ -37,6 +40,13 @@ interface Signatory {
   signed: boolean
   signed_at?: string | null
   signature_url?: string | null
+  cpf?: string | null
+  birth_date?: string | null
+  location?: {
+    latitude: number | null
+    longitude: number | null
+    address: string | null
+  } | null
 }
 
 interface Contract {
@@ -59,12 +69,14 @@ interface Client {
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Rascunho' },
+  { value: 'sent', label: 'Enviado' },
   { value: 'pending', label: 'Pendente' },
   { value: 'signed', label: 'Assinado' },
-  { value: 'rejected', label: 'Rejeitado' },
+  { value: 'expired', label: 'Expirado' },
 ]
 
 export default function DocumentosPage() {
+  const { user } = useAuth()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
@@ -73,6 +85,8 @@ export default function DocumentosPage() {
   const [selected, setSelected] = useState<Contract | null>(null)
   const [signatoryIndex, setSignatoryIndex] = useState<number>(0)
   const [signatoriesForSign, setSignatoriesForSign] = useState<Signatory[]>([])
+  const [signatureDetailsOpen, setSignatureDetailsOpen] = useState(false)
+  const [selectedSignatory, setSelectedSignatory] = useState<Signatory | null>(null)
   const [form, setForm] = useState({
     title: '',
     file_url: '',
@@ -122,6 +136,10 @@ export default function DocumentosPage() {
     setSelected(null)
   }
 
+  const handleFileChange = (url: string | null) => {
+    setForm((f) => ({ ...f, file_url: url || '' }))
+  }
+
   const addSignatory = () => {
     setForm((f) => ({
       ...f,
@@ -147,32 +165,53 @@ export default function DocumentosPage() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!form.title.trim()) {
+      toast.error('Informe o título do contrato')
+      return
+    }
+
     const url = selected ? `/api/contracts/${selected.id}` : '/api/contracts'
     const method = selected ? 'PUT' : 'POST'
     const clientName = form.client_id ? clients.find((c) => c.id === form.client_id)?.name ?? '' : ''
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        title: form.title,
-        file_url: form.file_url || null,
-        client_id: form.client_id || null,
-        client_name: clientName || null,
-        status: form.status,
-        signatories: form.signatories,
-      }),
-    })
-    if (res.ok) {
-      await fetchData()
-      closeDialog()
+    
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: form.title,
+          file_url: form.file_url || null,
+          client_id: form.client_id || null,
+          client_name: clientName || null,
+          status: form.status,
+          signatories: form.signatories,
+        }),
+      })
+      if (res.ok) {
+        await fetchData()
+        closeDialog()
+        toast.success(selected ? 'Contrato atualizado!' : 'Contrato criado!')
+      } else {
+        toast.error('Erro ao salvar contrato')
+      }
+    } catch {
+      toast.error('Erro ao salvar contrato')
     }
   }
 
   const remove = async (id: string) => {
     if (!confirm('Excluir este contrato?')) return
-    const res = await fetch(`/api/contracts/${id}`, { method: 'DELETE', credentials: 'include' })
-    if (res.ok) await fetchData()
+    try {
+      const res = await fetch(`/api/contracts/${id}`, { method: 'DELETE', credentials: 'include' })
+      if (res.ok) {
+        await fetchData()
+        toast.success('Contrato excluído!')
+      }
+    } catch {
+      toast.error('Erro ao excluir contrato')
+    }
   }
 
   const openSign = (contract: Contract, idx: number) => {
@@ -182,7 +221,7 @@ export default function DocumentosPage() {
     setSignDialogOpen(true)
   }
 
-  const handleSignatureSave = async (dataUrl: string) => {
+  const handleSignatureSave = async (data: SignatureData) => {
     if (!selected) return
     const signatories = [...signatoriesForSign]
     if (!signatories[signatoryIndex]) {
@@ -192,8 +231,11 @@ export default function DocumentosPage() {
     signatories[signatoryIndex] = {
       ...signatories[signatoryIndex],
       signed: true,
-      signed_at: new Date().toISOString(),
-      signature_url: dataUrl,
+      signed_at: data.signedAt,
+      signature_url: data.signatureImage,
+      cpf: data.cpf,
+      birth_date: data.birthDate,
+      location: data.location,
     }
     const allSigned = signatories.every((s) => s.signed)
     const res = await fetch(`/api/contracts/${selected.id}`, {
@@ -215,9 +257,68 @@ export default function DocumentosPage() {
     }
   }
 
+  const copySignLink = (contract: Contract) => {
+    const url = `${window.location.origin}/assinatura/${contract.id}`
+    navigator.clipboard.writeText(url)
+    toast.success('Link de assinatura copiado!')
+  }
+
+  const sendContract = async (contract: Contract) => {
+    if (contract.status === 'signed') {
+      toast.error('Este contrato já foi assinado')
+      return
+    }
+    
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...contract,
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+        }),
+      })
+      
+      if (res.ok) {
+        await fetchData()
+        copySignLink(contract)
+        toast.success('Contrato enviado! Link copiado para a área de transferência.')
+      }
+    } catch {
+      toast.error('Erro ao enviar contrato')
+    }
+  }
+
+  const duplicateContract = async (contract: Contract) => {
+    try {
+      const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: `${contract.title} (cópia)`,
+          file_url: contract.file_url,
+          client_id: contract.client_id,
+          client_name: contract.client_name,
+          status: 'draft',
+          signatories: contract.signatories?.map(s => ({ ...s, signed: false, signed_at: null, signature_url: null })) || [],
+        }),
+      })
+      
+      if (res.ok) {
+        await fetchData()
+        toast.success('Contrato duplicado!')
+      }
+    } catch {
+      toast.error('Erro ao duplicar contrato')
+    }
+  }
+
   const handleGeneratePDF = async (contract: Contract) => {
     if (!contract.file_url) {
-      alert('Adicione a URL do PDF do contrato para gerar o documento assinado.')
+      alert('Adicione um arquivo PDF ao contrato para gerar o documento assinado.')
       return
     }
     try {
@@ -237,7 +338,7 @@ export default function DocumentosPage() {
       downloadPDF(pdfBytes, `contrato-assinado-${contract.title.slice(0, 30)}.pdf`)
     } catch (err) {
       console.error(err)
-      alert('Erro ao gerar PDF. Verifique se a URL do PDF está acessível.')
+      alert('Erro ao gerar PDF. Verifique se o arquivo PDF está acessível.')
     }
   }
 
@@ -276,18 +377,29 @@ export default function DocumentosPage() {
               <tbody>
                 {contracts.map((c) => (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                    <td className="p-4 font-medium text-slate-900">{c.title}</td>
+                    <td className="p-4">
+                      <div>
+                        <p className="font-medium text-slate-900">{c.title}</p>
+                        {c.file_url && (
+                          <p className="text-xs text-slate-400 mt-0.5">PDF anexado</p>
+                        )}
+                      </div>
+                    </td>
                     <td className="p-4 text-slate-600">{c.client_name || '-'}</td>
                     <td className="p-4">
                       <span
-                        className={`inline-flex px-2 py-1 rounded-lg text-xs font-medium ${
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${
                           c.status === 'signed'
                             ? 'bg-emerald-100 text-emerald-700'
-                            : c.status === 'pending'
+                            : c.status === 'sent' || c.status === 'pending'
                               ? 'bg-amber-100 text-amber-700'
-                              : 'bg-slate-100 text-slate-600'
+                              : c.status === 'expired'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-slate-100 text-slate-600'
                         }`}
                       >
+                        {c.status === 'expired' && <AlertTriangle className="w-3 h-3" />}
+                        {c.status === 'signed' && <CheckCircle className="w-3 h-3" />}
                         {STATUS_OPTIONS.find((s) => s.value === c.status)?.label ?? c.status}
                       </span>
                     </td>
@@ -301,18 +413,37 @@ export default function DocumentosPage() {
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl">
+                        <DropdownMenuContent align="end" className="rounded-xl w-48">
                           <DropdownMenuItem onClick={() => openDialog(c)} className="rounded-lg">
                             <Edit className="w-4 h-4 mr-2" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleGeneratePDF(c)}
-                            className="rounded-lg"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Gerar PDF assinado
+                          {c.status !== 'signed' && c.status !== 'expired' && (
+                            <DropdownMenuItem onClick={() => sendContract(c)} className="rounded-lg">
+                              <Send className="w-4 h-4 mr-2" />
+                              Enviar para assinatura
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => copySignLink(c)} className="rounded-lg">
+                            <Copy className="w-4 h-4 mr-2" />
+                            Copiar link
                           </DropdownMenuItem>
+                          {c.file_url && (
+                            <DropdownMenuItem onClick={() => window.open(c.file_url!, '_blank')} className="rounded-lg">
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Ver PDF
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => duplicateContract(c)} className="rounded-lg">
+                            <Copy className="w-4 h-4 mr-2" />
+                            Duplicar
+                          </DropdownMenuItem>
+                          {c.status === 'signed' && (
+                            <DropdownMenuItem onClick={() => handleGeneratePDF(c)} className="rounded-lg">
+                              <Download className="w-4 h-4 mr-2" />
+                              Gerar PDF assinado
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             onClick={() => remove(c.id)}
                             className="text-red-600 rounded-lg"
@@ -348,13 +479,15 @@ export default function DocumentosPage() {
               />
             </div>
             <div>
-              <Label>URL do PDF</Label>
-              <Input
-                value={form.file_url}
-                onChange={(e) => setForm({ ...form, file_url: e.target.value })}
-                placeholder="https://... ou deixe em branco"
-                className="rounded-xl mt-1"
-              />
+              <Label>Arquivo PDF</Label>
+              <div className="mt-2">
+                <ContractUploader
+                  value={form.file_url || null}
+                  onChange={handleFileChange}
+                  userId={user?.id}
+                  disabled={selected?.status === 'signed'}
+                />
+              </div>
             </div>
             <div>
               <Label>Cliente</Label>
@@ -389,47 +522,86 @@ export default function DocumentosPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Signatários</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addSignatory} className="rounded-lg">
+                <Button type="button" variant="outline" size="sm" onClick={addSignatory} className="rounded-lg gap-1">
+                  <Plus className="w-3 h-3" />
                   Adicionar
                 </Button>
               </div>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
+              <div className="space-y-2 max-h-60 overflow-y-auto">
                 {form.signatories.map((sig, i) => (
-                  <div key={i} className="flex gap-2 items-center p-2 bg-slate-50 rounded-xl">
-                    <Input
-                      placeholder="Nome"
-                      value={sig.name}
-                      onChange={(e) => updateSignatory(i, 'name', e.target.value)}
-                      className="rounded-lg flex-1"
-                    />
-                    <Input
-                      placeholder="Email"
-                      type="email"
-                      value={sig.email}
-                      onChange={(e) => updateSignatory(i, 'email', e.target.value)}
-                      className="rounded-lg flex-1"
-                    />
-                    {selected && (
+                  <div key={i} className="p-3 bg-slate-50 rounded-xl space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        placeholder="Nome"
+                        value={sig.name}
+                        onChange={(e) => updateSignatory(i, 'name', e.target.value)}
+                        className="rounded-lg flex-1"
+                      />
+                      <Input
+                        placeholder="Email"
+                        type="email"
+                        value={sig.email}
+                        onChange={(e) => updateSignatory(i, 'email', e.target.value)}
+                        className="rounded-lg flex-1"
+                      />
                       <Button
                         type="button"
-                        variant={sig.signed ? 'secondary' : 'default'}
-                        size="sm"
-                        onClick={() => openSign(selected, i)}
-                        className="rounded-lg"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeSignatory(i)}
+                        className="text-red-500 shrink-0"
                       >
-                        <PenLine className="w-4 h-4 mr-1" />
-                        {sig.signed ? 'Assinado' : 'Assinar'}
+                        <Trash2 className="w-4 h-4" />
                       </Button>
+                    </div>
+                    {selected && sig.email && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {sig.signed ? (
+                          <>
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-medium">
+                              <CheckCircle className="w-3 h-3" />
+                              Assinado
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedSignatory(sig)
+                                setSignatureDetailsOpen(true)
+                              }}
+                              className="h-7 text-xs rounded-lg gap-1"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Ver detalhes
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              variant="default"
+                              size="sm"
+                              onClick={() => openSign(selected, i)}
+                              className="h-7 text-xs rounded-lg gap-1 bg-indigo-600 hover:bg-indigo-700"
+                            >
+                              <PenLine className="w-3 h-3" />
+                              Assinar agora
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => copySignLink(selected)}
+                              className="h-7 text-xs rounded-lg gap-1"
+                            >
+                              <Link2 className="w-3 h-3" />
+                              Copiar link
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeSignatory(i)}
-                      className="text-red-500 shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -447,14 +619,117 @@ export default function DocumentosPage() {
       </Dialog>
 
       <Dialog open={signDialogOpen} onOpenChange={setSignDialogOpen}>
-        <DialogContent className="sm:max-w-xl rounded-2xl">
+        <DialogContent className="sm:max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Assinatura</DialogTitle>
+            <DialogTitle>Assinatura Digital</DialogTitle>
           </DialogHeader>
           <SignatureCanvas
             onSave={handleSignatureSave}
             onCancel={() => setSignDialogOpen(false)}
+            signatoryName={signatoriesForSign[signatoryIndex]?.name}
+            requireCpf={true}
+            requireBirthDate={true}
+            captureLocation={true}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de detalhes da assinatura */}
+      <Dialog open={signatureDetailsOpen} onOpenChange={setSignatureDetailsOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalhes da Assinatura</DialogTitle>
+          </DialogHeader>
+          {selectedSignatory && (
+            <div className="space-y-4">
+              {/* Assinatura visual */}
+              {selectedSignatory.signature_url && (
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-sm font-medium text-slate-700 mb-2">Assinatura</p>
+                  <img
+                    src={selectedSignatory.signature_url}
+                    alt="Assinatura"
+                    className="max-h-24 mx-auto bg-white rounded-lg border border-slate-200 p-2"
+                  />
+                </div>
+              )}
+
+              {/* Dados do signatário */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                  <User className="w-5 h-5 text-indigo-600" />
+                  <div>
+                    <p className="text-xs text-slate-500">Nome</p>
+                    <p className="font-medium text-slate-900">{selectedSignatory.name}</p>
+                  </div>
+                </div>
+
+                {selectedSignatory.cpf && (
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                    <FileText className="w-5 h-5 text-indigo-600" />
+                    <div>
+                      <p className="text-xs text-slate-500">CPF</p>
+                      <p className="font-medium text-slate-900">
+                        {selectedSignatory.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSignatory.birth_date && (
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                    <Calendar className="w-5 h-5 text-indigo-600" />
+                    <div>
+                      <p className="text-xs text-slate-500">Data de nascimento</p>
+                      <p className="font-medium text-slate-900">
+                        {new Date(selectedSignatory.birth_date).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSignatory.signed_at && (
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                    <Clock className="w-5 h-5 text-indigo-600" />
+                    <div>
+                      <p className="text-xs text-slate-500">Data e hora da assinatura</p>
+                      <p className="font-medium text-slate-900">
+                        {new Date(selectedSignatory.signed_at).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSignatory.location && (selectedSignatory.location.latitude || selectedSignatory.location.address) && (
+                  <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl">
+                    <MapPin className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-slate-500">Localização</p>
+                      {selectedSignatory.location.address ? (
+                        <p className="font-medium text-slate-900 text-sm">{selectedSignatory.location.address}</p>
+                      ) : (
+                        <p className="font-medium text-slate-900">
+                          {selectedSignatory.location.latitude?.toFixed(6)}, {selectedSignatory.location.longitude?.toFixed(6)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button onClick={() => setSignatureDetailsOpen(false)} className="w-full rounded-xl">
+                  Fechar
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

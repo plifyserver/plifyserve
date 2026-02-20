@@ -25,14 +25,17 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/cadastro')
-  const isDashboard =
-    request.nextUrl.pathname.startsWith('/dashboard') ||
-    request.nextUrl.pathname.startsWith('/propostas') ||
-    request.nextUrl.pathname.startsWith('/templates') ||
-    request.nextUrl.pathname.startsWith('/faturamento') ||
-    request.nextUrl.pathname.startsWith('/minha-pagina')
+  const pathname = request.nextUrl.pathname
+
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/cadastro')
+  const isAdminPage = pathname.startsWith('/admin')
+  const isProtectedPage =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/propostas') ||
+    pathname.startsWith('/templates') ||
+    pathname.startsWith('/faturamento') ||
+    pathname.startsWith('/minha-pagina') ||
+    isAdminPage
 
   if (isAuthPage && user) {
     const url = request.nextUrl.clone()
@@ -40,10 +43,31 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (isDashboard && !user) {
+  if (isProtectedPage && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
+  }
+
+  if (user && isProtectedPage) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('account_type, banned')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.banned) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/conta-bloqueada'
+      return NextResponse.redirect(url)
+    }
+
+    if (isAdminPage && profile?.account_type !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

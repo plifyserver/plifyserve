@@ -23,8 +23,8 @@ export function AuthSidePanel() {
       {/* Conteúdo em cima da imagem */}
       <div className="relative z-10 flex flex-col w-full min-h-screen p-8">
         <div className="flex items-start justify-between flex-shrink-0">
-          <Link href="/" className="text-2xl font-bold text-white">
-            Plify
+          <Link href="/" className="flex items-center">
+            <Image src="/logobranco.png" alt="Logo" width={120} height={40} className="h-10 w-auto object-contain" />
           </Link>
           <span className="text-sm text-white/90">© {new Date().getFullYear()}</span>
         </div>

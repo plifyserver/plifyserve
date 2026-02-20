@@ -1,4 +1,4 @@
-export type ProposalStatus = 'open' | 'accepted' | 'ignored'
+export type ProposalStatus = 'draft' | 'sent' | 'open' | 'viewed' | 'accepted' | 'ignored'
 
 /** Status do cliente (modelo Base44) */
 export type ClientStatus = 'active' | 'inactive' | 'lead' | 'archived'
@@ -22,6 +22,8 @@ export interface Profile {
   phone: string | null
   avatar_url: string | null
   is_pro: boolean
+  banned?: boolean
+  plan_type?: string
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
   edits_remaining: number
@@ -109,6 +111,7 @@ export interface Proposal {
   template_base_id: string | null
   title: string
   slug: string
+  public_slug?: string
   status: ProposalStatus
   content: TemplateStructure
   color_palette: string
@@ -117,6 +120,7 @@ export interface Proposal {
   client_email: string | null
   client_phone: string | null
   proposal_value: number | null
+  views?: number
   created_at: string
   updated_at: string
   accepted_at: string | null

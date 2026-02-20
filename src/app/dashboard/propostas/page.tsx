@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Copy, Edit, Trash2, Files, CheckCircle, XCircle, Plus, Search } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Copy, Edit, Trash2, Files, CheckCircle, XCircle, Plus, Search, Eye, Send, BarChart3, ExternalLink } from 'lucide-react'
 import type { Proposal } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { TemplateSelector, type TemplateType } from '@/components/proposals/TemplateSelector'
+import { toast } from 'sonner'
 
 function getAcceptedValue(proposal: Proposal): number {
   const v = proposal.proposal_value
@@ -18,12 +21,19 @@ function getAcceptedValue(proposal: Proposal): number {
 }
 
 export default function PropostasPage() {
+  const router = useRouter()
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [acceptedProposals, setAcceptedProposals] = useState<Proposal[]>([])
   const [activeTab, setActiveTab] = useState<'all' | 'accepted'>('all')
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false)
+
+  const handleTemplateSelect = (template: TemplateType) => {
+    setShowTemplateSelector(false)
+    router.push(`/dashboard/propostas/nova?template=${template}`)
+  }
 
   useEffect(() => {
     const fetchProposals = async () => {
@@ -38,11 +48,39 @@ export default function PropostasPage() {
     fetchProposals()
   }, [])
 
-  const copyLink = (slug: string) => {
+  const copyLink = (proposal: Proposal) => {
+    const slug = proposal.public_slug || proposal.slug
     const url = `${window.location.origin}/p/${slug}`
     navigator.clipboard.writeText(url)
-    setCopiedId(slug)
+    setCopiedId(proposal.id)
+    toast.success('Link copiado!')
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const sendProposal = async (proposal: Proposal) => {
+    if (proposal.status === 'accepted') {
+      toast.error('Esta proposta já foi aceita')
+      return
+    }
+    
+    try {
+      const res = await fetch(`/api/proposals/${proposal.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'sent' }),
+      })
+      
+      if (res.ok) {
+        setProposals((prev) => 
+          prev.map((p) => (p.id === proposal.id ? { ...p, status: 'sent' } as Proposal : p))
+        )
+        copyLink(proposal)
+        toast.success('Proposta enviada! Link copiado.')
+      }
+    } catch {
+      toast.error('Erro ao enviar proposta')
+    }
   }
 
   const duplicateProposal = async (proposal: Proposal) => {
@@ -127,11 +165,13 @@ export default function PropostasPage() {
               className="pl-8 h-9 rounded-lg border-slate-200 bg-white"
             />
           </div>
-          <Button asChild size="default" className="h-9 rounded-lg gap-1.5 bg-slate-900 hover:bg-slate-800">
-            <Link href="/dashboard/templates">
-              <Plus className="w-4 h-4" />
-              Nova proposta
-            </Link>
+          <Button 
+            size="default" 
+            className="h-9 rounded-lg gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+            onClick={() => setShowTemplateSelector(true)}
+          >
+            <Plus className="w-4 h-4" />
+            Nova proposta
           </Button>
         </div>
       </div>
@@ -181,8 +221,13 @@ export default function PropostasPage() {
                   {searchQuery ? 'Nenhuma proposta encontrada com esse filtro.' : 'Nenhuma proposta ainda.'}
                 </p>
                 {!searchQuery && (
-                  <Button asChild variant="default" className="rounded-lg gap-2 bg-slate-900 hover:bg-slate-800">
-                    <Link href="/dashboard/templates">Criar primeira proposta</Link>
+                  <Button 
+                    variant="default" 
+                    className="rounded-lg gap-2 bg-indigo-600 hover:bg-indigo-700"
+                    onClick={() => setShowTemplateSelector(true)}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Criar primeira proposta
                   </Button>
                 )}
               </CardContent>
@@ -192,35 +237,81 @@ export default function PropostasPage() {
               <Card key={proposal.id} className="rounded-2xl border-0 shadow-sm overflow-hidden">
                 <CardContent className="p-4 sm:p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-slate-900">{proposal.title}</h3>
                         <span
                           className={cn(
-                            'px-2 py-0.5 rounded-md text-xs font-medium',
-                            proposal.status === 'open' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                            'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium',
+                            proposal.status === 'draft' && 'bg-slate-100 text-slate-600',
+                            proposal.status === 'sent' && 'bg-blue-100 text-blue-700',
+                            proposal.status === 'viewed' && 'bg-amber-100 text-amber-700',
+                            proposal.status === 'open' && 'bg-blue-100 text-blue-700',
+                            proposal.status === 'ignored' && 'bg-slate-100 text-slate-500'
                           )}
                         >
-                          {proposal.status === 'open' ? 'Aberta' : 'Ignorada'}
+                          {proposal.status === 'draft' && 'Rascunho'}
+                          {proposal.status === 'sent' && 'Enviada'}
+                          {proposal.status === 'viewed' && (
+                            <>
+                              <Eye className="w-3 h-3" />
+                              Visualizada
+                            </>
+                          )}
+                          {proposal.status === 'open' && 'Aberta'}
+                          {proposal.status === 'ignored' && 'Ignorada'}
+                        </span>
+                        {(proposal.views ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-purple-100 text-purple-700">
+                            <BarChart3 className="w-3 h-3" />
+                            {proposal.views} {(proposal.views ?? 0) === 1 ? 'view' : 'views'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1.5 text-sm text-slate-500">
+                        {proposal.client_name && (
+                          <span>{proposal.client_name}</span>
+                        )}
+                        <span className="truncate max-w-[200px]" title={`/p/${proposal.public_slug || proposal.slug}`}>
+                          /p/{proposal.public_slug || proposal.slug}
                         </span>
                       </div>
-                      <p className="text-sm text-slate-500 mt-1 truncate max-w-md" title={typeof window !== 'undefined' ? `${window.location.origin}/p/${proposal.slug}` : undefined}>
-                        /p/{proposal.slug}
-                      </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {proposal.status === 'draft' && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-8 rounded-lg gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+                          onClick={() => sendProposal(proposal)}
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          Enviar
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 rounded-lg"
-                        onClick={() => copyLink(proposal.slug)}
+                        onClick={() => copyLink(proposal)}
                         title="Copiar link"
                       >
-                        {copiedId === proposal.slug ? (
-                          <span className="text-xs text-emerald-600 font-medium">Copiado!</span>
+                        {copiedId === proposal.id ? (
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
                         ) : (
                           <Copy className="w-4 h-4 text-slate-500" />
                         )}
+                      </Button>
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg"
+                        title="Ver proposta"
+                      >
+                        <Link href={`/p/${proposal.public_slug || proposal.slug}`} target="_blank">
+                          <ExternalLink className="w-4 h-4 text-slate-500" />
+                        </Link>
                       </Button>
                       <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-lg" title="Editar">
                         <Link href={`/dashboard/propostas/editar/${proposal.id}`}>
@@ -236,7 +327,7 @@ export default function PropostasPage() {
                       >
                         <Files className="w-4 h-4 text-slate-500" />
                       </Button>
-                      {proposal.status === 'open' && (
+                      {(proposal.status === 'open' || proposal.status === 'sent' || proposal.status === 'viewed') && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -257,7 +348,7 @@ export default function PropostasPage() {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ))
@@ -315,6 +406,13 @@ export default function PropostasPage() {
           )}
         </div>
       )}
+
+      {/* Modal de seleção de template */}
+      <TemplateSelector
+        open={showTemplateSelector}
+        onClose={() => setShowTemplateSelector(false)}
+        onSelect={handleTemplateSelect}
+      />
     </div>
   )
 }

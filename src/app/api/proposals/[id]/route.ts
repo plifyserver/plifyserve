@@ -3,16 +3,33 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+  const supabase = await createClient()
+  const isPublic = request.nextUrl.searchParams.get('public') === 'true'
+
+  if (isPublic) {
+    const { data: proposal, error } = await supabase
+      .from('proposals')
+      .select('*')
+      .or(`id.eq.${id},slug.eq.${id}`)
+      .eq('status', 'open')
+      .single()
+
+    if (error || !proposal) {
+      return NextResponse.json({ error: 'Proposta não encontrada' }, { status: 404 })
+    }
+
+    return NextResponse.json(proposal)
+  }
+
   const userId = await getCurrentUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
   }
 
-  const { id } = await params
-  const supabase = await createClient()
   const { data: proposal, error } = await supabase
     .from('proposals')
     .select('*')

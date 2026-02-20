@@ -2,23 +2,21 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
-import { format, parse, startOfWeek, getDay, startOfMonth, eachDayOfInterval, isSameMonth, isSameDay } from 'date-fns'
+import { format, parse, startOfWeek, getDay, startOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
-import { X, Loader2, Link2, Plus, Search } from 'lucide-react'
+import { X, Loader2, Link2, Plus, Search, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { View } from 'react-big-calendar'
-
 
 const locales = { 'pt-BR': ptBR }
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 1 }),
+  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 0 }),
   getDay,
   locales,
 })
@@ -31,7 +29,12 @@ const formats = {
     `${format(start, 'd MMM', { locale: ptBR })} – ${format(end, 'd MMM', { locale: ptBR })}`,
 }
 
-const EVENT_COLORS = ['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899']
+const EVENT_COLORS = {
+  default: '#6366F1',
+  meeting: '#10B981',
+  deadline: '#F59E0B',
+  personal: '#EC4899',
+}
 
 type EventItem = {
   id: string
@@ -42,9 +45,10 @@ type EventItem = {
   location?: string
   all_day?: boolean
   color?: string
+  type?: 'default' | 'meeting' | 'deadline' | 'personal'
 }
 
-type View = 'month' | 'week' | 'day' | 'agenda'
+type ViewType = 'month' | 'week' | 'day' | 'agenda'
 
 export default function AgendaPage() {
   const { user } = useAuth()
@@ -53,8 +57,8 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [date, setDate] = useState(new Date())
-  const [view, setView] = useState<View>('month')
-  const [form, setForm] = useState({ title: '', description: '', location: '', start: '', end: '', all_day: false })
+  const [view, setView] = useState<ViewType>('month')
+  const [form, setForm] = useState({ title: '', description: '', location: '', start: '', end: '', all_day: false, type: 'default' as EventItem['type'] })
   const [showIntegrations, setShowIntegrations] = useState(false)
   const [peopleSearch, setPeopleSearch] = useState('')
 
@@ -64,7 +68,7 @@ export default function AgendaPage() {
       const { data, error } = await supabase.from('events').select('*').eq('user_id', user.id).order('start_at')
       if (!error && data) {
         setEvents(
-          data.map((e, i) => ({
+          data.map((e) => ({
             id: e.id,
             title: e.title,
             start: new Date(e.start_at),
@@ -72,12 +76,13 @@ export default function AgendaPage() {
             description: e.description,
             location: e.location,
             all_day: e.all_day,
-            color: EVENT_COLORS[i % EVENT_COLORS.length],
+            type: e.type || 'default',
+            color: EVENT_COLORS[e.type as keyof typeof EVENT_COLORS] || EVENT_COLORS.default,
           }))
         )
       }
     } catch {
-      // Tabela events pode não existir ainda - usuário vê calendário vazio
+      // Tabela events pode não existir ainda
     }
   }, [user, supabase])
 
@@ -93,6 +98,7 @@ export default function AgendaPage() {
       start: start.toISOString().slice(0, 16),
       end: end.toISOString().slice(0, 16),
       all_day: false,
+      type: 'default',
     })
     setShowModal(true)
   }
@@ -108,6 +114,7 @@ export default function AgendaPage() {
       start_at: new Date(form.start).toISOString(),
       end_at: new Date(form.end).toISOString(),
       all_day: form.all_day,
+      type: form.type,
     })
     setShowModal(false)
     fetchEvents()
@@ -115,23 +122,25 @@ export default function AgendaPage() {
 
   const eventStyleGetter = (event: EventItem) => ({
     style: {
-      backgroundColor: event.color ?? EVENT_COLORS[0],
+      backgroundColor: event.color ?? EVENT_COLORS.default,
       color: '#fff',
       border: 'none',
       borderRadius: '6px',
-      padding: '2px 6px',
+      padding: '2px 8px',
+      fontSize: '12px',
+      fontWeight: 500,
     },
   })
 
-  const miniCalendarStart = startOfWeek(startOfMonth(date), { weekStartsOn: 1 })
+  const miniCalendarStart = startOfWeek(startOfMonth(date), { weekStartsOn: 0 })
   const miniCalendarDays = eachDayOfInterval({
     start: miniCalendarStart,
     end: new Date(miniCalendarStart.getTime() + 41 * 24 * 60 * 60 * 1000),
   })
 
   const peoplePlaceholder = [
-    { id: '1', name: user?.user_metadata?.full_name ?? 'Você', email: user?.email ?? '' },
-    { id: '2', name: 'Equipe', email: 'equipe@exemplo.com' },
+    { id: '1', name: user?.user_metadata?.full_name ?? 'Você', email: user?.email ?? '', color: '#6366F1' },
+    { id: '2', name: 'Equipe', email: 'equipe@exemplo.com', color: '#10B981' },
   ]
   const peopleFiltered = peopleSearch.trim()
     ? peoplePlaceholder.filter(
@@ -141,110 +150,325 @@ export default function AgendaPage() {
       )
     : peoplePlaceholder
 
+  const todayEvents = events.filter((e) => isSameDay(e.start, date))
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
-        <Loader2 className="w-8 h-8 animate-spin text-avocado" />
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Header: título + busca + Integrações + Novo Evento + view pills */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Agenda</h1>
           <p className="text-sm text-slate-500 mt-0.5">Gerencie seus compromissos e reuniões</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 sm:flex-initial sm:w-48">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input placeholder="Buscar..." className="pl-8 h-9 rounded-lg border-slate-200 bg-white" />
-          </div>
-          <Button variant="secondary" size="default" className="h-9 rounded-lg gap-1.5" onClick={() => setShowIntegrations(true)}>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="h-10 rounded-xl gap-2 border-slate-200 hover:bg-slate-50" 
+            onClick={() => setShowIntegrations(true)}
+          >
             <Link2 className="w-4 h-4" />
             Integrações
           </Button>
-          <Button size="default" className="h-9 rounded-lg gap-1.5 bg-slate-900 hover:bg-slate-800" onClick={() => handleSelectSlot({ start: new Date(), end: new Date(Date.now() + 3600000) })}>
+          <Button 
+            className="h-10 rounded-xl gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" 
+            onClick={() => handleSelectSlot({ start: new Date(), end: new Date(Date.now() + 3600000) })}
+          >
             <Plus className="w-4 h-4" />
             Novo Evento
           </Button>
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
-            <button
-              type="button"
-              onClick={() => setView('month')}
-              className={cn('px-3 py-1.5 text-sm rounded-md transition-colors', view === 'month' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100')}
-            >
-              Mensal
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('week')}
-              className={cn('px-3 py-1.5 text-sm rounded-md transition-colors', view === 'week' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100')}
-            >
-              Semanal
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Layout: painel lateral + calendário principal */}
+      {/* Layout principal */}
       <div className="flex gap-6">
-        {/* Painel lateral: mini-calendário + People */}
-        <aside className="hidden lg:flex flex-col w-64 shrink-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-sm font-medium text-slate-900 mb-3">
-            {format(date, "MMMM 'de' yyyy", { locale: ptBR })}
+        {/* Painel lateral */}
+        <aside className="hidden lg:flex flex-col w-72 shrink-0 space-y-4">
+          {/* Mini calendário */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-900 capitalize">
+                {format(date, "MMMM yyyy", { locale: ptBR })}
+              </h3>
+              <div className="flex gap-1">
+                <button 
+                  onClick={() => setDate(subMonths(date, 1))}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4 text-slate-500" />
+                </button>
+                <button 
+                  onClick={() => setDate(addMonths(date, 1))}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-400 mb-2">
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+                <span key={d} className="py-1">{d}</span>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-sm">
+              {miniCalendarDays.map((d) => {
+                const hasEvent = events.some((e) => isSameDay(e.start, d))
+                const isToday = isSameDay(d, new Date())
+                const isSelected = isSameDay(d, date)
+                return (
+                  <button
+                    key={d.toISOString()}
+                    type="button"
+                    className={cn(
+                      'relative aspect-square rounded-lg transition-all text-sm font-medium',
+                      isToday && !isSelected && 'text-indigo-600 bg-indigo-50',
+                      isSelected && 'bg-indigo-600 text-white shadow-sm',
+                      !isToday && !isSelected && isSameMonth(d, date) && 'text-slate-700 hover:bg-slate-100',
+                      !isSameMonth(d, date) && 'text-slate-300'
+                    )}
+                    onClick={() => setDate(d)}
+                  >
+                    {format(d, 'd')}
+                    {hasEvent && !isSelected && (
+                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-500" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-          <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-slate-500 mb-2">
-            {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d) => (
-              <span key={d}>{d}</span>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-0.5 text-center text-sm">
-            {miniCalendarDays.map((d) => (
-              <button
-                key={d.toISOString()}
-                type="button"
-                className={cn(
-                  'aspect-square rounded-md transition-colors',
-                  isSameDay(d, new Date()) ? 'bg-slate-900 text-white' : isSameMonth(d, date) ? 'text-slate-900 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-50'
-                )}
-                onClick={() => setDate(d)}
-              >
-                {format(d, 'd')}
-              </button>
-            ))}
-          </div>
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <p className="text-sm font-medium text-slate-900 mb-2">Pessoas</p>
-            <div className="relative mb-3">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+
+          {/* Pessoas */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3">Pessoas</h3>
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 placeholder="Buscar pessoas..."
                 value={peopleSearch}
                 onChange={(e) => setPeopleSearch(e.target.value)}
-                className="pl-7 h-8 text-xs rounded-md border-slate-200"
+                className="pl-9 h-9 text-sm rounded-xl border-slate-200 bg-slate-50 focus:bg-white"
               />
             </div>
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {peopleFiltered.map((p) => (
-                <li key={p.id} className="flex items-center gap-2 text-sm">
-                  <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium">
+                <li key={p.id} className="flex items-center gap-3">
+                  <div 
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                    style={{ backgroundColor: p.color }}
+                  >
                     {p.name.charAt(0)}
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-slate-900 truncate">{p.name}</p>
-                    {p.email && <p className="text-xs text-slate-500 truncate">{p.email}</p>}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-slate-900 text-sm truncate">{p.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{p.email}</p>
                   </div>
                 </li>
               ))}
             </ul>
           </div>
+
+          {/* Eventos do dia */}
+          {todayEvents.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3">
+                Hoje, {format(date, "d 'de' MMMM", { locale: ptBR })}
+              </h3>
+              <ul className="space-y-2">
+                {todayEvents.slice(0, 3).map((e) => (
+                  <li key={e.id} className="flex items-start gap-2">
+                    <div 
+                      className="w-1 h-full min-h-[40px] rounded-full mt-0.5"
+                      style={{ backgroundColor: e.color }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-900 text-sm truncate">{e.title}</p>
+                      <p className="text-xs text-slate-500">
+                        {format(e.start, 'HH:mm')} - {format(e.end, 'HH:mm')}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </aside>
 
+        {/* Calendário principal */}
         <div className="flex-1 min-w-0 rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-          <div className="h-[600px] [&_.rbc-calendar]:!bg-white [&_.rbc-header]:!bg-slate-50 [&_.rbc-header]:!text-slate-800 [&_.rbc-header]:!border-slate-200 [&_.rbc-today]:!bg-amber-50 [&_.rbc-off-range-bg]:!bg-slate-50/50 [&_.rbc-date-cell]:!text-slate-900 [&_.rbc-date-cell]:!text-base [&_.rbc-date-cell]:!font-medium [&_.rbc-time-view]:!border-slate-200 [&_.rbc-time-slot]:!text-slate-500 [&_.rbc-event]:!text-white [&_.rbc-event]:!rounded-lg [&_.rbc-toolbar]:!flex [&_.rbc-toolbar]:!gap-2 [&_.rbc-toolbar]:!p-4 [&_.rbc-toolbar_label]:!text-slate-900 [&_.rbc-toolbar_label]:!text-lg [&_.rbc-btn-group]:!flex [&_.rbc-btn-group]:!gap-1 button.rbc-button:!bg-white button.rbc-button:!text-slate-700 button.rbc-button:!border-slate-200 button.rbc-button:!px-3 button.rbc-button:!py-1.5 button.rbc-button:!rounded-lg button.rbc-button:hover:!bg-slate-50 [&_.rbc-month-view]:!border-0 [&_.rbc-day-bg]:!border-slate-100 [&_.rbc-row-segment]:!p-1 [&_.rbc-row]:!min-h-[80px]">
+          {/* Header do calendário */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold text-slate-900 capitalize">
+                {format(date, "MMMM 'de' yyyy", { locale: ptBR })}
+              </h2>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => setDate(view === 'week' ? new Date(date.getTime() - 7 * 24 * 60 * 60 * 1000) : subMonths(date, 1))}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4 text-slate-600" />
+                </button>
+                <button 
+                  onClick={() => setDate(view === 'week' ? new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000) : addMonths(date, 1))}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4 text-slate-600" />
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                {(['day', 'week', 'month'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setView(v)}
+                    className={cn(
+                      'px-4 py-1.5 text-sm font-medium rounded-lg transition-all',
+                      view === v 
+                        ? 'bg-indigo-600 text-white shadow-sm' 
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                  >
+                    {v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : 'Mês'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Calendário */}
+          <div className="h-[580px] calendar-clean">
+            <style jsx global>{`
+              .calendar-clean .rbc-calendar {
+                background: white;
+                font-family: inherit;
+              }
+              .calendar-clean .rbc-toolbar {
+                display: none;
+              }
+              .calendar-clean .rbc-month-view {
+                border: none;
+              }
+              .calendar-clean .rbc-header {
+                padding: 12px 8px;
+                font-weight: 500;
+                font-size: 13px;
+                color: #64748b;
+                border-bottom: 1px solid #e2e8f0;
+                text-transform: capitalize;
+                background: #f8fafc;
+              }
+              .calendar-clean .rbc-header + .rbc-header {
+                border-left: 1px solid #e2e8f0;
+              }
+              .calendar-clean .rbc-day-bg {
+                border-left: 1px solid #f1f5f9;
+              }
+              .calendar-clean .rbc-day-bg + .rbc-day-bg {
+                border-left: 1px solid #f1f5f9;
+              }
+              .calendar-clean .rbc-month-row {
+                border-bottom: 1px solid #f1f5f9;
+              }
+              .calendar-clean .rbc-month-row + .rbc-month-row {
+                border-top: none;
+              }
+              .calendar-clean .rbc-date-cell {
+                padding: 8px 12px;
+                text-align: center;
+                font-size: 14px;
+                font-weight: 500;
+                color: #334155;
+              }
+              .calendar-clean .rbc-date-cell.rbc-now {
+                font-weight: 600;
+              }
+              .calendar-clean .rbc-date-cell.rbc-now > a {
+                background: #6366f1;
+                color: white;
+                width: 28px;
+                height: 28px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+              }
+              .calendar-clean .rbc-off-range-bg {
+                background: #fafafa;
+              }
+              .calendar-clean .rbc-off-range {
+                color: #cbd5e1;
+              }
+              .calendar-clean .rbc-today {
+                background: #eef2ff;
+              }
+              .calendar-clean .rbc-event {
+                border-radius: 6px;
+                padding: 2px 8px;
+                font-size: 12px;
+                font-weight: 500;
+                border: none;
+              }
+              .calendar-clean .rbc-event-content {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+              .calendar-clean .rbc-row-segment {
+                padding: 2px 4px;
+              }
+              .calendar-clean .rbc-show-more {
+                color: #6366f1;
+                font-size: 12px;
+                font-weight: 500;
+                margin-top: 2px;
+              }
+              .calendar-clean .rbc-time-view {
+                border: none;
+              }
+              .calendar-clean .rbc-time-header {
+                border-bottom: 1px solid #e2e8f0;
+              }
+              .calendar-clean .rbc-time-content {
+                border-top: none;
+              }
+              .calendar-clean .rbc-time-slot {
+                border-top: 1px solid #f1f5f9;
+              }
+              .calendar-clean .rbc-timeslot-group {
+                border-bottom: 1px solid #f1f5f9;
+              }
+              .calendar-clean .rbc-time-gutter {
+                font-size: 11px;
+                color: #94a3b8;
+              }
+              .calendar-clean .rbc-day-slot .rbc-time-slot {
+                border-top: 1px solid #f8fafc;
+              }
+              .calendar-clean .rbc-current-time-indicator {
+                background-color: #ef4444;
+                height: 2px;
+              }
+              .calendar-clean .rbc-current-time-indicator::before {
+                content: '';
+                position: absolute;
+                left: -5px;
+                top: -4px;
+                width: 10px;
+                height: 10px;
+                background: #ef4444;
+                border-radius: 50%;
+              }
+            `}</style>
             <Calendar
               culture="pt-BR"
               localizer={localizer}
@@ -255,8 +479,8 @@ export default function AgendaPage() {
               date={date}
               view={view}
               onNavigate={(d: Date) => setDate(d)}
-              onView={(v: View) => setView(v)}
-                            style={{ height: '100%' }}
+              onView={(v: ViewType) => setView(v)}
+              style={{ height: '100%' }}
               onSelectSlot={handleSelectSlot}
               selectable
               eventPropGetter={eventStyleGetter}
@@ -274,8 +498,6 @@ export default function AgendaPage() {
                 noEventsInRange: 'Nenhum compromisso neste período.',
                 showMore: (n: number) => `+${n} mais`,
                 allDay: 'Dia inteiro',
-                yesterday: 'Ontem',
-                tomorrow: 'Amanhã',
               }}
             />
           </div>
@@ -284,113 +506,145 @@ export default function AgendaPage() {
 
       {/* Modal Integrações */}
       {showIntegrations && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowIntegrations(false)}>
-          <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowIntegrations(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Integrações</h2>
-              <button type="button" onClick={() => setShowIntegrations(false)} className="p-1.5 hover:bg-slate-100 rounded-lg">
-                <X className="w-5 h-5 text-slate-500" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                  <Link2 className="w-5 h-5 text-indigo-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-900">Integrações</h2>
+              </div>
+              <button type="button" onClick={() => setShowIntegrations(false)} className="p-2 hover:bg-slate-100 rounded-xl">
+                <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            <p className="text-sm text-slate-500 mb-4">
-              Conecte seu calendário ao Google Calendar, Outlook ou outras ferramentas. Em breve você poderá sincronizar eventos aqui.
+            <p className="text-sm text-slate-600 mb-6">
+              Conecte seu calendário ao Google Calendar, Outlook ou outras ferramentas para sincronizar seus eventos automaticamente.
             </p>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setShowIntegrations(false)}>Fechar</Button>
+            <div className="space-y-3 mb-6">
+              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                  <CalendarIcon className="w-5 h-5 text-blue-500" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium text-slate-900 text-sm">Google Calendar</p>
+                  <p className="text-xs text-slate-500">Em breve</p>
+                </div>
+              </button>
+              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                  <CalendarIcon className="w-5 h-5 text-sky-500" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium text-slate-900 text-sm">Outlook</p>
+                  <p className="text-xs text-slate-500">Em breve</p>
+                </div>
+              </button>
             </div>
+            <Button variant="outline" className="w-full rounded-xl" onClick={() => setShowIntegrations(false)}>
+              Fechar
+            </Button>
           </div>
         </div>
       )}
 
+      {/* Modal Novo Evento */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white border border-gray-200 p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Novo compromisso</h2>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                  <Plus className="w-5 h-5 text-indigo-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-900">Novo Evento</h2>
+              </div>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-xl">
+                <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Título *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Título *</label>
                 <input
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                   placeholder="Ex: Reunião com cliente"
                   required
-                  className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-300 focus:border-avocado outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Descrição</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Descrição</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="Detalhes..."
-                  rows={2}
-                  className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-300 focus:border-avocado outline-none resize-none"
+                  placeholder="Adicione detalhes sobre o evento..."
+                  rows={3}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all resize-none"
                 />
               </div>
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Local</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Local</label>
                 <input
                   type="text"
                   value={form.location}
                   onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                  placeholder="Ex: Escritório"
-                  className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-300 focus:border-avocado outline-none"
+                  placeholder="Ex: Escritório, Google Meet, Zoom..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-zinc-400 mb-1">Início</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Início</label>
                   <input
                     type="datetime-local"
                     value={form.start}
                     onChange={(e) => setForm((f) => ({ ...f, start: e.target.value }))}
                     required
-                    className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-300 focus:border-avocado outline-none"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-zinc-400 mb-1">Fim</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Fim</label>
                   <input
                     type="datetime-local"
                     value={form.end}
                     onChange={(e) => setForm((f) => ({ ...f, end: e.target.value }))}
                     required
-                    className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-300 focus:border-avocado outline-none"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 py-2">
                 <input
                   type="checkbox"
                   id="all_day"
                   checked={form.all_day}
                   onChange={(e) => setForm((f) => ({ ...f, all_day: e.target.checked }))}
-                  className="rounded"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
-                <label htmlFor="all_day" className="text-sm text-zinc-400">
+                <label htmlFor="all_day" className="text-sm text-slate-600">
                   Dia inteiro
                 </label>
               </div>
-              <div className="flex gap-2 pt-4">
-                <button
+              <div className="flex gap-3 pt-4 border-t border-slate-100">
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                  className="flex-1 rounded-xl"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="flex-1 py-2 rounded-lg bg-avocado text-white font-medium hover:bg-avocado-light"
+                  className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
                 >
-                  Salvar
-                </button>
+                  Criar Evento
+                </Button>
               </div>
             </form>
           </div>
