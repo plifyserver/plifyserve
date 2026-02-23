@@ -74,23 +74,15 @@ export default function PerfilPage() {
 
     setLoading(true)
     try {
-      await removeAvatarFromBucket()
-      const ext = file.name.split('.').pop() || 'png'
-      const path = `${user.id}/avatar.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { upsert: true })
-
-      if (uploadError) throw uploadError
-
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
-      const res = await fetch('/api/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const formData = new FormData()
+      formData.set('file', file)
+      const res = await fetch('/api/profile/avatar', {
+        method: 'POST',
         credentials: 'include',
-        body: JSON.stringify({ avatar_url: urlData.publicUrl }),
+        body: formData,
       })
-      if (!res.ok) throw new Error('Falha ao atualizar foto')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((data as { error?: string }).error || 'Falha ao enviar foto.')
       await refreshProfile()
       setSuccess('Foto atualizada.')
       if (inputRef.current) inputRef.current.value = ''

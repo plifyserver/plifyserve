@@ -260,10 +260,23 @@ export default function DocumentosPage() {
     }
   }
 
-  const copySignLink = (contract: Contract) => {
-    const url = `${window.location.origin}/assinatura/${contract.id}`
+  const copySignLink = (contract: Contract, signatory?: Signatory) => {
+    const base = `${typeof window !== 'undefined' ? window.location.origin : ''}/contrato/${contract.id}/assinar`
+    const url = signatory ? `${base}?email=${encodeURIComponent(signatory.email)}` : base
     navigator.clipboard.writeText(url)
-    toast.success('Link de assinatura copiado!')
+    toast.success(signatory ? `Link de ${signatory.name} copiado!` : 'Link copiado!')
+  }
+
+  const sendContractByEmail = (contract: Contract, signatory?: Signatory) => {
+    const base = `${typeof window !== 'undefined' ? window.location.origin : ''}/contrato/${contract.id}/assinar`
+    const url = signatory ? `${base}?email=${encodeURIComponent(signatory.email)}` : base
+    const to = signatory?.email || contract.signatories?.[0]?.email || ''
+    const subject = encodeURIComponent(`Assinatura: ${contract.title}`)
+    const body = encodeURIComponent(
+      `Olá${signatory ? ` ${signatory.name}` : ''},\n\nSegue o link exclusivo para você assinar o documento "${contract.title}":\n\n${url}\n\nAo abrir o link, informe seu CPF e data de nascimento para liberar o campo de assinatura.\n\nAtenciosamente.`
+    )
+    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`
+    toast.success(signatory ? `E-mail aberto para ${signatory.name}` : 'Cliente de e-mail aberto.')
   }
 
   const sendContract = async (contract: Contract) => {
@@ -286,8 +299,12 @@ export default function DocumentosPage() {
       
       if (res.ok) {
         await fetchData()
-        copySignLink(contract)
-        toast.success('Contrato enviado! Link copiado para a área de transferência.')
+        if (contract.signatories?.length) {
+          copySignLink(contract, contract.signatories[0])
+        } else {
+          copySignLink(contract)
+        }
+        toast.success('Contrato enviado! Link do primeiro signatário copiado.')
       }
     } catch {
       toast.error('Erro ao enviar contrato')
@@ -297,16 +314,6 @@ export default function DocumentosPage() {
   const openViewContract = (c: Contract) => {
     setViewContract(c)
     setViewContractOpen(true)
-  }
-
-  const sendContractByEmail = (contract: Contract) => {
-    const url = `${window.location.origin}/assinatura/${contract.id}`
-    const subject = encodeURIComponent(`Assinatura: ${contract.title}`)
-    const body = encodeURIComponent(
-      `Olá,\n\nSegue o link para assinar o documento "${contract.title}":\n\n${url}\n\nAtenciosamente.`
-    )
-    window.location.href = `mailto:${contract.signatories?.[0]?.email || ''}?subject=${subject}&body=${body}`
-    toast.success('Cliente de e-mail aberto. Cole o link no corpo do e-mail.')
   }
 
   const duplicateContract = async (contract: Contract) => {
@@ -532,24 +539,6 @@ export default function DocumentosPage() {
           {viewContract && (
             <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
-                  onClick={() => { copySignLink(viewContract); }}
-                >
-                  <Link2 className="w-4 h-4" />
-                  Gerar link de assinatura
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl gap-2 border-slate-200"
-                  onClick={() => sendContractByEmail(viewContract)}
-                >
-                  <Mail className="w-4 h-4" />
-                  Enviar ao e-mail do cliente
-                </Button>
                 {viewContract.file_url && (
                   <Button
                     variant="outline"
@@ -591,6 +580,55 @@ export default function DocumentosPage() {
                   Excluir
                 </Button>
               </div>
+
+              {/* Link exclusivo por signatário: cada um recebe seu link com ?email= e só assina com CPF/data */}
+              {viewContract.signatories && viewContract.signatories.length > 0 && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <p className="text-sm font-medium text-slate-700 mb-3">Links de assinatura (um por signatário)</p>
+                  <p className="text-xs text-slate-500 mb-3">
+                    Cada pessoa deve usar apenas o próprio link. Ao abrir, será solicitado CPF e data de nascimento para liberar o campo de assinatura.
+                  </p>
+                  <div className="space-y-3">
+                    {viewContract.signatories.map((sig, idx) => {
+                      const linkUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/contrato/${viewContract.id}/assinar?email=${encodeURIComponent(sig.email)}`
+                      return (
+                        <div key={idx} className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-white border border-slate-100">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-slate-900 truncate">{sig.name}</p>
+                            <p className="text-xs text-slate-500 truncate">{sig.email}</p>
+                            {sig.signed && (
+                              <span className="inline-flex items-center gap-1 mt-1 text-xs text-emerald-600">
+                                <CheckCircle className="w-3 h-3" /> Já assinou
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg gap-1.5"
+                              onClick={() => { navigator.clipboard.writeText(linkUrl); toast.success(`Link de ${sig.name} copiado`); }}
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                              Copiar link
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg gap-1.5"
+                              onClick={() => sendContractByEmail(viewContract, sig)}
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                              Enviar e-mail
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {viewContract.file_url && (
                 <div className="flex-1 min-h-[400px] rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
                   <iframe

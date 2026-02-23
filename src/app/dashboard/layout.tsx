@@ -129,9 +129,9 @@ export default function DashboardLayout({
     }
     setSidebarOpen(false)
     setProfileOpen(false)
-    signOut().catch(() => {}).finally(() => {
-      window.location.href = '/login'
-    })
+    // Redireciona imediatamente; signOut roda em segundo plano para não travar se a API demorar
+    window.location.href = '/login'
+    signOut().catch(() => {})
   }, [signOut])
 
   const accentColor = settings?.primary_color || '#ea580c'

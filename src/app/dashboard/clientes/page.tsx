@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Search, MoreHorizontal, Edit, Archive } from 'lucide-react'
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -28,9 +28,12 @@ interface Client {
 export default function ClientesPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selected, setSelected] = useState<Client | null>(null)
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -88,37 +91,58 @@ export default function ClientesPage() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
-    const url = selected ? `/api/clients/${selected.id}` : '/api/clients'
-    const method = selected ? 'PUT' : 'POST'
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        name: form.name,
-        email: form.email || null,
-        phone: form.phone || null,
-        company: form.company || null,
-        status: form.status,
-        notes: form.notes || null,
-        source: form.source || null,
-        responsible: form.responsible || null,
-      }),
-    })
-    if (res.ok) {
-      await fetchClients()
-      closeDialog()
+    if (saving) return
+    setSaving(true)
+    try {
+      const url = selected ? `/api/clients/${selected.id}` : '/api/clients'
+      const method = selected ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email || null,
+          phone: form.phone || null,
+          company: form.company || null,
+          status: form.status,
+          notes: form.notes || null,
+          source: form.source || null,
+          responsible: form.responsible || null,
+        }),
+      })
+      if (res.ok) {
+        await fetchClients()
+        closeDialog()
+      }
+    } finally {
+      setSaving(false)
     }
   }
 
-  const archive = async (client: Client) => {
-    await fetch(`/api/clients/${client.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ status: 'archived' }),
-    })
-    await fetchClients()
+  const openDeleteDialog = (client: Client) => {
+    setClientToDelete(client)
+    setDeleteDialogOpen(true)
+  }
+
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false)
+    setClientToDelete(null)
+  }
+
+  const deleteClient = async () => {
+    if (!clientToDelete) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/clients/${clientToDelete.id}`, { method: 'DELETE', credentials: 'include' })
+      if (res.ok) {
+        await fetchClients()
+        closeDeleteDialog()
+        if (selected?.id === clientToDelete.id) closeDialog()
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -130,10 +154,11 @@ export default function ClientesPage() {
         </div>
         <button
           onClick={() => openDialog(null)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white transition-opacity hover:opacity-90"
+          disabled={saving}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ backgroundColor: 'var(--primary-color, #3B82F6)' }}
         >
-          <Plus className="w-4 h-4" />
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           Novo Cliente
         </button>
       </div>
@@ -211,11 +236,11 @@ export default function ClientesPage() {
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => archive(client)}
+                        onClick={() => openDeleteDialog(client)}
                         className="p-2 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600"
-                        title="Arquivar"
+                        title="Excluir"
                       >
-                        <Archive className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -314,13 +339,52 @@ export default function ClientesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-white font-medium"
+                  disabled={saving}
+                  className="px-4 py-2 rounded-xl text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: 'var(--primary-color, #3B82F6)' }}
                 >
-                  {selected ? 'Salvar' : 'Criar Cliente'}
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin inline-block mr-2" />
+                      Salvando...
+                    </>
+                  ) : selected ? (
+                    'Salvar'
+                  ) : (
+                    'Criar Cliente'
+                  )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmação de exclusão */}
+      {deleteDialogOpen && clientToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">Excluir cliente</h2>
+            <p className="text-slate-600 mb-6">
+              Tem certeza que deseja excluir <strong>{clientToDelete.name}</strong>? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteDialog}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={deleteClient}
+                disabled={saving}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {saving ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
           </div>
         </div>
       )}

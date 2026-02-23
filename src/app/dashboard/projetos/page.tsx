@@ -40,12 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 
 const statusConfig = {
   in_progress: { label: 'Em Andamento', color: 'bg-blue-100 text-blue-700', bgColor: 'bg-blue-500', icon: Play },
@@ -451,26 +445,13 @@ export default function ProjetosPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
-                              <DropdownMenuItem onClick={() => openDialog(project)} className="gap-2">
-                                <Edit2 className="w-4 h-4" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => confirmDelete(project)}
-                                className="gap-2 text-red-600 focus:text-red-600"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <button
+                            onClick={() => openDialog(project)}
+                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                            title="Editar projeto"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     )
@@ -496,33 +477,20 @@ export default function ProjetosPage() {
                   key={project.id}
                   className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-4">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-slate-900 truncate">{project.name}</h3>
                       {project.client_name && (
                         <p className="text-sm text-slate-400 truncate">{project.client_name}</p>
                       )}
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem onClick={() => openDialog(project)} className="gap-2">
-                          <Edit2 className="w-4 h-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => confirmDelete(project)}
-                          className="gap-2 text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <button
+                      onClick={() => openDialog(project)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
+                      title="Editar projeto"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
                   </div>
 
                   <div className="space-y-3">
@@ -692,7 +660,21 @@ export default function ProjetosPage() {
               />
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2 sm:gap-0 flex-wrap">
+              {selected && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setDialogOpen(false)
+                    confirmDelete(selected)
+                  }}
+                  className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 order-last sm:order-none"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Excluir
+                </Button>
+              )}
               <Button type="button" variant="outline" onClick={closeDialog} className="rounded-xl">
                 Cancelar
               </Button>
