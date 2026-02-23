@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle } from 'lucide-react'
+import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle, Search, Mail } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -87,6 +87,9 @@ export default function DocumentosPage() {
   const [signatoriesForSign, setSignatoriesForSign] = useState<Signatory[]>([])
   const [signatureDetailsOpen, setSignatureDetailsOpen] = useState(false)
   const [selectedSignatory, setSelectedSignatory] = useState<Signatory | null>(null)
+  const [viewContractOpen, setViewContractOpen] = useState(false)
+  const [viewContract, setViewContract] = useState<Contract | null>(null)
+  const [docSearch, setDocSearch] = useState('')
   const [form, setForm] = useState({
     title: '',
     file_url: '',
@@ -291,6 +294,21 @@ export default function DocumentosPage() {
     }
   }
 
+  const openViewContract = (c: Contract) => {
+    setViewContract(c)
+    setViewContractOpen(true)
+  }
+
+  const sendContractByEmail = (contract: Contract) => {
+    const url = `${window.location.origin}/assinatura/${contract.id}`
+    const subject = encodeURIComponent(`Assinatura: ${contract.title}`)
+    const body = encodeURIComponent(
+      `Olá,\n\nSegue o link para assinar o documento "${contract.title}":\n\n${url}\n\nAtenciosamente.`
+    )
+    window.location.href = `mailto:${contract.signatories?.[0]?.email || ''}?subject=${subject}&body=${body}`
+    toast.success('Cliente de e-mail aberto. Cole o link no corpo do e-mail.')
+  }
+
   const duplicateContract = async (contract: Contract) => {
     try {
       const res = await fetch('/api/contracts', {
@@ -342,125 +360,255 @@ export default function DocumentosPage() {
     }
   }
 
+  const countFinalizados = contracts.filter((c) => c.status === 'signed').length
+  const countEmCurso = contracts.filter((c) => ['draft', 'sent', 'pending'].includes(c.status)).length
+  const countRecusados = contracts.filter((c) => c.status === 'expired').length
+  const filteredContracts = docSearch.trim()
+    ? contracts.filter(
+        (c) =>
+          c.title?.toLowerCase().includes(docSearch.toLowerCase()) ||
+          (c.client_name ?? '').toLowerCase().includes(docSearch.toLowerCase())
+      )
+    : contracts
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Documentos</h1>
           <p className="text-slate-500">Gerencie contratos e assinaturas digitais.</p>
         </div>
-        <Button onClick={() => openDialog(null)} className="rounded-xl">
+        <Button onClick={() => openDialog(null)} className="rounded-xl bg-blue-600 hover:bg-blue-700 shrink-0">
           <Plus className="w-4 h-4 mr-2" />
-          Novo contrato
+          Criar documento
         </Button>
       </div>
 
-      <Card className="rounded-2xl border-0 shadow-sm overflow-hidden">
+      {/* Cards de resumo - modelo do print */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-emerald-50/80">
+          <Card className="border-0 shadow-none bg-transparent p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-emerald-700">Finalizados</p>
+                <p className="text-2xl font-bold text-emerald-800 mt-0.5">{countFinalizados}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-emerald-500" />
+            </div>
+          </Card>
+        </Card>
+        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-amber-50/80">
+          <Card className="border-0 shadow-none bg-transparent p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-amber-700">Em curso</p>
+                <p className="text-2xl font-bold text-amber-800 mt-0.5">{countEmCurso}</p>
+              </div>
+              <Clock className="w-8 h-8 text-amber-500" />
+            </div>
+          </Card>
+        </Card>
+        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-red-50/80">
+          <Card className="border-0 shadow-none bg-transparent p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-700">Recusados</p>
+                <p className="text-2xl font-bold text-red-800 mt-0.5">{countRecusados}</p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+          </Card>
+        </Card>
+        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-blue-50/80">
+          <Card className="border-0 shadow-none bg-transparent p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-700">Ver todos</p>
+                <p className="text-2xl font-bold text-blue-800 mt-0.5">{contracts.length}</p>
+              </div>
+              <FileText className="w-8 h-8 text-blue-500" />
+            </div>
+          </Card>
+        </Card>
+      </div>
+
+      {/* Buscar documento */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <Input
+          placeholder="Buscar documento"
+          value={docSearch}
+          onChange={(e) => setDocSearch(e.target.value)}
+          className="pl-9 rounded-xl border-slate-200 bg-white"
+        />
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Documentos criados</h2>
         {loading ? (
-          <div className="p-12 text-center text-slate-500">Carregando...</div>
-        ) : contracts.length === 0 ? (
-          <div className="p-12 text-center text-slate-500">
-            Nenhum contrato. Clique em &quot;Novo contrato&quot; para começar.
+          <div className="p-12 text-center text-slate-500 rounded-2xl bg-white border border-slate-100">Carregando...</div>
+        ) : filteredContracts.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 rounded-2xl bg-white border border-slate-100">
+            {docSearch ? 'Nenhum documento encontrado.' : 'Nenhum contrato. Clique em "Criar documento" para começar.'}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/50">
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Título</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Cliente</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Status</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Criado</th>
-                  <th className="w-10 p-4" />
-                </tr>
-              </thead>
-              <tbody>
-                {contracts.map((c) => (
-                  <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                    <td className="p-4">
-                      <div>
-                        <p className="font-medium text-slate-900">{c.title}</p>
-                        {c.file_url && (
-                          <p className="text-xs text-slate-400 mt-0.5">PDF anexado</p>
-                        )}
+          <div className="space-y-3">
+            {filteredContracts.map((c) => {
+              const signedCount = c.signatories?.filter((s) => s.signed).length ?? 0
+              const totalSign = c.signatories?.length ?? 1
+              const isEmCurso = ['draft', 'sent', 'pending'].includes(c.status)
+              return (
+                <Card key={c.id} className="rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5 text-blue-600" />
                       </div>
-                    </td>
-                    <td className="p-4 text-slate-600">{c.client_name || '-'}</td>
-                    <td className="p-4">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{c.title}</p>
+                        <p className="text-sm text-slate-500 truncate">{c.client_name || '—'}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{signedCount}/{totalSign} assinaturas</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${
                           c.status === 'signed'
                             ? 'bg-emerald-100 text-emerald-700'
-                            : c.status === 'sent' || c.status === 'pending'
+                            : isEmCurso
                               ? 'bg-amber-100 text-amber-700'
                               : c.status === 'expired'
                                 ? 'bg-red-100 text-red-700'
                                 : 'bg-slate-100 text-slate-600'
                         }`}
                       >
-                        {c.status === 'expired' && <AlertTriangle className="w-3 h-3" />}
+                        {isEmCurso && <Clock className="w-3 h-3" />}
                         {c.status === 'signed' && <CheckCircle className="w-3 h-3" />}
-                        {STATUS_OPTIONS.find((s) => s.value === c.status)?.label ?? c.status}
+                        {c.status === 'expired' && <AlertTriangle className="w-3 h-3" />}
+                        {isEmCurso ? 'Em curso' : c.status === 'signed' ? 'Finalizado' : c.status === 'expired' ? 'Recusado' : STATUS_OPTIONS.find((s) => s.value === c.status)?.label ?? c.status}
                       </span>
-                    </td>
-                    <td className="p-4 text-slate-500 text-sm">
-                      {format(new Date(c.created_at), 'dd/MM/yyyy', { locale: ptBR })}
-                    </td>
-                    <td className="p-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl w-48">
-                          <DropdownMenuItem onClick={() => openDialog(c)} className="rounded-lg">
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          {c.status !== 'signed' && c.status !== 'expired' && (
-                            <DropdownMenuItem onClick={() => sendContract(c)} className="rounded-lg">
-                              <Send className="w-4 h-4 mr-2" />
-                              Enviar para assinatura
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => copySignLink(c)} className="rounded-lg">
-                            <Copy className="w-4 h-4 mr-2" />
-                            Copiar link
-                          </DropdownMenuItem>
-                          {c.file_url && (
-                            <DropdownMenuItem onClick={() => window.open(c.file_url!, '_blank')} className="rounded-lg">
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Ver PDF
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => duplicateContract(c)} className="rounded-lg">
-                            <Copy className="w-4 h-4 mr-2" />
-                            Duplicar
-                          </DropdownMenuItem>
-                          {c.status === 'signed' && (
-                            <DropdownMenuItem onClick={() => handleGeneratePDF(c)} className="rounded-lg">
-                              <Download className="w-4 h-4 mr-2" />
-                              Gerar PDF assinado
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() => remove(c.id)}
-                            className="text-red-600 rounded-lg"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      {isEmCurso && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-lg border-slate-200 gap-1.5"
+                          onClick={() => {
+                            const idx = c.signatories?.findIndex((s) => !s.signed) ?? 0
+                            setSelected(c)
+                            setSignatoriesForSign(c.signatories?.length ? c.signatories : [])
+                            if (c.signatories?.length && idx >= 0) openSign(c, idx)
+                          }}
+                        >
+                          <PenLine className="w-3.5 h-3.5" />
+                          Assinar
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full"
+                        onClick={() => openViewContract(c)}
+                        title="Abrir documento"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
           </div>
         )}
-      </Card>
+      </div>
+
+      {/* Modal Abrir documento (ao clicar nos 3 pontos) */}
+      <Dialog open={viewContractOpen} onOpenChange={(open) => { setViewContractOpen(open); if (!open) setViewContract(null) }}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] rounded-2xl overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-semibold text-slate-900">
+              {viewContract?.title ?? 'Documento'}
+            </DialogTitle>
+          </DialogHeader>
+          {viewContract && (
+            <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                  onClick={() => { copySignLink(viewContract); }}
+                >
+                  <Link2 className="w-4 h-4" />
+                  Gerar link de assinatura
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl gap-2 border-slate-200"
+                  onClick={() => sendContractByEmail(viewContract)}
+                >
+                  <Mail className="w-4 h-4" />
+                  Enviar ao e-mail do cliente
+                </Button>
+                {viewContract.file_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl gap-2 border-slate-200"
+                    onClick={() => window.open(viewContract.file_url!, '_blank')}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Ver PDF
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl gap-2 border-slate-200"
+                  onClick={() => { setViewContractOpen(false); setViewContract(null); openDialog(viewContract); }}
+                >
+                  <Edit className="w-4 h-4" />
+                  Editar
+                </Button>
+                {viewContract.status === 'signed' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl gap-2 border-slate-200"
+                    onClick={() => handleGeneratePDF(viewContract)}
+                  >
+                    <Download className="w-4 h-4" />
+                    Gerar PDF assinado
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl gap-2 border-red-200 text-red-600 hover:bg-red-50"
+                  onClick={() => { if (confirm('Excluir este contrato?')) { remove(viewContract.id); setViewContractOpen(false); setViewContract(null); } }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Excluir
+                </Button>
+              </div>
+              {viewContract.file_url && (
+                <div className="flex-1 min-h-[400px] rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                  <iframe
+                    src={viewContract.file_url}
+                    title={viewContract.title}
+                    className="w-full h-full min-h-[400px]"
+                  />
+                </div>
+              )}
+              {!viewContract.file_url && (
+                <div className="py-12 text-center text-slate-500 rounded-xl border border-slate-100 bg-slate-50">
+                  Nenhum PDF anexado a este documento.
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg rounded-2xl max-h-[90vh] overflow-y-auto">

@@ -18,10 +18,8 @@ import {
   Legend,
 } from 'recharts'
 
-const CHART_ORANGE = '#F59E0B'
-const CHART_PURPLE = '#8B5CF6'
-const CHART_PURPLE_LIGHT = '#A78BFA'
-const CHART_BLUE = '#6366F1'
+const CHART_ORANGE = '#ea580c'
+const CHART_ORANGE_PALETTE = ['#ea580c', '#c2410c', '#f97316', '#fb923c']
 
 interface StatsCardProps {
   title: string
@@ -33,12 +31,12 @@ interface StatsCardProps {
 
 function StatsCard({ title, value, icon: Icon, trendValue, color }: StatsCardProps) {
   return (
-    <div className="p-6 rounded-2xl border-0 shadow-sm bg-white">
+    <div className="p-5 rounded-2xl border-0 shadow-sm bg-white">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <h3 className="text-2xl font-bold text-slate-900 mt-1">{value}</h3>
-          <p className="text-sm mt-1 text-emerald-600 font-medium">{trendValue}</p>
+          <p className="text-sm font-medium text-slate-500 font-light">{title}</p>
+          <h3 className="text-2xl font-semibold text-slate-900 mt-1 font-light tracking-tight">{value}</h3>
+          <p className="text-sm mt-1 text-emerald-600 font-medium font-light">{trendValue}</p>
         </div>
         <div
           className="w-12 h-12 rounded-xl flex items-center justify-center"
@@ -154,7 +152,20 @@ export default function DashboardPage() {
     ].filter(item => item.value > 0)
   }, [activeClients, inactiveClients, pendingClients])
 
-  const PIE_COLORS = [CHART_BLUE, CHART_PURPLE, CHART_PURPLE_LIGHT]
+  const clientGrowthDataFull = useMemo(() => {
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    const byMonth: Record<number, number> = {}
+    clients.forEach((c) => {
+      if (c.created_at) {
+        const m = new Date(c.created_at).getMonth()
+        byMonth[m] = (byMonth[m] || 0) + 1
+      }
+    })
+    return months.slice(0, new Date().getMonth() + 1).map((name, i) => ({ name, clientes: byMonth[i] || 0 }))
+  }, [clients])
+
+  const PIE_COLORS = CHART_ORANGE_PALETTE
+  const totalPercentage = clientDistributionData.reduce((sum, item) => sum + item.percentage, 0)
 
   if (loading) {
     return (
@@ -164,18 +175,16 @@ export default function DashboardPage() {
     )
   }
 
-  const totalPercentage = clientDistributionData.reduce((sum, item) => sum + item.percentage, 0)
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500">
+        <h1 className="text-2xl font-light text-slate-900 tracking-tight">Dashboard</h1>
+        <p className="text-slate-500 font-light text-sm mt-0.5">
           Bem-vindo! Aqui está a visão geral do seu negócio.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Total de Clientes"
           value={totalClients}
@@ -206,25 +215,25 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Gráfico de Linha - Receita Mensal */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-white rounded-2xl shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Receita Mensal</h2>
-              <p className="text-sm text-slate-500">Acompanhe sua receita ao longo do tempo</p>
+              <h2 className="text-base font-semibold text-slate-900 font-light">Receita Mensal</h2>
+              <p className="text-sm text-slate-500 font-light">Acompanhe sua receita ao longo do tempo</p>
             </div>
             <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
               <MoreHorizontal className="w-5 h-5 text-slate-400" />
             </button>
           </div>
-          <div className="h-72">
+          <div className="h-60">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <AreaChart data={revenueData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_BLUE} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={CHART_BLUE} stopOpacity={0} />
+                    <stop offset="5%" stopColor={CHART_ORANGE} stopOpacity={0.35} />
+                    <stop offset="95%" stopColor={CHART_ORANGE} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -232,25 +241,25 @@ export default function DashboardPage() {
                   dataKey="name" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#94A3B8', fontSize: 12 }}
-                  dy={10}
+                  tick={{ fill: '#94A3B8', fontSize: 11, fontFamily: 'inherit' }}
+                  dy={8}
                 />
                 <YAxis 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#94A3B8', fontSize: 12 }}
+                  tick={{ fill: '#94A3B8', fontSize: 11 }}
                   tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  dx={-10}
+                  dx={-8}
                 />
                 <Tooltip content={<RevenueTooltip />} />
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke={CHART_BLUE}
+                  stroke={CHART_ORANGE}
                   strokeWidth={2.5}
                   fill="url(#colorRevenue)"
-                  dot={{ fill: CHART_BLUE, strokeWidth: 2, r: 4, stroke: '#fff' }}
-                  activeDot={{ r: 6, fill: CHART_BLUE, stroke: '#fff', strokeWidth: 2 }}
+                  dot={{ fill: CHART_ORANGE, strokeWidth: 2, r: 4, stroke: '#fff' }}
+                  activeDot={{ r: 6, fill: CHART_ORANGE, stroke: '#fff', strokeWidth: 2 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -258,17 +267,17 @@ export default function DashboardPage() {
         </div>
 
         {/* Gráfico de Pizza - Distribuição de Clientes */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-white rounded-2xl shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Distribuição de Clientes</h2>
-              <p className="text-sm text-slate-500">Status atual dos seus clientes</p>
+              <h2 className="text-base font-semibold text-slate-900 font-light">Distribuição de Clientes</h2>
+              <p className="text-sm text-slate-500 font-light">Status atual dos seus clientes</p>
             </div>
             <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
               <MoreHorizontal className="w-5 h-5 text-slate-400" />
             </button>
           </div>
-          <div className="h-72 flex items-center">
+          <div className="h-60 flex items-center">
             <div className="w-1/2 h-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -276,8 +285,8 @@ export default function DashboardPage() {
                     data={clientDistributionData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
+                    innerRadius={50}
+                    outerRadius={75}
                     paddingAngle={4}
                     dataKey="value"
                     stroke="none"
@@ -288,14 +297,14 @@ export default function DashboardPage() {
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ position: 'relative', top: '-180px' }}>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ position: 'relative', top: '-150px' }}>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-slate-900">{totalPercentage}%</p>
-                  <p className="text-xs text-slate-500">Total</p>
+                  <p className="text-2xl font-semibold text-slate-900 font-light">{totalPercentage}%</p>
+                  <p className="text-xs text-slate-500 font-light">Total</p>
                 </div>
               </div>
             </div>
-            <div className="w-1/2 flex flex-col justify-center gap-4 pl-4">
+            <div className="w-1/2 flex flex-col justify-center gap-3 pl-4">
               {clientDistributionData.map((item, index) => (
                 <div key={item.name} className="flex items-center gap-3">
                   <div 
@@ -303,14 +312,68 @@ export default function DashboardPage() {
                     style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} 
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-700">{item.name}</p>
-                    <p className="text-xs text-slate-500">{item.value} clientes</p>
+                    <p className="text-sm font-medium text-slate-700 font-light">{item.name}</p>
+                    <p className="text-xs text-slate-500 font-light">{item.value} clientes</p>
                   </div>
-                  <p className="text-sm font-semibold text-slate-900">{item.percentage}%</p>
+                  <p className="text-sm font-semibold text-slate-900 font-light">{item.percentage}%</p>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Gráfico Aumento de Clientes */}
+      <div className="bg-white rounded-2xl shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900 font-light">Aumento de clientes</h2>
+            <p className="text-sm text-slate-500 font-light">Clientes cadastrados no sistema por mês</p>
+          </div>
+          <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+            <MoreHorizontal className="w-5 h-5 text-slate-400" />
+          </button>
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={clientGrowthDataFull.length ? clientGrowthDataFull : [{ name: 'Jan', clientes: 0 }]} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorClientes" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={CHART_ORANGE} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={CHART_ORANGE} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#94A3B8', fontSize: 11 }}
+                dy={8}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#94A3B8', fontSize: 11 }}
+                allowDecimals={false}
+                dx={-8}
+              />
+              <Tooltip 
+                formatter={(value: number) => [value, 'Clientes']}
+                labelFormatter={(label) => label}
+                contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+              />
+              <Area
+                type="monotone"
+                dataKey="clientes"
+                stroke={CHART_ORANGE}
+                strokeWidth={2.5}
+                fill="url(#colorClientes)"
+                dot={{ fill: CHART_ORANGE, strokeWidth: 2, r: 4, stroke: '#fff' }}
+                activeDot={{ r: 6, fill: CHART_ORANGE, stroke: '#fff', strokeWidth: 2 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

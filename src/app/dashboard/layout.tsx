@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -18,7 +18,6 @@ import {
   Columns3,
   Network,
   FileBarChart,
-  LayoutGrid,
   Palette,
   Settings,
   LogOut,
@@ -39,7 +38,6 @@ const navItems = [
   { href: '/dashboard/clientes', icon: Users, label: 'Clientes' },
   { href: '/dashboard/propostas', icon: FileText, label: 'Propostas' },
   { href: '/dashboard/documentos', icon: FileSignature, label: 'Contratos' },
-  { href: '/dashboard/wello', icon: LayoutGrid, label: 'Wello' },
   { href: '/dashboard/projetos', icon: Briefcase, label: 'Projetos' },
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/mapa-mental', icon: Network, label: 'Mapa Mental' },
@@ -89,12 +87,22 @@ export default function DashboardLayout({
     return () => document.removeEventListener('click', closeDropdowns)
   }, [])
 
-  useEffect(() => {
+  const fetchSettings = useCallback(() => {
     fetch('/api/app-settings', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setSettings(data))
       .catch(() => setSettings(null))
   }, [])
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  useEffect(() => {
+    const onSettingsUpdated = () => fetchSettings()
+    window.addEventListener('app-settings-updated', onSettingsUpdated)
+    return () => window.removeEventListener('app-settings-updated', onSettingsUpdated)
+  }, [fetchSettings])
 
   useEffect(() => {
     if (!settings) return
@@ -114,24 +122,20 @@ export default function DashboardLayout({
     if (settings.app_name) document.title = settings.app_name
   }, [settings])
 
-  const handleSignOut = async (e?: React.MouseEvent) => {
+  const handleSignOut = useCallback((e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
     }
     setSidebarOpen(false)
     setProfileOpen(false)
-    try {
-      await signOut()
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error)
-    }
-    // Força redirecionamento usando window.location para garantir limpeza completa
-    window.location.href = '/login'
-  }
+    signOut().catch(() => {}).finally(() => {
+      window.location.href = '/login'
+    })
+  }, [signOut])
 
-  const accentColor = settings?.primary_color || '#dc2626'
-  const sidebarBg = settings?.secondary_color || '#1e293b'
+  const accentColor = settings?.primary_color || '#ea580c'
+  const sidebarBg = settings?.secondary_color || '#000020'
   const appName = settings?.app_name || ''
   const logoUrl = settings?.logo_url && settings.logo_url.trim() !== '' ? settings.logo_url : '/logobranco.png'
 
@@ -144,12 +148,13 @@ export default function DashboardLayout({
         }
       `}</style>
 
-      {/* Sidebar - azul escuro */}
+      {/* Sidebar - azul escuro: redondo à esquerda (pra fora), quadrado à direita */}
       <aside
-        className="fixed top-0 left-0 z-40 h-full transition-all duration-300 hidden lg:flex flex-col"
+        className="fixed top-1 left-1 bottom-1 z-40 transition-all duration-300 hidden lg:flex flex-col rounded-l-lg overflow-hidden"
         style={{
           width: sidebarCollapsed ? 80 : 256,
           backgroundColor: sidebarBg,
+          height: 'calc(100vh - 0.5rem)',
         }}
       >
         <div className="px-4 py-3 flex items-center justify-between min-h-[64px] border-b border-white/10">
@@ -181,12 +186,12 @@ export default function DashboardLayout({
             <Menu className="w-5 h-5" />
           </button>
         </div>
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-full transition-colors ${
                 pathname === item.href
                   ? 'text-white'
                   : 'text-white/70 hover:bg-white/10 hover:text-white'
@@ -261,7 +266,7 @@ export default function DashboardLayout({
 
       {/* Mobile sidebar */}
       <aside
-        className={`lg:hidden fixed top-0 left-0 z-50 h-full w-72 shadow-xl transition-transform ${
+        className={`lg:hidden fixed top-0 left-0 z-50 h-full w-72 shadow-xl transition-transform rounded-l-lg overflow-hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ backgroundColor: sidebarBg }}
@@ -281,13 +286,13 @@ export default function DashboardLayout({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <nav className="p-2 space-y-0.5">
+        <nav className="p-2 space-y-1">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-full ${
                 pathname === item.href ? 'text-white' : 'text-white/70'
               }`}
               style={pathname === item.href ? { backgroundColor: accentColor } : undefined}
@@ -322,8 +327,8 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Main */}
-      <div className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+      {/* Main - quadrado à esquerda (onde encontra o menu), redondo à direita */}
+      <div className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 lg:mt-1 lg:mr-2 lg:mb-2 rounded-tl-none rounded-bl-none rounded-tr-lg rounded-br-lg overflow-hidden bg-white shadow-sm ${sidebarCollapsed ? 'lg:ml-[84px]' : 'lg:ml-[260px]'}`}>
         <header ref={headerRef} className="bg-white border-b border-slate-200 px-4 lg:px-6 py-3 relative">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 max-w-md hidden sm:block">

@@ -24,12 +24,12 @@ export function AuthSidePanel() {
       <div className="relative z-10 flex flex-col w-full min-h-screen p-8">
         <div className="flex items-start justify-between flex-shrink-0">
           <Link href="/" className="flex items-center">
-            <Image src="/logobranco.png" alt="Logo" width={120} height={40} className="h-10 w-auto object-contain" />
+            <Image src="/logobranco.png" alt="Logo" width={400} height={112} className="h-28 w-auto object-contain" />
           </Link>
           <span className="text-sm text-white/90">© {new Date().getFullYear()}</span>
         </div>
         <div className="flex-1 min-h-0" />
-        <p className="flex-shrink-0 text-white text-base leading-relaxed max-w-md drop-shadow-md">
+        <p className="flex-shrink-0 text-white text-xl leading-relaxed max-w-lg drop-shadow-md font-light">
           Propostas modernas, Kanban visual, agenda integrada e planejamento estratégico tudo em um só lugar.
         </p>
       </div>

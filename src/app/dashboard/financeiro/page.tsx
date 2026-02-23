@@ -21,7 +21,7 @@ import {
   DollarSign,
   PieChart,
 } from 'lucide-react'
-import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, parseISO } from 'date-fns'
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, subMonths, addMonths, subWeeks, addWeeks, subDays, addDays, isWithinInterval, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
 import {
@@ -100,6 +100,7 @@ export default function FinanceiroPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | FinanceType>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterPeriod, setFilterPeriod] = useState<'month' | 'week' | 'day'>('month')
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
   const [form, setForm] = useState({
@@ -128,14 +129,21 @@ export default function FinanceiroPage() {
     fetchData().finally(() => setLoading(false))
   }, [])
 
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd = endOfMonth(currentMonth)
+  const { periodStart, periodEnd } = useMemo(() => {
+    if (filterPeriod === 'day') {
+      return { periodStart: startOfDay(currentMonth), periodEnd: endOfDay(currentMonth) }
+    }
+    if (filterPeriod === 'week') {
+      return { periodStart: startOfWeek(currentMonth, { weekStartsOn: 0 }), periodEnd: endOfWeek(currentMonth, { weekStartsOn: 0 }) }
+    }
+    return { periodStart: startOfMonth(currentMonth), periodEnd: endOfMonth(currentMonth) }
+  }, [currentMonth, filterPeriod])
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
       const txDate = parseISO(t.date)
-      const inMonth = isWithinInterval(txDate, { start: monthStart, end: monthEnd })
-      if (!inMonth) return false
+      const inRange = isWithinInterval(txDate, { start: periodStart, end: periodEnd })
+      if (!inRange) return false
 
       if (filterType !== 'all' && t.type !== filterType) return false
       if (filterCategory !== 'all' && t.category !== filterCategory) return false
@@ -148,7 +156,7 @@ export default function FinanceiroPage() {
       }
       return true
     })
-  }, [transactions, filterType, filterCategory, searchTerm, monthStart, monthEnd])
+  }, [transactions, filterType, filterCategory, searchTerm, periodStart, periodEnd])
 
   const monthlyIncome = useMemo(() => {
     return filteredTransactions
@@ -287,12 +295,28 @@ export default function FinanceiroPage() {
     }).format(value)
   }
 
-  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1))
-  const nextMonth = () => {
-    const next = new Date(currentMonth)
-    next.setMonth(next.getMonth() + 1)
-    if (next <= new Date()) setCurrentMonth(next)
+  const prevPeriod = () => {
+    if (filterPeriod === 'day') setCurrentMonth(subDays(currentMonth, 1))
+    else if (filterPeriod === 'week') setCurrentMonth(subWeeks(currentMonth, 1))
+    else setCurrentMonth(subMonths(currentMonth, 1))
   }
+  const nextPeriod = () => {
+    if (filterPeriod === 'day') {
+      const next = addDays(currentMonth, 1)
+      if (next <= new Date()) setCurrentMonth(next)
+    } else if (filterPeriod === 'week') {
+      const next = addWeeks(currentMonth, 1)
+      if (next <= new Date()) setCurrentMonth(next)
+    } else {
+      const next = addMonths(currentMonth, 1)
+      if (next <= new Date()) setCurrentMonth(next)
+    }
+  }
+  const isNextDisabled = filterPeriod === 'day'
+    ? currentMonth >= new Date()
+    : filterPeriod === 'week'
+      ? endOfWeek(currentMonth, { weekStartsOn: 0 }) >= new Date()
+      : currentMonth >= new Date()
 
   if (loading) {
     return (
@@ -328,27 +352,44 @@ export default function FinanceiroPage() {
         </div>
       </div>
 
-      {/* Month Navigation */}
-      <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-200 p-4">
-        <button
-          onClick={prevMonth}
-          className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-slate-400" />
-          <span className="text-lg font-semibold text-slate-900">
-            {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-          </span>
+      {/* Period Navigation + Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl border border-slate-200 p-4">
+        <div className="flex items-center justify-between sm:justify-start gap-2">
+          <button
+            onClick={prevPeriod}
+            className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-slate-400" />
+            <span className="text-lg font-semibold text-slate-900">
+              {filterPeriod === 'day'
+                ? format(currentMonth, "dd 'de' MMMM yyyy", { locale: ptBR })
+                : filterPeriod === 'week'
+                  ? `${format(periodStart, 'dd/MM', { locale: ptBR })} – ${format(periodEnd, 'dd/MM yyyy', { locale: ptBR })}`
+                  : format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+            </span>
+          </div>
+          <button
+            onClick={nextPeriod}
+            className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-50"
+            disabled={isNextDisabled}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
-        <button
-          onClick={nextMonth}
-          className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-50"
-          disabled={currentMonth >= new Date()}
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+        <Select value={filterPeriod} onValueChange={(v) => setFilterPeriod(v as 'month' | 'week' | 'day')}>
+          <SelectTrigger className="w-40 rounded-xl">
+            <Filter className="w-4 h-4 mr-2 text-slate-400" />
+            <SelectValue placeholder="Período" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="month">Mensal</SelectItem>
+            <SelectItem value="week">Semanal</SelectItem>
+            <SelectItem value="day">Diário</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Summary Cards */}
@@ -401,7 +442,7 @@ export default function FinanceiroPage() {
               <ArrowDownRight className="w-5 h-5 text-red-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-red-600">{formatCurrency(monthlyExpense)}</p>
+          <p className="text-3xl font-bold text-black">{formatCurrency(monthlyExpense)}</p>
           <p className="mt-2 text-sm text-slate-400">
             {filteredTransactions.filter((t) => t.type === 'expense').length} transações
           </p>

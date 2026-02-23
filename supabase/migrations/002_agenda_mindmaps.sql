@@ -1,7 +1,7 @@
--- Plify: Agenda e Mapas Mentais
+-- Plify: Agenda e Mapas Mentais (idempotente – pode rodar mesmo se events já existir)
 
 -- events (agenda/compromissos)
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE events (
 );
 
 -- mind_maps (mapas mentais - dados React Flow)
-CREATE TABLE mind_maps (
+CREATE TABLE IF NOT EXISTS mind_maps (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL DEFAULT 'Mapa sem título',
@@ -29,5 +29,8 @@ CREATE TABLE mind_maps (
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mind_maps ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "events_own" ON events;
 CREATE POLICY "events_own" ON events FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "mind_maps_own" ON mind_maps;
 CREATE POLICY "mind_maps_own" ON mind_maps FOR ALL USING (auth.uid() = user_id);

@@ -198,6 +198,26 @@ const initialNodes: Node[] = [
 
 const initialEdges: Edge[] = []
 
+/** Serializa nodes/edges para JSON seguro (evita referências circulares ou dados não serializáveis) */
+function serializeForStorage(nodes: Node[], edges: Edge[]): { nodes: unknown[]; edges: unknown[] } {
+  const nodesPayload = nodes.map((n) => ({
+    id: n.id,
+    type: n.type,
+    position: n.position,
+    data: n.data,
+    width: (n as Node & { width?: number }).width,
+    height: (n as Node & { height?: number }).height,
+  }))
+  const edgesPayload = edges.map((e) => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    sourceHandle: e.sourceHandle,
+    targetHandle: e.targetHandle,
+  }))
+  return { nodes: nodesPayload, edges: edgesPayload }
+}
+
 function EditNodeModal({
   node,
   nodes,
@@ -552,10 +572,10 @@ function MindMapEditor() {
   const addNode = useCallback(() => {
     const lastNode = nodes[nodes.length - 1]
     const newPos = lastNode
-      ? { x: lastNode.position.x + 80, y: lastNode.position.y + 60 }
+      ? { x: lastNode.position.x + 120, y: lastNode.position.y + 80 }
       : { x: 250, y: 150 }
-    const id = `node-${Date.now()}`
-    const newNode: Node = toStyledNode({
+    const id = `node-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const newNode = toStyledNode({
       id,
       type: 'custom',
       position: newPos,
@@ -591,20 +611,33 @@ function MindMapEditor() {
     if (!user) return
     setSaving(true)
     try {
+      const { nodes: nodesPayload, edges: edgesPayload } = serializeForStorage(nodes, edges)
       if (currentMapId) {
-        await supabase.from('mind_maps').update({ nodes, edges, updated_at: new Date().toISOString() }).eq('id', currentMapId)
+        const { error } = await supabase
+          .from('mind_maps')
+          .update({ nodes: nodesPayload, edges: edgesPayload, updated_at: new Date().toISOString() })
+          .eq('id', currentMapId)
+        if (error) throw error
         showToast('Mapa salvo')
       } else {
-        const { data } = await supabase.from('mind_maps').insert({ user_id: user.id, name: 'Mapa principal', nodes, edges }).select('id').single()
+        const { data, error } = await supabase
+          .from('mind_maps')
+          .insert({ user_id: user.id, name: 'Mapa principal', nodes: nodesPayload, edges: edgesPayload })
+          .select('id')
+          .single()
+        if (error) throw error
         if (data) {
           setCurrentMapId(data.id)
           showToast('Mapa salvo')
         }
       }
-    } catch {
-      showToast('Erro ao salvar. Rode a migration 002 no Supabase.')
+    } catch (err) {
+      const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : 'Erro ao salvar.'
+      showToast(msg)
+      console.error('Erro ao salvar mapa mental:', err)
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }, [user, currentMapId, nodes, edges, supabase])
 
   const exportPdf = useCallback(async () => {
@@ -695,7 +728,7 @@ function MindMapEditor() {
         <Panel position="top-left" className="flex flex-wrap gap-2">
           <button
             onClick={addNode}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-avocado text-white font-medium hover:bg-avocado-light transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" /> Adicionar nó
           </button>
