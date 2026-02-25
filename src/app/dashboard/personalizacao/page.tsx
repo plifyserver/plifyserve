@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { Upload, Palette, Check, Loader2 } from 'lucide-react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { Upload, Palette, Check, Loader2, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 const DEFAULT_PRIMARY = '#ea580c'
 const DEFAULT_SECONDARY = '#000020'
@@ -11,7 +12,6 @@ export default function PersonalizacaoPage() {
   const [form, setForm] = useState({
     app_name: '',
     logo_url: '',
-    favicon_url: '',
     primary_color: DEFAULT_PRIMARY,
     secondary_color: DEFAULT_SECONDARY,
     theme: 'light',
@@ -21,19 +21,16 @@ export default function PersonalizacaoPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [logoUploading, setLogoUploading] = useState(false)
-  const [faviconUploading, setFaviconUploading] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
-  const faviconInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    fetch('/api/app-settings', { credentials: 'include' })
+  const loadSettings = useCallback(() => {
+    fetch('/api/app-settings', { credentials: 'include', cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) {
           setForm({
             app_name: data.app_name || '',
             logo_url: data.logo_url || '',
-            favicon_url: data.favicon_url || '',
             primary_color: data.primary_color || DEFAULT_PRIMARY,
             secondary_color: data.secondary_color || DEFAULT_SECONDARY,
             theme: data.theme || 'light',
@@ -46,6 +43,10 @@ export default function PersonalizacaoPage() {
       .catch(() => setLoading(false))
   }, [])
 
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
+
   const uploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -57,49 +58,57 @@ export default function PersonalizacaoPage() {
       const res = await fetch('/api/app-settings/upload', { method: 'POST', credentials: 'include', body: fd })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error((data as { error?: string }).error || 'Falha no upload')
-      setForm((f) => ({ ...f, logo_url: (data as { url: string }).url }))
+      const url = (data as { url: string }).url
+      const urlWithCache = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now()
+      setForm((f) => ({ ...f, logo_url: urlWithCache }))
     } catch (err) {
       console.error(err)
-      alert(err instanceof Error ? err.message : 'Erro ao enviar logo.')
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar logo.')
     }
     setLogoUploading(false)
     if (logoInputRef.current) logoInputRef.current.value = ''
-  }
-
-  const uploadFavicon = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setFaviconUploading(true)
-    try {
-      const fd = new FormData()
-      fd.set('file', file)
-      fd.set('type', 'favicon')
-      const res = await fetch('/api/app-settings/upload', { method: 'POST', credentials: 'include', body: fd })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error((data as { error?: string }).error || 'Falha no upload')
-      setForm((f) => ({ ...f, favicon_url: (data as { url: string }).url }))
-    } catch (err) {
-      console.error(err)
-      alert(err instanceof Error ? err.message : 'Erro ao enviar favicon.')
-    }
-    setFaviconUploading(false)
-    if (faviconInputRef.current) faviconInputRef.current.value = ''
   }
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
+      const logoUrlClean = (form.logo_url?.split('?')[0] ?? form.logo_url ?? '').trim()
+      const payload = {
+        app_name: form.app_name || null,
+        logo_url: logoUrlClean || null,
+        primary_color: form.primary_color || DEFAULT_PRIMARY,
+        secondary_color: form.secondary_color || DEFAULT_SECONDARY,
+        theme: form.theme || 'light',
+        custom_domain: form.custom_domain || null,
+        hide_branding: form.hide_branding ?? false,
+      }
       const res = await fetch('/api/app-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
-      if (!res.ok) throw new Error('Falha ao salvar')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || 'Falha ao salvar')
+      }
+      setForm((prev) => ({
+        ...prev,
+        app_name: (data as { app_name?: string }).app_name ?? prev.app_name,
+        logo_url: (data as { logo_url?: string }).logo_url ?? prev.logo_url,
+        primary_color: (data as { primary_color?: string }).primary_color ?? prev.primary_color,
+        secondary_color: (data as { secondary_color?: string }).secondary_color ?? prev.secondary_color,
+        theme: (data as { theme?: string }).theme ?? prev.theme,
+        custom_domain: (data as { custom_domain?: string }).custom_domain ?? prev.custom_domain,
+        hide_branding: (data as { hide_branding?: boolean }).hide_branding ?? prev.hide_branding,
+      }))
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('app-settings-updated'))
       }
+      toast.success('Alterações salvas com sucesso.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao salvar')
     } finally {
       setSaving(false)
     }
@@ -128,75 +137,53 @@ export default function PersonalizacaoPage() {
               className="w-full max-w-md px-3 py-2 rounded-xl border border-slate-200"
             />
           </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Logo</label>
-              <div className="flex flex-col gap-2 mt-1">
-                <div className="flex items-center gap-4">
-                  {form.logo_url ? (
-                    <img src={form.logo_url} alt="Logo" className="w-16 h-16 object-contain rounded-xl border bg-white" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center">
-                      <Upload className="w-6 h-6 text-slate-400" />
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                    <input
-                      ref={logoInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-                      onChange={uploadLogo}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => logoInputRef.current?.click()}
-                      disabled={logoUploading}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      {logoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                      {logoUploading ? 'Enviando...' : 'Enviar do PC'}
-                    </button>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Logo</label>
+            <div className="flex flex-col gap-2 mt-1">
+              <div className="flex items-center gap-4">
+                {form.logo_url ? (
+                  <img src={form.logo_url} alt="Logo" className="w-16 h-16 object-contain rounded-xl border bg-white" />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center">
+                    <Upload className="w-6 h-6 text-slate-400" />
                   </div>
-                </div>
-                <input
-                  type="url"
-                  value={form.logo_url}
-                  onChange={(e) => setForm((f) => ({ ...f, logo_url: e.target.value }))}
-                  placeholder="Ou cole a URL do logo"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Favicon</label>
-              <div className="flex flex-col gap-2 mt-1">
-                <div className="flex items-center gap-2">
+                )}
+                <div className="flex flex-col gap-1 flex-1 min-w-0">
                   <input
-                    ref={faviconInputRef}
+                    ref={logoInputRef}
                     type="file"
-                    accept=".ico,image/x-icon,image/png,image/svg+xml,image/gif"
-                    onChange={uploadFavicon}
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                    onChange={uploadLogo}
                     className="hidden"
                   />
                   <button
                     type="button"
-                    onClick={() => faviconInputRef.current?.click()}
-                    disabled={faviconUploading}
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploading}
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
                   >
-                    {faviconUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    {faviconUploading ? 'Enviando...' : 'Enviar do PC'}
+                    {logoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {logoUploading ? 'Enviando...' : 'Enviar do PC'}
                   </button>
+                  {form.logo_url && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, logo_url: '' }))}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 bg-white text-red-600 text-sm font-medium hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Excluir logo
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="url"
-                  value={form.favicon_url}
-                  onChange={(e) => setForm((f) => ({ ...f, favicon_url: e.target.value }))}
-                  placeholder="Ou cole a URL do favicon"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                />
               </div>
+              <input
+                type="url"
+                value={form.logo_url}
+                onChange={(e) => setForm((f) => ({ ...f, logo_url: e.target.value }))}
+                placeholder="Ou cole a URL do logo"
+                className="w-full max-w-md px-3 py-2 rounded-xl border border-slate-200"
+              />
             </div>
           </div>
         </div>

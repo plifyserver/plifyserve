@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { toast } from 'sonner'
 
 interface KanbanStage {
   id: string
@@ -37,6 +39,7 @@ export default function KanbanPage() {
   const [stageDialogOpen, setStageDialogOpen] = useState(false)
   const [editingStage, setEditingStage] = useState<KanbanStage | null>(null)
   const [stageForm, setStageForm] = useState({ name: '', color: '#3B82F6' })
+  const [stageToDeleteId, setStageToDeleteId] = useState<string | null>(null)
 
   const fetchData = async () => {
     const [sRes, cRes] = await Promise.all([
@@ -106,10 +109,17 @@ export default function KanbanPage() {
     }
   }
 
-  const deleteStage = async (id: string) => {
-    if (!confirm('Excluir esta etapa? Os clientes não serão removidos.')) return
-    const res = await fetch(`/api/kanban/stages/${id}`, { method: 'DELETE', credentials: 'include' })
-    if (res.ok) await fetchData()
+  const deleteStage = (id: string) => setStageToDeleteId(id)
+  const confirmDeleteStage = async () => {
+    if (!stageToDeleteId) return
+    const res = await fetch(`/api/kanban/stages/${stageToDeleteId}`, { method: 'DELETE', credentials: 'include' })
+    if (res.ok) {
+      await fetchData()
+      toast.success('Etapa excluída.')
+    } else {
+      toast.error('Não foi possível excluir a etapa.')
+      return false
+    }
   }
 
   const defaultStages = [{ name: 'lead', color: '#94A3B8' }, { name: 'qualificado', color: '#3B82F6' }, { name: 'proposta', color: '#F59E0B' }, { name: 'fechado', color: '#10B981' }]
@@ -242,6 +252,15 @@ export default function KanbanPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!stageToDeleteId}
+        onOpenChange={(open) => !open && setStageToDeleteId(null)}
+        title="Excluir etapa?"
+        description="Os clientes não serão removidos, apenas a etapa. Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        onConfirm={confirmDeleteStage}
+      />
     </div>
   )
 }

@@ -99,6 +99,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     if (!user) return
+    // Busca pelo servidor para evitar cache do cliente Supabase (ex.: após trocar foto)
+    try {
+      const res = await fetch('/api/profile', { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        const p = {
+          ...data,
+          account_type: data.account_type || 'usuario',
+          templates_count: data.templates_count || 0,
+          is_pro: data.plan === 'pro',
+          is_socio: data.account_type === 'socio' || data.account_type === 'admin',
+          is_admin: data.account_type === 'admin',
+        } as Profile
+        setProfile(p)
+        return
+      }
+    } catch {
+      // fallback para Supabase
+    }
     const p = await fetchProfile(user.id)
     setProfile(p)
   }

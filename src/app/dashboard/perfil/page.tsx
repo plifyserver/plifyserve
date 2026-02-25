@@ -25,7 +25,10 @@ export default function PerfilPage() {
     if (profile?.full_name !== undefined) setFullName(profile.full_name ?? '')
   }, [profile?.full_name])
 
-  const avatarUrl = profile?.avatar_url ?? null
+  // Cache buster: força o navegador a recarregar a imagem quando o perfil for atualizado
+  const avatarUrl = profile?.avatar_url
+    ? `${profile.avatar_url}${profile.avatar_url.includes('?') ? '&' : '?'}t=${profile.updated_at || Date.now()}`
+    : null
 
   const removeAvatarFromBucket = async () => {
     if (!user?.id) return

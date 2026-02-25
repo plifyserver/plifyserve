@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Loader2, Save, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { toast } from 'sonner'
 
 export default function MinhaPaginaPage() {
   const { user } = useAuth()
@@ -52,13 +53,13 @@ export default function MinhaPaginaPage() {
       if (res.ok) {
         const data = await res.json()
         setSlug(data.slug)
-        alert('Página salva!')
+        toast.success('Página salva!')
       } else {
         const err = await res.json()
-        alert(err.error || 'Erro ao salvar')
+        toast.error(err.error || 'Erro ao salvar')
       }
     } catch {
-      alert('Erro ao salvar')
+      toast.error('Erro ao salvar')
     } finally {
       setSaving(false)
     }

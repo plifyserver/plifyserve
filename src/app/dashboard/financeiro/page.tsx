@@ -89,6 +89,18 @@ const CATEGORIES = [
   'Outros',
 ]
 
+const TYPE_LABELS: Record<FinanceType | 'all', string> = {
+  all: 'Todos',
+  income: 'Entradas',
+  expense: 'Saídas',
+}
+
+const PERIOD_LABELS: Record<'month' | 'week' | 'day', string> = {
+  month: 'Mensal',
+  week: 'Semanal',
+  day: 'Diário',
+}
+
 export default function FinanceiroPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [clients, setClients] = useState<Client[]>([])
@@ -150,13 +162,16 @@ export default function FinanceiroPage() {
       if (searchTerm) {
         const search = searchTerm.toLowerCase()
         const matchesTitle = t.title.toLowerCase().includes(search)
-        const matchesClient = t.client_name?.toLowerCase().includes(search)
+        const clientName = t.client_name || clients.find((c) => c.id === t.client_id)?.name
+        const projectName = t.project_name || projects.find((p) => p.id === t.project_id)?.name
+        const matchesClient = clientName?.toLowerCase().includes(search)
+        const matchesProject = projectName?.toLowerCase().includes(search)
         const matchesCategory = t.category?.toLowerCase().includes(search)
-        if (!matchesTitle && !matchesClient && !matchesCategory) return false
+        if (!matchesTitle && !matchesClient && !matchesProject && !matchesCategory) return false
       }
       return true
     })
-  }, [transactions, filterType, filterCategory, searchTerm, periodStart, periodEnd])
+  }, [transactions, clients, projects, filterType, filterCategory, searchTerm, periodStart, periodEnd])
 
   const monthlyIncome = useMemo(() => {
     return filteredTransactions
@@ -382,7 +397,7 @@ export default function FinanceiroPage() {
         <Select value={filterPeriod} onValueChange={(v) => setFilterPeriod(v as 'month' | 'week' | 'day')}>
           <SelectTrigger className="w-40 rounded-xl">
             <Filter className="w-4 h-4 mr-2 text-slate-400" />
-            <SelectValue placeholder="Período" />
+            <span>{PERIOD_LABELS[filterPeriod]}</span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="month">Mensal</SelectItem>
@@ -395,26 +410,26 @@ export default function FinanceiroPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Saldo */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-300 text-sm font-medium">Saldo do Mês</span>
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-              <Wallet className="w-5 h-5" />
+            <span className="text-slate-500 text-sm font-medium">Saldo do Mês</span>
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-slate-600" />
             </div>
           </div>
-          <p className={`text-3xl font-bold ${monthlyBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <p className={`text-3xl font-bold text-slate-900 ${monthlyBalance >= 0 ? '' : 'text-red-600'}`}>
             {formatCurrency(monthlyBalance)}
           </p>
-          <div className="mt-2 flex items-center gap-1 text-sm">
+          <div className="mt-2 flex items-center gap-1 text-sm text-slate-600">
             {monthlyBalance >= 0 ? (
               <>
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
-                <span className="text-emerald-400">Positivo</span>
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <span>Positivo</span>
               </>
             ) : (
               <>
-                <TrendingDown className="w-4 h-4 text-red-400" />
-                <span className="text-red-400">Negativo</span>
+                <TrendingDown className="w-4 h-4 text-red-600" />
+                <span className="text-red-600">Negativo</span>
               </>
             )}
           </div>
@@ -428,7 +443,7 @@ export default function FinanceiroPage() {
               <ArrowUpRight className="w-5 h-5 text-emerald-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-emerald-600">{formatCurrency(monthlyIncome)}</p>
+          <p className="text-3xl font-bold text-slate-900">{formatCurrency(monthlyIncome)}</p>
           <p className="mt-2 text-sm text-slate-400">
             {filteredTransactions.filter((t) => t.type === 'income').length} transações
           </p>
@@ -520,7 +535,7 @@ export default function FinanceiroPage() {
           <Select value={filterType} onValueChange={(v) => setFilterType(v as typeof filterType)}>
             <SelectTrigger className="w-40 rounded-xl">
               <Filter className="w-4 h-4 mr-2 text-slate-400" />
-              <SelectValue placeholder="Tipo" />
+              <span>{TYPE_LABELS[filterType]}</span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
@@ -583,8 +598,15 @@ export default function FinanceiroPage() {
                       <td className="px-6 py-4">
                         <div>
                           <p className="font-medium text-slate-900">{tx.title}</p>
-                          {tx.client_name && (
-                            <p className="text-sm text-slate-400">{tx.client_name}</p>
+                          {(tx.client_name || (tx.client_id && clients.find((c) => c.id === tx.client_id)?.name)) && (
+                            <p className="text-sm text-slate-400">
+                              {tx.client_name || clients.find((c) => c.id === tx.client_id)?.name}
+                            </p>
+                          )}
+                          {(tx.project_name || (tx.project_id && projects.find((p) => p.id === tx.project_id)?.name)) && (
+                            <p className="text-sm text-slate-400">
+                              {tx.project_name || projects.find((p) => p.id === tx.project_id)?.name}
+                            </p>
                           )}
                         </div>
                       </td>
@@ -678,7 +700,14 @@ export default function FinanceiroPage() {
                   onValueChange={(v) => setForm({ ...form, type: v as FinanceType })}
                 >
                   <SelectTrigger className="mt-1.5 rounded-xl">
-                    <SelectValue />
+                    <span className="flex items-center gap-2">
+                      {form.type === 'income' ? (
+                        <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <ArrowDownRight className="w-4 h-4 text-red-600" />
+                      )}
+                      {form.type === 'income' ? 'Entrada' : 'Saída'}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="income">
@@ -746,11 +775,15 @@ export default function FinanceiroPage() {
               <div>
                 <Label>Cliente</Label>
                 <Select
-                  value={form.client_id}
-                  onValueChange={(v) => setForm({ ...form, client_id: v })}
+                  value={form.client_id || ''}
+                  onValueChange={(v) => setForm({ ...form, client_id: v || '' })}
                 >
                   <SelectTrigger className="mt-1.5 rounded-xl">
-                    <SelectValue placeholder="Selecione" />
+                    <span className={!form.client_id ? 'text-slate-500' : ''}>
+                      {form.client_id
+                        ? (clients.find((c) => c.id === form.client_id)?.name ?? 'Cliente')
+                        : 'Selecione'}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {clients.map((c) => (
@@ -762,11 +795,15 @@ export default function FinanceiroPage() {
               <div>
                 <Label>Projeto</Label>
                 <Select
-                  value={form.project_id}
-                  onValueChange={(v) => setForm({ ...form, project_id: v })}
+                  value={form.project_id || ''}
+                  onValueChange={(v) => setForm({ ...form, project_id: v || '' })}
                 >
                   <SelectTrigger className="mt-1.5 rounded-xl">
-                    <SelectValue placeholder="Selecione" />
+                    <span className={!form.project_id ? 'text-slate-500' : ''}>
+                      {form.project_id
+                        ? (projects.find((p) => p.id === form.project_id)?.name ?? 'Projeto')
+                        : 'Selecione'}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {projects.map((p) => (

@@ -7,6 +7,20 @@
 -- PARTE 1: RLS PARA PROFILES (com suporte admin)
 -- =============================================
 
+-- Função para checar admin sem causar recursão em RLS (SECURITY DEFINER bypassa RLS)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND account_type = 'admin'
+  );
+$$;
+
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- Remover políticas existentes
@@ -23,25 +37,13 @@ CREATE POLICY "Users can view own profile" ON profiles
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
--- Admin pode ver todos os perfis
+-- Admin pode ver todos os perfis (usa is_admin() para evitar recursão)
 CREATE POLICY "Admins can view all profiles" ON profiles
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.account_type = 'admin'
-    )
-  );
+  FOR SELECT USING (public.is_admin());
 
 -- Admin pode atualizar todos os perfis
 CREATE POLICY "Admins can update all profiles" ON profiles
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.account_type = 'admin'
-    )
-  );
+  FOR UPDATE USING (public.is_admin());
 
 -- =============================================
 -- PARTE 2: RLS PARA TEMPLATES (com suporte admin)

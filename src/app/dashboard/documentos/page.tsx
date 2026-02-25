@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -67,13 +68,11 @@ interface Client {
   name: string
 }
 
-const STATUS_OPTIONS = [
-  { value: 'draft', label: 'Rascunho' },
-  { value: 'sent', label: 'Enviado' },
-  { value: 'pending', label: 'Pendente' },
-  { value: 'signed', label: 'Assinado' },
-  { value: 'expired', label: 'Expirado' },
-]
+/** Contrato só é finalizado quando todos os signatários assinaram */
+function isContractFinalizado(c: Contract): boolean {
+  const signatories = c.signatories ?? []
+  return signatories.length > 0 && signatories.every((s: Signatory) => s.signed)
+}
 
 export default function DocumentosPage() {
   const { user } = useAuth()
@@ -89,6 +88,7 @@ export default function DocumentosPage() {
   const [selectedSignatory, setSelectedSignatory] = useState<Signatory | null>(null)
   const [viewContractOpen, setViewContractOpen] = useState(false)
   const [viewContract, setViewContract] = useState<Contract | null>(null)
+  const [deleteContractId, setDeleteContractId] = useState<string | null>(null)
   const [docSearch, setDocSearch] = useState('')
   const [form, setForm] = useState({
     title: '',
@@ -177,7 +177,15 @@ export default function DocumentosPage() {
     const url = selected ? `/api/contracts/${selected.id}` : '/api/contracts'
     const method = selected ? 'PUT' : 'POST'
     const clientName = form.client_id ? clients.find((c) => c.id === form.client_id)?.name ?? '' : ''
-    
+    const allSigned = form.signatories.length > 0 && form.signatories.every((s) => s.signed)
+    const statusToSend = selected
+      ? allSigned
+        ? 'signed'
+        : selected.status === 'draft'
+          ? 'draft'
+          : 'pending'
+      : 'draft'
+
     try {
       const res = await fetch(url, {
         method,
@@ -188,7 +196,7 @@ export default function DocumentosPage() {
           file_url: form.file_url || null,
           client_id: form.client_id || null,
           client_name: clientName || null,
-          status: form.status,
+          status: statusToSend,
           signatories: form.signatories,
         }),
       })
@@ -205,12 +213,18 @@ export default function DocumentosPage() {
   }
 
   const remove = async (id: string) => {
-    if (!confirm('Excluir este contrato?')) return
     try {
       const res = await fetch(`/api/contracts/${id}`, { method: 'DELETE', credentials: 'include' })
       if (res.ok) {
         await fetchData()
+        setDeleteContractId(null)
+        if (viewContract?.id === id) {
+          setViewContractOpen(false)
+          setViewContract(null)
+        }
         toast.success('Contrato excluído!')
+      } else {
+        toast.error('Erro ao excluir contrato')
       }
     } catch {
       toast.error('Erro ao excluir contrato')
@@ -280,8 +294,8 @@ export default function DocumentosPage() {
   }
 
   const sendContract = async (contract: Contract) => {
-    if (contract.status === 'signed') {
-      toast.error('Este contrato já foi assinado')
+    if (isContractFinalizado(contract)) {
+      toast.error('Este contrato já foi totalmente assinado')
       return
     }
     
@@ -343,7 +357,7 @@ export default function DocumentosPage() {
 
   const handleGeneratePDF = async (contract: Contract) => {
     if (!contract.file_url) {
-      alert('Adicione um arquivo PDF ao contrato para gerar o documento assinado.')
+      toast.error('Adicione um arquivo PDF ao contrato para gerar o documento assinado.')
       return
     }
     try {
@@ -363,13 +377,14 @@ export default function DocumentosPage() {
       downloadPDF(pdfBytes, `contrato-assinado-${contract.title.slice(0, 30)}.pdf`)
     } catch (err) {
       console.error(err)
-      alert('Erro ao gerar PDF. Verifique se o arquivo PDF está acessível.')
+      toast.error('Erro ao gerar PDF. Verifique se o arquivo PDF está acessível.')
     }
   }
 
-  const countFinalizados = contracts.filter((c) => c.status === 'signed').length
-  const countEmCurso = contracts.filter((c) => ['draft', 'sent', 'pending'].includes(c.status)).length
-  const countRecusados = contracts.filter((c) => c.status === 'expired').length
+  const countFinalizados = contracts.filter(isContractFinalizado).length
+  const countPendenteAssinatura = contracts.filter(
+    (c) => (c.signatories?.length ?? 0) > 0 && !isContractFinalizado(c)
+  ).length
   const filteredContracts = docSearch.trim()
     ? contracts.filter(
         (c) =>
@@ -391,8 +406,8 @@ export default function DocumentosPage() {
         </Button>
       </div>
 
-      {/* Cards de resumo - modelo do print */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* Cards de resumo */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-emerald-50/80">
           <Card className="border-0 shadow-none bg-transparent p-4">
             <div className="flex items-center justify-between">
@@ -408,21 +423,10 @@ export default function DocumentosPage() {
           <Card className="border-0 shadow-none bg-transparent p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-amber-700">Em curso</p>
-                <p className="text-2xl font-bold text-amber-800 mt-0.5">{countEmCurso}</p>
+                <p className="text-sm font-medium text-amber-700">Pendente Assinatura</p>
+                <p className="text-2xl font-bold text-amber-800 mt-0.5">{countPendenteAssinatura}</p>
               </div>
               <Clock className="w-8 h-8 text-amber-500" />
-            </div>
-          </Card>
-        </Card>
-        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-red-50/80">
-          <Card className="border-0 shadow-none bg-transparent p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-red-700">Recusados</p>
-                <p className="text-2xl font-bold text-red-800 mt-0.5">{countRecusados}</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>
           </Card>
         </Card>
@@ -463,7 +467,9 @@ export default function DocumentosPage() {
             {filteredContracts.map((c) => {
               const signedCount = c.signatories?.filter((s) => s.signed).length ?? 0
               const totalSign = c.signatories?.length ?? 1
-              const isEmCurso = ['draft', 'sent', 'pending'].includes(c.status)
+              const finalizado = isContractFinalizado(c)
+              const pendenteAssinatura = (c.signatories?.length ?? 0) > 0 && !finalizado
+              const isRascunho = c.status === 'draft'
               return (
                 <Card key={c.id} className="rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                   <div className="p-4 flex flex-wrap items-center justify-between gap-3">
@@ -474,27 +480,33 @@ export default function DocumentosPage() {
                       <div className="min-w-0">
                         <p className="font-semibold text-slate-900 truncate">{c.title}</p>
                         <p className="text-sm text-slate-500 truncate">{c.client_name || '—'}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{signedCount}/{totalSign} assinaturas</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {signedCount}/{totalSign} assinaturas
+                          {pendenteAssinatura && totalSign > 0 && (
+                            <span className="block mt-0.5 text-slate-500">
+                              Faltam: {c.signatories?.filter((s) => !s.signed).map((s) => s.name).join(', ') || '—'}
+                            </span>
+                          )}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${
-                          c.status === 'signed'
+                          finalizado
                             ? 'bg-emerald-100 text-emerald-700'
-                            : isEmCurso
+                            : pendenteAssinatura
                               ? 'bg-amber-100 text-amber-700'
-                              : c.status === 'expired'
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-slate-100 text-slate-600'
+                              : isRascunho
+                                ? 'bg-slate-100 text-slate-600'
+                                : 'bg-amber-100 text-amber-700'
                         }`}
                       >
-                        {isEmCurso && <Clock className="w-3 h-3" />}
-                        {c.status === 'signed' && <CheckCircle className="w-3 h-3" />}
-                        {c.status === 'expired' && <AlertTriangle className="w-3 h-3" />}
-                        {isEmCurso ? 'Em curso' : c.status === 'signed' ? 'Finalizado' : c.status === 'expired' ? 'Recusado' : STATUS_OPTIONS.find((s) => s.value === c.status)?.label ?? c.status}
+                        {pendenteAssinatura && <Clock className="w-3 h-3" />}
+                        {finalizado && <CheckCircle className="w-3 h-3" />}
+                        {finalizado ? 'Finalizado' : isRascunho ? 'Rascunho' : 'Pendente Assinatura'}
                       </span>
-                      {isEmCurso && (
+                      {pendenteAssinatura && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -559,7 +571,7 @@ export default function DocumentosPage() {
                   <Edit className="w-4 h-4" />
                   Editar
                 </Button>
-                {viewContract.status === 'signed' && (
+                {viewContract && isContractFinalizado(viewContract) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -574,7 +586,7 @@ export default function DocumentosPage() {
                   variant="outline"
                   size="sm"
                   className="rounded-xl gap-2 border-red-200 text-red-600 hover:bg-red-50"
-                  onClick={() => { if (confirm('Excluir este contrato?')) { remove(viewContract.id); setViewContractOpen(false); setViewContract(null); } }}
+                  onClick={() => { setViewContractOpen(false); setDeleteContractId(viewContract.id); }}
                 >
                   <Trash2 className="w-4 h-4" />
                   Excluir
@@ -648,6 +660,30 @@ export default function DocumentosPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Modal confirmar exclusão de contrato */}
+      <Dialog open={!!deleteContractId} onOpenChange={(open) => !open && setDeleteContractId(null)}>
+        <DialogContent className="rounded-2xl border border-slate-200 shadow-xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">Excluir contrato?</DialogTitle>
+            <DialogDescription className="text-slate-500">
+              Esta ação não pode ser desfeita. O contrato será removido permanentemente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="rounded-lg" onClick={() => setDeleteContractId(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-lg bg-red-600 hover:bg-red-700"
+              onClick={() => deleteContractId && remove(deleteContractId)}
+            >
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -671,35 +707,24 @@ export default function DocumentosPage() {
                   value={form.file_url || null}
                   onChange={handleFileChange}
                   userId={user?.id}
-                  disabled={selected?.status === 'signed'}
+                  disabled={selected ? isContractFinalizado(selected) : false}
                 />
               </div>
             </div>
             <div>
               <Label>Cliente</Label>
-              <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
+              <Select value={form.client_id || ''} onValueChange={(v) => setForm({ ...form, client_id: v || '' })}>
                 <SelectTrigger className="rounded-xl mt-1">
-                  <SelectValue placeholder="Selecione" />
+                  <span className={!form.client_id ? 'text-slate-500' : ''}>
+                    {form.client_id
+                      ? (clients.find((c) => c.id === form.client_id)?.name ?? 'Cliente')
+                      : 'Selecione'}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                <SelectTrigger className="rounded-xl mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

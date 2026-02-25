@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 type Doc = {
   id: string
@@ -143,7 +144,7 @@ export default function AssinarDocumentoPage() {
     if (!canvas || !docId) return
     const dataUrl = canvas.toDataURL('image/png')
     if (!dataUrl || dataUrl.length < 100) {
-      alert('Desenhe sua assinatura antes de confirmar.')
+      toast.error('Desenhe sua assinatura antes de confirmar.')
       return
     }
     setSigning(true)
@@ -167,10 +168,10 @@ export default function AssinarDocumentoPage() {
         setShowCanvas(false)
       } else {
         const data = await res.json().catch(() => ({}))
-        alert(data.error || 'Erro ao enviar assinatura.')
+        toast.error(data.error || 'Erro ao enviar assinatura.')
       }
     } catch {
-      alert('Erro de conexão.')
+      toast.error('Erro de conexão.')
     }
     setSigning(false)
   }, [docId, location])

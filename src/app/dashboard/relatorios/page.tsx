@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, FileText, MoreHorizontal, Edit, Trash2, Eye } from 'lucide-react'
+import { Plus, FileText, MoreHorizontal, Trash2, Eye } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -23,12 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { toast } from 'sonner'
 
 const TYPE_OPTIONS = [
   { value: 'proposals', label: 'Propostas' },
@@ -77,6 +73,7 @@ export default function RelatoriosPage() {
     content: '',
     status: 'draft',
   })
+  const [reportToDeleteId, setReportToDeleteId] = useState<string | null>(null)
 
   const fetchData = async () => {
     const [rRes, cRes] = await Promise.all([
@@ -149,10 +146,17 @@ export default function RelatoriosPage() {
     }
   }
 
-  const remove = async (id: string) => {
-    if (!confirm('Excluir este relatório?')) return
-    const res = await fetch(`/api/reports/${id}`, { method: 'DELETE', credentials: 'include' })
-    if (res.ok) await fetchData()
+  const remove = (id: string) => setReportToDeleteId(id)
+  const confirmRemove = async () => {
+    if (!reportToDeleteId) return
+    const res = await fetch(`/api/reports/${reportToDeleteId}`, { method: 'DELETE', credentials: 'include' })
+    if (res.ok) {
+      await fetchData()
+      toast.success('Relatório excluído.')
+    } else {
+      toast.error('Não foi possível excluir o relatório.')
+      return false
+    }
   }
 
   return (
@@ -195,7 +199,7 @@ export default function RelatoriosPage() {
                     <td className="p-4 text-slate-600">
                       {TYPE_OPTIONS.find((t) => t.value === r.type)?.label ?? r.type}
                     </td>
-                    <td className="p-4 text-slate-600">{r.client_name || '-'}</td>
+                    <td className="p-4 text-slate-600">{r.client_name || clients.find((c) => c.id === r.client_id)?.name || '-'}</td>
                     <td className="p-4 text-slate-500 text-sm">
                       {r.period_start ? format(new Date(r.period_start), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
                       {r.period_end ? ` - ${format(new Date(r.period_end), 'dd/MM/yyyy', { locale: ptBR })}` : ''}
@@ -206,27 +210,14 @@ export default function RelatoriosPage() {
                       </span>
                     </td>
                     <td className="p-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl">
-                          <DropdownMenuItem onClick={() => { setSelected(r); setViewOpen(true); }} className="rounded-lg">
-                            <Eye className="w-4 h-4 mr-2" />
-                            Ver
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openDialog(r)} className="rounded-lg">
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => remove(r.id)} className="text-red-600 rounded-lg">
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelected(r); setViewOpen(true); }} title="Ver">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog(r)} title="Editar relatório">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -251,7 +242,7 @@ export default function RelatoriosPage() {
                 <Label>Tipo</Label>
                 <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
                   <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue />
+                    <span>{TYPE_OPTIONS.find((t) => t.value === form.type)?.label ?? form.type}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {TYPE_OPTIONS.map((t) => (
@@ -262,9 +253,13 @@ export default function RelatoriosPage() {
               </div>
               <div>
                 <Label>Cliente</Label>
-                <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
+                <Select value={form.client_id || ''} onValueChange={(v) => setForm({ ...form, client_id: v || '' })}>
                   <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue placeholder="Selecione" />
+                    <span className={!form.client_id ? 'text-slate-500' : ''}>
+                      {form.client_id
+                        ? (clients.find((c) => c.id === form.client_id)?.name ?? 'Cliente')
+                        : 'Selecione'}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {clients.map((c) => (
@@ -292,7 +287,7 @@ export default function RelatoriosPage() {
               <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger className="rounded-xl mt-1">
-                  <SelectValue />
+                  <span>{STATUS_OPTIONS.find((s) => s.value === form.status)?.label ?? form.status}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {STATUS_OPTIONS.map((s) => (
@@ -301,7 +296,23 @@ export default function RelatoriosPage() {
                 </SelectContent>
               </Select>
             </div>
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-4 flex-wrap gap-2">
+              {selected && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 order-first w-full sm:order-none sm:w-auto"
+                  onClick={() => {
+                    if (selected) {
+                      setReportToDeleteId(selected.id)
+                      setDialogOpen(false)
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Excluir relatório
+                </Button>
+              )}
               <Button type="button" variant="outline" onClick={closeDialog} className="rounded-xl">Cancelar</Button>
               <Button type="submit" className="rounded-xl">Salvar</Button>
             </DialogFooter>
@@ -319,6 +330,15 @@ export default function RelatoriosPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!reportToDeleteId}
+        onOpenChange={(open) => !open && setReportToDeleteId(null)}
+        title="Excluir relatório?"
+        description="Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        onConfirm={confirmRemove}
+      />
     </div>
   )
 }

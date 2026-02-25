@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Bell, Eye, CheckCircle, FileText, X, Check } from 'lucide-react'
+import { Bell, Eye, CheckCircle, FileText, X, Check, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from 'date-fns'
@@ -91,6 +91,19 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
   }
 
+  const deleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const supabase = createClient()
+    const { error } = await supabase.from('notifications').delete().eq('id', id).eq('user_id', userId)
+    if (!error) setNotifications((prev) => prev.filter((n) => n.id !== id))
+  }
+
+  const deleteAllNotifications = async () => {
+    const supabase = createClient()
+    await supabase.from('notifications').delete().eq('user_id', userId)
+    setNotifications([])
+  }
+
   const getIcon = (type: Notification['type']) => {
     switch (type) {
       case 'proposal_viewed':
@@ -157,7 +170,18 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
                     className="text-xs h-7 rounded-lg"
                   >
                     <Check className="w-3 h-3 mr-1" />
-                    Marcar todas
+                    Marcar todas como lidas
+                  </Button>
+                )}
+                {notifications.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={deleteAllNotifications}
+                    className="text-xs h-7 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Excluir todas
                   </Button>
                 )}
                 <button
@@ -184,8 +208,7 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      onClick={() => !notification.read && markAsRead(notification.id)}
-                      className={`p-4 hover:bg-slate-50 cursor-pointer transition-colors ${
+                      className={`p-4 hover:bg-slate-50 transition-colors ${
                         !notification.read ? 'bg-indigo-50/50' : ''
                       }`}
                     >
@@ -206,6 +229,26 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
                               locale: ptBR,
                             })}
                           </p>
+                          <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                            {!notification.read && (
+                              <button
+                                type="button"
+                                onClick={() => markAsRead(notification.id)}
+                                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                              >
+                                <Check className="w-3 h-3" />
+                                Marcar como lida
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => deleteNotification(notification.id, e)}
+                              className="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Excluir
+                            </button>
+                          </div>
                         </div>
                         {!notification.read && (
                           <div className="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0 mt-2" />

@@ -18,6 +18,8 @@ import {
   Palette,
   ChevronDown,
   Check,
+  Copy,
+  CheckCircle2,
   Calendar,
   Building2,
   User,
@@ -27,11 +29,14 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { ImageUploader } from '@/components/proposals/ImageUploader'
 import { RichTextEditor } from '@/components/proposals/RichTextEditor'
 import { PlanList, type Plan } from '@/components/proposals/PlanCard'
 import { ProposalPreview, type ProposalData, type ContentBlock, type ColorPalette } from '@/components/proposals/ProposalPreview'
+import { generateProposalSlug } from '@/lib/generateProposalSlug'
 
 type TemplateType = 'modern' | 'executive' | 'simple'
 type ProposalStatus = 'draft' | 'published' | 'accepted'
@@ -87,6 +92,46 @@ const colorPalettes: { name: string; colors: ColorPalette }[] = [
       text: '#334155',
     },
   },
+  {
+    name: 'Coral Moderno',
+    colors: {
+      primary: '#F43F5E',
+      secondary: '#881337',
+      accent: '#0EA5E9',
+      background: '#FFFFFF',
+      text: '#334155',
+    },
+  },
+  {
+    name: 'Teal Profissional',
+    colors: {
+      primary: '#0D9488',
+      secondary: '#134E4A',
+      accent: '#F59E0B',
+      background: '#FFFFFF',
+      text: '#334155',
+    },
+  },
+  {
+    name: 'Vermelho Impacto',
+    colors: {
+      primary: '#DC2626',
+      secondary: '#7F1D1D',
+      accent: '#FBBF24',
+      background: '#FFFFFF',
+      text: '#334155',
+    },
+  },
+  {
+    name: 'Escuro Elegante',
+    colors: {
+      primary: '#0F172A',
+      secondary: '#1E293B',
+      accent: '#38BDF8',
+      background: '#F8FAFC',
+      text: '#1E293B',
+    },
+  },
 ]
 
 const sections = [
@@ -99,46 +144,119 @@ const sections = [
   { id: 'style', label: 'Estilo', icon: Palette },
 ]
 
+const getDefaultProposalData = (template: TemplateType): ProposalData => ({
+  template: template || 'modern',
+  clientName: '',
+  company: {
+    name: '',
+    document: '',
+    logo: null,
+    address: '',
+    email: '',
+    phone: '',
+  },
+  paymentType: 'plans',
+  plans: [
+    {
+      id: 'plan-1',
+      name: 'Básico',
+      description: 'Ideal para começar',
+      benefits: ['Benefício 1', 'Benefício 2'],
+      price: 997,
+      priceType: 'unique',
+    },
+  ],
+  singlePrice: 0,
+  deliveryType: 'immediate',
+  deliveryDate: '',
+  description: '',
+  blocks: [],
+  colorPalette: colorPalettes[0].colors,
+})
+
 function NovaPropostaContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const templateParam = searchParams.get('template') as TemplateType | null
+  const editId = searchParams.get('id')
 
   const [activeSection, setActiveSection] = useState('client')
   const [showPreview, setShowPreview] = useState(true)
   const [status, setStatus] = useState<ProposalStatus>('draft')
   const [isSaving, setIsSaving] = useState(false)
   const [showPaletteSelector, setShowPaletteSelector] = useState(false)
+  const [savedProposalId, setSavedProposalId] = useState<string | null>(null)
+  const [savedPublicSlug, setSavedPublicSlug] = useState<string | null>(null)
+  const [showPublishModal, setShowPublishModal] = useState(false)
+  const [publishedLink, setPublishedLink] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [loadingEdit, setLoadingEdit] = useState(!!editId)
 
-  const [proposalData, setProposalData] = useState<ProposalData>({
-    template: templateParam || 'modern',
-    clientName: '',
-    company: {
-      name: '',
-      document: '',
-      logo: null,
-      address: '',
-      email: '',
-      phone: '',
-    },
-    paymentType: 'plans',
-    plans: [
-      {
-        id: 'plan-1',
-        name: 'Básico',
-        description: 'Ideal para começar',
-        benefits: ['Benefício 1', 'Benefício 2'],
-        price: 997,
-        priceType: 'unique',
-      },
-    ],
-    singlePrice: 0,
-    deliveryType: 'immediate',
-    deliveryDate: '',
-    description: '',
-    blocks: [],
-    colorPalette: colorPalettes[0].colors,
-  })
+  const [proposalData, setProposalData] = useState<ProposalData>(() =>
+    getDefaultProposalData(templateParam || 'modern')
+  )
+
+  // Carregar proposta existente para edição (incluindo cópias)
+  useEffect(() => {
+    if (!editId) {
+      setLoadingEdit(false)
+      return
+    }
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/proposals/${editId}`, { credentials: 'include' })
+        if (!res.ok || cancelled) return
+        const p = (await res.json()) as {
+          id?: string
+          client_name?: string | null
+          client_email?: string | null
+          content?: {
+            company?: ProposalData['company']
+            description?: string
+            plans?: ProposalData['plans']
+            delivery?: { type?: string; date?: string }
+            blocks?: ProposalData['blocks']
+            colorPalette?: ProposalData['colorPalette']
+            template?: TemplateType
+            paymentType?: ProposalData['paymentType']
+            singlePrice?: number
+          }
+          public_slug?: string | null
+        }
+        if (cancelled) return
+        setSavedProposalId(p.id ?? null)
+        setSavedPublicSlug(p.public_slug ?? null)
+        const c = p.content ?? {}
+        const company = c.company ?? getDefaultProposalData('modern').company
+        const delivery = c.delivery ?? { type: 'immediate', date: '' }
+        setProposalData({
+          template: (c.template as TemplateType) || templateParam || 'modern',
+          clientName: p.client_name ?? '',
+          company: {
+            name: company.name ?? '',
+            document: company.document ?? '',
+            logo: company.logo ?? null,
+            address: company.address ?? '',
+            email: company.email ?? p.client_email ?? '',
+            phone: company.phone ?? '',
+          },
+          paymentType: (c.paymentType as ProposalData['paymentType']) || 'plans',
+          plans: Array.isArray(c.plans) && c.plans.length > 0 ? c.plans : getDefaultProposalData('modern').plans,
+          singlePrice: typeof c.singlePrice === 'number' ? c.singlePrice : 0,
+          deliveryType: (delivery.type as 'immediate' | 'scheduled') || 'immediate',
+          deliveryDate: delivery.date ?? '',
+          description: c.description ?? '',
+          blocks: Array.isArray(c.blocks) ? c.blocks : [],
+          colorPalette: c.colorPalette && typeof c.colorPalette === 'object' ? c.colorPalette : colorPalettes[0].colors,
+        })
+      } finally {
+        if (!cancelled) setLoadingEdit(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [editId, templateParam])
 
   const updateField = <K extends keyof ProposalData>(field: K, value: ProposalData[K]) => {
     setProposalData((prev) => ({ ...prev, [field]: value }))
@@ -174,33 +292,142 @@ function NovaPropostaContent() {
     updateField('blocks', proposalData.blocks.filter((b) => b.id !== id))
   }
 
+  const buildPayload = () => ({
+    title: `Proposta para ${proposalData.clientName || 'Cliente'}`,
+    client_name: proposalData.clientName || null,
+    client_email: proposalData.company.email || null,
+    content: {
+      company: proposalData.company,
+      description: proposalData.description,
+      plans: proposalData.plans,
+      delivery: { type: proposalData.deliveryType, date: proposalData.deliveryDate },
+      blocks: proposalData.blocks,
+      colorPalette: proposalData.colorPalette,
+      template: proposalData.template,
+      paymentType: proposalData.paymentType,
+      singlePrice: proposalData.singlePrice,
+    },
+  })
+
   const handleSaveDraft = async () => {
     setIsSaving(true)
-    setStatus('draft')
-    await new Promise((r) => setTimeout(r, 1000))
-    setIsSaving(false)
-    alert('Rascunho salvo com sucesso!')
+    try {
+      const payload = buildPayload()
+      if (savedProposalId) {
+        const res = await fetch(`/api/proposals/${savedProposalId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ...payload, status: 'draft' }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error((err as { error?: string }).error || 'Falha ao salvar')
+        }
+        setStatus('draft')
+        toast.success('Proposta salva em rascunho.')
+      } else {
+        const res = await fetch('/api/proposals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ...payload, status: 'draft' }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error((err as { error?: string }).error || 'Falha ao salvar')
+        }
+        const data = (await res.json()) as { id?: string; public_slug?: string }
+        if (data.id) setSavedProposalId(data.id)
+        if (data.public_slug) setSavedPublicSlug(data.public_slug)
+        setStatus('draft')
+        toast.success('Proposta salva em rascunho.')
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao salvar rascunho.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handlePublish = async () => {
     if (!proposalData.clientName.trim()) {
-      alert('Por favor, preencha o nome do cliente.')
+      toast.error('Por favor, preencha o nome do cliente.')
       setActiveSection('client')
       return
     }
     if (!proposalData.company.name.trim()) {
-      alert('Por favor, preencha o nome da empresa.')
+      toast.error('Por favor, preencha o nome da empresa.')
       setActiveSection('company')
       return
     }
 
     setIsSaving(true)
-    setStatus('published')
-    await new Promise((r) => setTimeout(r, 1500))
-    setIsSaving(false)
-    
-    const proposalId = `prop-${Date.now()}`
-    alert(`Proposta publicada!\n\nLink: ${window.location.origin}/p/${proposalId}`)
+    try {
+      const payload = buildPayload()
+      let publicSlug = savedPublicSlug
+
+      if (savedProposalId) {
+        // Ao publicar proposta editada (ex.: cópia), gera novo link para o cliente atual
+        const newSlug = generateProposalSlug(payload.title, proposalData.clientName || 'cliente')
+        const res = await fetch(`/api/proposals/${savedProposalId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ...payload, status: 'sent', public_slug: newSlug }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error((err as { error?: string }).error || 'Falha ao publicar')
+        }
+        publicSlug = newSlug
+        setSavedPublicSlug(newSlug)
+      } else {
+        const res = await fetch('/api/proposals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ...payload, status: 'sent' }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error((err as { error?: string }).error || 'Falha ao publicar')
+        }
+        const data = (await res.json()) as { id?: string; public_slug?: string }
+        if (data.id) setSavedProposalId(data.id)
+        if (data.public_slug) {
+          publicSlug = data.public_slug
+          setSavedPublicSlug(data.public_slug)
+        }
+      }
+
+      if (!publicSlug) {
+        toast.error('Proposta salva, mas o link não pôde ser gerado.')
+        return
+      }
+
+      setStatus('published')
+      const link = `${typeof window !== 'undefined' ? window.location.origin : ''}/p/${publicSlug}`
+      setPublishedLink(link)
+      setShowPublishModal(true)
+      setLinkCopied(false)
+      toast.success('Proposta publicada!')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao publicar.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(publishedLink)
+      setLinkCopied(true)
+      toast.success('Link copiado!')
+      setTimeout(() => setLinkCopied(false), 2000)
+    } catch {
+      toast.error('Não foi possível copiar o link.')
+    }
   }
 
   const renderSection = () => {
@@ -233,7 +460,7 @@ function NovaPropostaContent() {
               <h3 className="text-lg font-semibold text-slate-900 mb-1">Dados da Empresa</h3>
               <p className="text-sm text-slate-500">Informações que aparecerão na proposta</p>
             </div>
-            
+
             <ImageUploader
               label="Logo da empresa"
               value={proposalData.company.logo || undefined}
@@ -241,8 +468,9 @@ function NovaPropostaContent() {
               aspectRatio="video"
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            {/* Identificação: mesma largura para os dois campos */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Nome da empresa *
                 </label>
@@ -250,10 +478,10 @@ function NovaPropostaContent() {
                   value={proposalData.company.name}
                   onChange={(e) => updateCompany('name', e.target.value)}
                   placeholder="Sua Empresa Ltda"
-                  className="rounded-xl border-slate-200"
+                  className="w-full rounded-xl border-slate-200"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   CNPJ ou CPF
                 </label>
@@ -261,12 +489,12 @@ function NovaPropostaContent() {
                   value={proposalData.company.document}
                   onChange={(e) => updateCompany('document', e.target.value)}
                   placeholder="00.000.000/0001-00"
-                  className="rounded-xl border-slate-200"
+                  className="w-full rounded-xl border-slate-200"
                 />
               </div>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Endereço
               </label>
@@ -274,12 +502,13 @@ function NovaPropostaContent() {
                 value={proposalData.company.address}
                 onChange={(e) => updateCompany('address', e.target.value)}
                 placeholder="Rua, número, bairro - Cidade/UF"
-                className="rounded-xl border-slate-200"
+                className="w-full rounded-xl border-slate-200"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            {/* Contato: mesma largura para email e telefone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Email
                 </label>
@@ -288,10 +517,10 @@ function NovaPropostaContent() {
                   value={proposalData.company.email}
                   onChange={(e) => updateCompany('email', e.target.value)}
                   placeholder="contato@empresa.com"
-                  className="rounded-xl border-slate-200"
+                  className="w-full rounded-xl border-slate-200"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Telefone
                 </label>
@@ -299,7 +528,7 @@ function NovaPropostaContent() {
                   value={proposalData.company.phone}
                   onChange={(e) => updateCompany('phone', e.target.value)}
                   placeholder="(11) 99999-9999"
-                  className="rounded-xl border-slate-200"
+                  className="w-full rounded-xl border-slate-200"
                 />
               </div>
             </div>
@@ -562,7 +791,7 @@ function NovaPropostaContent() {
               <label className="block text-sm font-medium text-slate-700 mb-3">
                 Paleta de cores
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {colorPalettes.map((palette) => (
                   <button
                     key={palette.name}
@@ -571,27 +800,27 @@ function NovaPropostaContent() {
                     className={cn(
                       'p-4 rounded-xl border-2 text-left transition-all',
                       JSON.stringify(proposalData.colorPalette) === JSON.stringify(palette.colors)
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-slate-200 hover:border-slate-300'
+                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
                     )}
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="flex -space-x-1">
+                      <div className="flex -space-x-1 shrink-0">
                         <div 
-                          className="w-5 h-5 rounded-full border-2 border-white" 
+                          className="w-5 h-5 rounded-full border-2 border-white shadow-sm" 
                           style={{ backgroundColor: palette.colors.primary }}
                         />
                         <div 
-                          className="w-5 h-5 rounded-full border-2 border-white" 
+                          className="w-5 h-5 rounded-full border-2 border-white shadow-sm" 
                           style={{ backgroundColor: palette.colors.secondary }}
                         />
                         <div 
-                          className="w-5 h-5 rounded-full border-2 border-white" 
+                          className="w-5 h-5 rounded-full border-2 border-white shadow-sm" 
                           style={{ backgroundColor: palette.colors.accent }}
                         />
                       </div>
                       {JSON.stringify(proposalData.colorPalette) === JSON.stringify(palette.colors) && (
-                        <Check className="w-4 h-4 text-indigo-600 ml-auto" />
+                        <Check className="w-4 h-4 text-indigo-600 ml-auto shrink-0" />
                       )}
                     </div>
                     <p className="font-medium text-slate-900 text-sm">{palette.name}</p>
@@ -604,7 +833,7 @@ function NovaPropostaContent() {
               <label className="block text-sm font-medium text-slate-700 mb-3">
                 Template
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {(['modern', 'executive', 'simple'] as const).map((t) => (
                   <button
                     key={t}
@@ -613,8 +842,8 @@ function NovaPropostaContent() {
                     className={cn(
                       'p-3 rounded-xl border-2 text-center transition-all',
                       proposalData.template === t
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-slate-200 hover:border-slate-300'
+                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
                     )}
                   >
                     <p className="font-medium text-slate-900 text-sm">
@@ -632,6 +861,17 @@ function NovaPropostaContent() {
     }
   }
 
+  if (loadingEdit) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-10 h-10 border-2 border-indigo-600 border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-slate-600">Carregando proposta...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header fixo */}
@@ -645,7 +885,7 @@ function NovaPropostaContent() {
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div>
-              <h1 className="font-semibold text-slate-900">Nova Proposta</h1>
+              <h1 className="font-semibold text-slate-900">{editId ? 'Editar Proposta' : 'Nova Proposta'}</h1>
               <p className="text-xs text-slate-500">
                 {status === 'draft' ? 'Rascunho' : status === 'published' ? 'Publicada' : 'Aceita'}
               </p>
@@ -761,6 +1001,54 @@ function NovaPropostaContent() {
           </aside>
         )}
       </div>
+
+      <Dialog open={showPublishModal} onOpenChange={setShowPublishModal}>
+        <DialogContent className="max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg [&>button]:text-slate-500 [&>button]:hover:text-slate-700 [&>button]:top-4 [&>button]:right-4">
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-slate-900 m-0">
+                  Proposta publicada
+                </DialogTitle>
+                <DialogDescription className="text-sm text-slate-500 mt-1 m-0">
+                  Envie o link abaixo para seu cliente acessar e aceitar a proposta.
+                </DialogDescription>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                readOnly
+                value={publishedLink}
+                className="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={copyLink}
+                className="h-9 shrink-0 gap-1.5 rounded-lg bg-slate-800 px-3 text-white hover:bg-slate-700"
+              >
+                {linkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {linkCopied ? 'Copiado' : 'Copiar'}
+              </Button>
+            </div>
+            <div className="flex justify-end pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPublishModal(false)}
+                className="rounded-lg"
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

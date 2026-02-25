@@ -8,6 +8,7 @@ import type { Proposal } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { TemplateSelector, type TemplateType } from '@/components/proposals/TemplateSelector'
 import { toast } from 'sonner'
@@ -28,6 +29,7 @@ export default function PropostasPage() {
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [deleteProposalId, setDeleteProposalId] = useState<string | null>(null)
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
 
   const handleTemplateSelect = (template: TemplateType) => {
@@ -83,40 +85,38 @@ export default function PropostasPage() {
     }
   }
 
-  const duplicateProposal = async (proposal: Proposal) => {
-    const newSlug = `prop-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const duplicateProposal = async (proposal: Proposal, switchToAll = false) => {
     const res = await fetch('/api/proposals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        template_base_id: proposal.template_base_id,
-        title: `${proposal.title} (cópia)`,
-        slug: newSlug,
-        status: 'open',
-        content: proposal.content,
-        color_palette: proposal.color_palette,
-        confirm_button_text: proposal.confirm_button_text,
+        title: `${proposal.title || 'Proposta'} (cópia)`,
         client_name: proposal.client_name ?? null,
         client_email: proposal.client_email ?? null,
-        client_phone: proposal.client_phone ?? null,
-        proposal_value: proposal.proposal_value ?? null,
+        content: proposal.content ?? {},
+        status: 'draft',
       }),
     })
     const data = await res.json().catch(() => null)
     if (res.ok && data) {
       setProposals((prev) => [data as Proposal, ...prev])
+      if (switchToAll) setActiveTab('all')
+      toast.success(switchToAll ? 'Proposta replicada. Ela está em Todas para você editar.' : 'Proposta duplicada.')
       return data as Proposal
     }
-    alert((data as { error?: string })?.error || 'Erro ao duplicar proposta')
+    toast.error((data as { error?: string })?.error || 'Erro ao duplicar proposta')
     return null
   }
 
   const deleteProposal = async (id: string) => {
-    if (!confirm('Excluir esta proposta?')) return
-    await fetch(`/api/proposals/${id}`, { method: 'DELETE', credentials: 'include' })
-    setProposals((prev) => prev.filter((p) => p.id !== id))
-    setAcceptedProposals((prev) => prev.filter((p) => p.id !== id))
+    const res = await fetch(`/api/proposals/${id}`, { method: 'DELETE', credentials: 'include' })
+    if (res.ok) {
+      setProposals((prev) => prev.filter((p) => p.id !== id))
+      setAcceptedProposals((prev) => prev.filter((p) => p.id !== id))
+      setDeleteProposalId(null)
+      toast.success('Proposta excluída.')
+    } else toast.error('Erro ao excluir proposta.')
   }
 
   const markAsIgnored = async (proposal: Proposal) => {
@@ -277,7 +277,27 @@ export default function PropostasPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 rounded-lg gap-1.5 border-slate-200"
+                        onClick={() => router.push(`/dashboard/propostas/${proposal.id}/visualizar`)}
+                        title="Visualizar proposta"
+                      >
+                        <Eye className="w-4 h-4 text-slate-600" />
+                        <span className="hidden sm:inline">Visualizar</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 rounded-lg gap-1.5 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                        title="Editar proposta (mesma tela de criação)"
+                        onClick={() => router.push(`/dashboard/propostas/nova?id=${proposal.id}`)}
+                      >
+                        <Edit className="w-4 h-4 text-slate-600" />
+                        Editar
+                      </Button>
                       {proposal.status === 'draft' && (
                         <Button
                           variant="default"
@@ -302,20 +322,9 @@ export default function PropostasPage() {
                           <Copy className="w-4 h-4 text-slate-500" />
                         )}
                       </Button>
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-lg"
-                        title="Ver proposta"
-                      >
+                      <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-lg" title="Abrir link público">
                         <Link href={`/p/${proposal.public_slug || proposal.slug}`} target="_blank">
                           <ExternalLink className="w-4 h-4 text-slate-500" />
-                        </Link>
-                      </Button>
-                      <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-lg" title="Editar">
-                        <Link href={`/dashboard/propostas/editar/${proposal.id}`}>
-                          <Edit className="w-4 h-4 text-slate-500" />
                         </Link>
                       </Button>
                       <Button
@@ -342,7 +351,7 @@ export default function PropostasPage() {
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => deleteProposal(proposal.id)}
+                        onClick={() => setDeleteProposalId(proposal.id)}
                         title="Excluir"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -391,14 +400,37 @@ export default function PropostasPage() {
                               })
                             : '—'}
                         </p>
-                        <p className="text-sm font-medium text-emerald-600 mt-1">
-                          Valor: R$ {Number(proposal.proposal_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
                       </div>
                     </div>
-                    <Button asChild variant="outline" size="sm" className="rounded-lg shrink-0 border-slate-200">
-                      <Link href={`/dashboard/propostas/${proposal.id}/visualizar`}>Ver como era o template</Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="rounded-lg gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                        onClick={() => router.push(`/dashboard/propostas/${proposal.id}/visualizar`)}
+                      >
+                        <Eye className="w-4 h-4" />
+                        Visualizar proposta
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg border-slate-200 gap-1.5"
+                        onClick={() => duplicateProposal(proposal, true)}
+                      >
+                        <Copy className="w-4 h-4" />
+                        Replicar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg border-red-200 text-red-700 hover:bg-red-50 gap-1.5"
+                        onClick={() => setDeleteProposalId(proposal.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Excluir
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -406,6 +438,30 @@ export default function PropostasPage() {
           )}
         </div>
       )}
+
+      {/* Modal confirmar exclusão de proposta */}
+      <Dialog open={!!deleteProposalId} onOpenChange={(open) => !open && setDeleteProposalId(null)}>
+        <DialogContent className="rounded-2xl border border-slate-200 shadow-xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">Excluir proposta?</DialogTitle>
+            <DialogDescription className="text-slate-500">
+              Esta ação não pode ser desfeita. A proposta será removida permanentemente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="rounded-lg" onClick={() => setDeleteProposalId(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-lg bg-red-600 hover:bg-red-700"
+              onClick={() => deleteProposalId && deleteProposal(deleteProposalId)}
+            >
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de seleção de template */}
       <TemplateSelector

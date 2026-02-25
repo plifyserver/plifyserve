@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { Upload, X, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 interface ImageUploaderProps {
   value?: string
@@ -25,12 +26,12 @@ export function ImageUploader({
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione apenas imagens.')
+      toast.error('Por favor, selecione apenas imagens.')
       return
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 5MB.')
+      toast.error('A imagem deve ter no máximo 5MB.')
       return
     }
 
@@ -42,7 +43,7 @@ export function ImageUploader({
       setIsLoading(false)
     }
     reader.onerror = () => {
-      alert('Erro ao carregar imagem.')
+      toast.error('Erro ao carregar imagem.')
       setIsLoading(false)
     }
     reader.readAsDataURL(file)

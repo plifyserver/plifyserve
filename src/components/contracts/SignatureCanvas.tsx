@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { X, Upload, MapPin, Calendar, Clock, User, AlertCircle } from 'lucide-react'
+import { toast } from 'sonner'
 
 export interface SignatureData {
   signatureImage: string
@@ -206,17 +207,17 @@ export default function SignatureCanvas({
 
   const handleSave = () => {
     if (!hasDrawn && !uploadedImage) {
-      alert('Por favor, desenhe ou faça upload da sua assinatura.')
+      toast.error('Por favor, desenhe ou faça upload da sua assinatura.')
       return
     }
     
     if (requireCpf && !validateCpf(cpf)) {
-      alert('Por favor, insira um CPF válido com 11 dígitos.')
+      toast.error('Por favor, insira um CPF válido com 11 dígitos.')
       return
     }
     
     if (requireBirthDate && !birthDate) {
-      alert('Por favor, insira sua data de nascimento.')
+      toast.error('Por favor, insira sua data de nascimento.')
       return
     }
 

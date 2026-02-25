@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
+const UPLOAD_TIMEOUT_MS = 90_000
+
 interface ContractUploaderProps {
   value?: string | null
   onChange: (url: string | null, file?: File) => void
@@ -28,35 +30,43 @@ export default function ContractUploader({
   const [fileSize, setFileSize] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const uploadViaApi = useCallback(async (file: File): Promise<string | null> => {
+    const form = new FormData()
+    form.append('file', file)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
+    try {
+      const res = await fetch('/api/contracts/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: form,
+        signal: controller.signal,
+      })
+      const data = (await res.json()) as { url?: string; error?: string }
+      if (!res.ok) {
+        setError(data.error || 'Erro ao fazer upload')
+        return null
+      }
+      return data.url ?? null
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') {
+        setError('Upload demorou demais. Tente um arquivo menor ou verifique a conexão.')
+      } else {
+        setError('Erro ao fazer upload. Verifique a conexão e tente novamente.')
+      }
+      return null
+    } finally {
+      clearTimeout(timeout)
+    }
+  }, [])
+
   const uploadToStorage = useCallback(async (file: File): Promise<string | null> => {
     if (!userId) {
       setError('Usuário não identificado')
       return null
     }
-
-    const supabase = createClient()
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
-
-    const { data, error: uploadError } = await supabase.storage
-      .from('contracts')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false,
-      })
-
-    if (uploadError) {
-      console.error('Upload error:', uploadError)
-      setError('Erro ao fazer upload do arquivo')
-      return null
-    }
-
-    const { data: urlData } = supabase.storage
-      .from('contracts')
-      .getPublicUrl(data.path)
-
-    return urlData.publicUrl
-  }, [userId])
+    return uploadViaApi(file)
+  }, [userId, uploadViaApi])
 
   const handleFileSelect = useCallback(async (file: File) => {
     setError(null)

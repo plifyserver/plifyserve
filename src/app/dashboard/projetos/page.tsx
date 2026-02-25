@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { format, differenceInDays, isPast, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -202,7 +203,7 @@ export default function ProjetosPage() {
       closeDialog()
     } catch (err) {
       console.error(err)
-      alert('Erro ao salvar projeto')
+      toast.error('Erro ao salvar projeto')
     }
   }
 
@@ -225,7 +226,7 @@ export default function ProjetosPage() {
       setSelected(null)
     } catch (err) {
       console.error(err)
-      alert('Erro ao excluir projeto')
+      toast.error('Erro ao excluir projeto')
     }
   }
 
@@ -548,7 +549,7 @@ export default function ProjetosPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selected ? 'Editar Projeto' : 'Novo Projeto'}</DialogTitle>
           </DialogHeader>
@@ -568,11 +569,15 @@ export default function ProjetosPage() {
             <div>
               <Label>Cliente</Label>
               <Select
-                value={form.client_id}
-                onValueChange={(v) => setForm({ ...form, client_id: v })}
+                value={form.client_id || ''}
+                onValueChange={(v) => setForm({ ...form, client_id: v || '' })}
               >
                 <SelectTrigger className="mt-1.5 rounded-xl">
-                  <SelectValue placeholder="Selecione um cliente" />
+                  <span className={!form.client_id ? 'text-slate-500' : ''}>
+                    {form.client_id
+                      ? (clients.find((c) => c.id === form.client_id)?.name ?? 'Cliente')
+                      : 'Selecione um cliente'}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map((c) => (
@@ -590,7 +595,9 @@ export default function ProjetosPage() {
                   onValueChange={(v) => setForm({ ...form, status: v as StatusType })}
                 >
                   <SelectTrigger className="mt-1.5 rounded-xl">
-                    <SelectValue />
+                    <span>
+                      {statusConfig[form.status]?.label ?? form.status}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="in_progress">Em Andamento</SelectItem>

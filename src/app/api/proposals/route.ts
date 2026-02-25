@@ -32,27 +32,28 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const supabase = await createClient()
   
-  // Gerar slug único
   const publicSlug = body.public_slug || generateProposalSlug(body.title || 'proposta', body.client_name || 'cliente')
-  
+  const now = new Date().toISOString()
+  // Compatível com constraint (open, accepted, ignored): draft/sent -> open, accepted -> accepted
+  const rawStatus = body.status || 'draft'
+  const dbStatus = rawStatus === 'accepted' ? 'accepted' : 'open'
+
+  const row: Record<string, unknown> = {
+    user_id: userId,
+    title: body.title || 'Proposta',
+    slug: publicSlug,
+    client_name: body.client_name ?? null,
+    client_email: body.client_email ?? null,
+    content: body.content ?? {},
+    status: dbStatus,
+    public_slug: publicSlug,
+    views: 0,
+    updated_at: now,
+  }
+
   const { data, error } = await supabase
     .from('proposals')
-    .insert({
-      user_id: userId,
-      template_base_id: body.template_base_id ?? null,
-      title: body.title,
-      slug: body.slug,
-      public_slug: publicSlug,
-      status: body.status || 'draft',
-      content: body.content ?? {},
-      color_palette: body.color_palette || 'default',
-      confirm_button_text: body.confirm_button_text || 'CONFIRMAR PROPOSTA',
-      client_name: body.client_name ?? null,
-      client_email: body.client_email ?? null,
-      client_phone: body.client_phone ?? null,
-      proposal_value: body.proposal_value ?? null,
-      views: 0,
-    })
+    .insert(row)
     .select()
     .single()
 

@@ -5,12 +5,13 @@ import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay, startOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
-import { X, Loader2, Link2, Plus, Search, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
+import { X, Loader2, Link2, Plus, Search, ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Clock, FileText, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 const locales = { 'pt-BR': ptBR }
 const localizer = dateFnsLocalizer({
@@ -52,10 +53,12 @@ type ViewType = 'month' | 'week' | 'day' | 'agenda'
 
 export default function AgendaPage() {
   const { user } = useAuth()
-  const supabase = createClient()
   const [events, setEvents] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null)
+  const [eventToDelete, setEventToDelete] = useState<EventItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [date, setDate] = useState(new Date())
   const [view, setView] = useState<ViewType>('month')
   const [form, setForm] = useState({ title: '', description: '', location: '', start: '', end: '', all_day: false, type: 'default' as EventItem['type'] })
@@ -65,10 +68,11 @@ export default function AgendaPage() {
   const fetchEvents = useCallback(async () => {
     if (!user) return
     try {
-      const { data, error } = await supabase.from('events').select('*').eq('user_id', user.id).order('start_at')
-      if (!error && data) {
+      const res = await fetch('/api/events', { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
         setEvents(
-          data.map((e) => ({
+          (Array.isArray(data) ? data : []).map((e: { id: string; title: string; start_at: string; end_at: string; description?: string; location?: string; all_day?: boolean; type?: string }) => ({
             id: e.id,
             title: e.title,
             start: new Date(e.start_at),
@@ -76,15 +80,15 @@ export default function AgendaPage() {
             description: e.description,
             location: e.location,
             all_day: e.all_day,
-            type: e.type || 'default',
-            color: EVENT_COLORS[e.type as keyof typeof EVENT_COLORS] || EVENT_COLORS.default,
+            type: (e.type as EventItem['type']) || 'default',
+            color: EVENT_COLORS[(e.type as keyof typeof EVENT_COLORS) || 'default'] || EVENT_COLORS.default,
           }))
         )
       }
     } catch {
       // Tabela events pode não existir ainda
     }
-  }, [user, supabase])
+  }, [user])
 
   useEffect(() => {
     fetchEvents()
@@ -105,18 +109,51 @@ export default function AgendaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user || !form.title.trim()) return
-    await supabase.from('events').insert({
-      user_id: user.id,
+    if (!form.title.trim()) {
+      toast.error('Preencha o título do evento.')
+      return
+    }
+    const payload = {
       title: form.title.trim(),
       description: form.description.trim() || null,
       location: form.location.trim() || null,
       start_at: new Date(form.start).toISOString(),
       end_at: new Date(form.end).toISOString(),
       all_day: form.all_day,
-      type: form.type,
+    }
+    const res = await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
     })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error || 'Não foi possível criar o evento. Tente novamente.')
+      return
+    }
     setShowModal(false)
+    setForm({ title: '', description: '', location: '', start: '', end: '', all_day: false, type: 'default' })
+    toast.success('Evento criado!')
+    fetchEvents()
+  }
+
+  const handleDeleteEvent = async (event: EventItem) => {
+    setEventToDelete(event)
+  }
+  const confirmDeleteEvent = async () => {
+    if (!eventToDelete) return
+    setDeleting(true)
+    const res = await fetch(`/api/events/${eventToDelete.id}`, { method: 'DELETE', credentials: 'include' })
+    const data = await res.json().catch(() => ({}))
+    setDeleting(false)
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error || 'Não foi possível excluir o evento.')
+      return false
+    }
+    setSelectedEvent(null)
+    setEventToDelete(null)
+    toast.success('Evento excluído.')
     fetchEvents()
   }
 
@@ -482,6 +519,7 @@ export default function AgendaPage() {
               onView={(v: ViewType) => setView(v)}
               style={{ height: '100%' }}
               onSelectSlot={handleSelectSlot}
+              onSelectEvent={(event: EventItem) => setSelectedEvent(event)}
               selectable
               eventPropGetter={eventStyleGetter}
               messages={{
@@ -650,6 +688,88 @@ export default function AgendaPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Detalhes do Evento */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex justify-between items-start mb-4">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: selectedEvent.color ? `${selectedEvent.color}20` : '#EEF2FF', color: selectedEvent.color ?? '#6366F1' }}
+              >
+                <CalendarIcon className="w-5 h-5" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEvent(null)}
+                className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900 mb-1">{selectedEvent.title}</h2>
+            <div className="space-y-3 mt-4">
+              <div className="flex items-start gap-3 text-sm">
+                <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-slate-700">Horário</p>
+                  <p className="text-slate-600">
+                    {selectedEvent.all_day
+                      ? format(selectedEvent.start, "EEEE, d 'de' MMMM", { locale: ptBR }) + ' (dia inteiro)'
+                      : `${format(selectedEvent.start, "d/MM/yyyy 'às' HH:mm", { locale: ptBR })} – ${format(selectedEvent.end, 'HH:mm', { locale: ptBR })}`}
+                  </p>
+                </div>
+              </div>
+              {selectedEvent.location && (
+                <div className="flex items-start gap-3 text-sm">
+                  <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-slate-700">Local</p>
+                    <p className="text-slate-600">{selectedEvent.location}</p>
+                  </div>
+                </div>
+              )}
+              {selectedEvent.description && (
+                <div className="flex items-start gap-3 text-sm">
+                  <FileText className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-slate-700">Descrição</p>
+                    <p className="text-slate-600 whitespace-pre-wrap">{selectedEvent.description}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setSelectedEvent(null)}
+              >
+                Fechar
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => selectedEvent && handleDeleteEvent(selectedEvent)}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Excluir
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!eventToDelete}
+        onOpenChange={(open) => !open && setEventToDelete(null)}
+        title="Excluir evento?"
+        description="Esta ação não pode ser desfeita. O evento será removido da agenda."
+        confirmLabel="Excluir"
+        onConfirm={confirmDeleteEvent}
+        loading={deleting}
+      />
     </div>
   )
 }

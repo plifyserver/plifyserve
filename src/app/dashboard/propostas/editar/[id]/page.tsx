@@ -8,6 +8,7 @@ import { TemplateEditor } from '@/components/TemplateEditor'
 import { ArrowLeft } from 'lucide-react'
 import type { Proposal } from '@/types'
 import type { TemplateStructure } from '@/types'
+import { toast } from 'sonner'
 
 export default function EditarProposalPage() {
   const params = useParams()
@@ -54,7 +55,7 @@ export default function EditarProposalPage() {
 
     if (!res.ok) {
       const err = await res.json()
-      alert('Erro ao salvar: ' + (err.error || 'Erro desconhecido'))
+      toast.error('Erro ao salvar: ' + (err.error || 'Erro desconhecido'))
       return
     }
 

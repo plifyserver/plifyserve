@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { TemplateEditor } from '@/components/TemplateEditor'
 import { ArrowLeft } from 'lucide-react'
 import type { TemplateStructure } from '@/types'
+import { toast } from 'sonner'
 
 const DEFAULT_STRUCTURE: TemplateStructure = {
   companyName: 'Sua Empresa',
@@ -55,7 +56,7 @@ export default function NovoProposalPage() {
 
     if (!res.ok) {
       const err = await res.json()
-      alert('Erro ao salvar: ' + (err.error || 'Erro desconhecido'))
+      toast.error('Erro ao salvar: ' + (err.error || 'Erro desconhecido'))
       return
     }
 

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 interface User {
   id: string
@@ -101,7 +102,7 @@ export default function AdminUsersPage() {
         setSelectedUser(null)
       }
     } catch {
-      alert('Erro ao executar ação')
+      toast.error('Erro ao executar ação')
     } finally {
       setActionLoading(false)
     }

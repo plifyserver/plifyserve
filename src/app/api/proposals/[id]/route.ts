@@ -57,16 +57,20 @@ export async function PUT(
   const body = await request.json()
   const supabase = await createClient()
 
-  const updates: Record<string, unknown> = {}
+  const updates: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  }
   if (body.content !== undefined) updates.content = body.content
-  if (body.confirm_button_text !== undefined) updates.confirm_button_text = body.confirm_button_text
-  if (body.color_palette !== undefined) updates.color_palette = body.color_palette
   if (body.client_name !== undefined) updates.client_name = body.client_name
   if (body.client_email !== undefined) updates.client_email = body.client_email
-  if (body.client_phone !== undefined) updates.client_phone = body.client_phone
-  if (body.proposal_value !== undefined) updates.proposal_value = body.proposal_value
-  if (body.status !== undefined) updates.status = body.status
-  updates.updated_at = new Date().toISOString()
+  if (body.status !== undefined) {
+    updates.status = body.status === 'accepted' ? 'accepted' : 'open'
+  }
+  if (body.title !== undefined) updates.title = body.title
+  if (body.public_slug !== undefined) {
+    updates.public_slug = body.public_slug
+    updates.slug = body.public_slug
+  }
 
   const { data, error } = await supabase
     .from('proposals')

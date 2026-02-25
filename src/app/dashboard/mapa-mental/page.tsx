@@ -18,7 +18,6 @@ import ReactFlow, {
   Panel,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { Plus, Save, Loader2, FileDown, Trash2, Palette, Type } from 'lucide-react'
 
@@ -493,7 +492,6 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onCon
 
 function MindMapEditor() {
   const { user } = useAuth()
-  const supabase = createClient()
   const containerRef = useRef<HTMLDivElement>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
@@ -589,14 +587,10 @@ function MindMapEditor() {
   const loadMap = useCallback(async () => {
     if (!user) return
     try {
-      const { data, error } = await supabase
-        .from('mind_maps')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (!error && data) {
+      const res = await fetch('/api/mind-maps', { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      if (data?.id) {
         setCurrentMapId(data.id)
         const loadedNodes = (data.nodes as Node[])?.length ? (data.nodes as Node[]).map(toStyledNode) : initialNodes
         setNodes(loadedNodes)
@@ -605,40 +599,50 @@ function MindMapEditor() {
     } catch {
       // ok
     }
-  }, [user, supabase, setNodes, setEdges])
+  }, [user, setNodes, setEdges])
 
   const saveMap = useCallback(async () => {
     if (!user) return
     setSaving(true)
+    const SAVE_TIMEOUT_MS = 15000
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), SAVE_TIMEOUT_MS)
     try {
       const { nodes: nodesPayload, edges: edgesPayload } = serializeForStorage(nodes, edges)
-      if (currentMapId) {
-        const { error } = await supabase
-          .from('mind_maps')
-          .update({ nodes: nodesPayload, edges: edgesPayload, updated_at: new Date().toISOString() })
-          .eq('id', currentMapId)
-        if (error) throw error
-        showToast('Mapa salvo')
-      } else {
-        const { data, error } = await supabase
-          .from('mind_maps')
-          .insert({ user_id: user.id, name: 'Mapa principal', nodes: nodesPayload, edges: edgesPayload })
-          .select('id')
-          .single()
-        if (error) throw error
-        if (data) {
-          setCurrentMapId(data.id)
-          showToast('Mapa salvo')
-        }
+      const res = await fetch('/api/mind-maps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        signal: controller.signal,
+        body: JSON.stringify({
+          id: currentMapId || undefined,
+          name: 'Mapa principal',
+          nodes: nodesPayload,
+          edges: edgesPayload,
+        }),
+      })
+      clearTimeout(timeoutId)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || 'Falha ao salvar')
       }
+      const id = (data as { id?: string }).id
+      if (id && !currentMapId) setCurrentMapId(id)
+      showToast('Mapa salvo')
     } catch (err) {
-      const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : 'Erro ao salvar.'
+      clearTimeout(timeoutId)
+      const isAbort = err instanceof Error && err.name === 'AbortError'
+      const msg = isAbort
+        ? 'Tempo esgotado. Verifique sua conexão e se a tabela mind_maps existe no Supabase (migration 002).'
+        : err instanceof Error
+          ? err.message
+          : 'Erro ao salvar.'
       showToast(msg)
       console.error('Erro ao salvar mapa mental:', err)
     } finally {
       setSaving(false)
     }
-  }, [user, currentMapId, nodes, edges, supabase])
+  }, [user, currentMapId, nodes, edges])
 
   const exportPdf = useCallback(async () => {
     if (!containerRef.current) return

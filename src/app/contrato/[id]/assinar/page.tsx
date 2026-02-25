@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { FileText, Download, PenLine, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import SignatureCanvas, { type SignatureData } from '@/components/contracts/SignatureCanvas'
+import { toast } from 'sonner'
 
 interface Contract {
   id: string
@@ -100,10 +101,10 @@ export default function AssinarContratoPage() {
         setStep('success')
       } else {
         const data = await res.json()
-        alert(data.error || 'Erro ao salvar assinatura. Tente novamente.')
+        toast.error(data.error || 'Erro ao salvar assinatura. Tente novamente.')
       }
     } catch {
-      alert('Erro ao salvar assinatura. Tente novamente.')
+      toast.error('Erro ao salvar assinatura. Tente novamente.')
     }
   }
 

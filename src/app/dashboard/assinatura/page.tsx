@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function AssinaturaPage() {
   const [loading, setLoading] = useState(false)
@@ -24,10 +25,10 @@ export default function AssinaturaPage() {
         router.push('/dashboard?subscription=success')
         router.refresh()
       } else {
-        alert(data.error || 'Erro ao ativar Pro')
+        toast.error(data.error || 'Erro ao ativar Pro')
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Erro ao processar.')
+      toast.error(e instanceof Error ? e.message : 'Erro ao processar.')
     } finally {
       setLoading(false)
     }

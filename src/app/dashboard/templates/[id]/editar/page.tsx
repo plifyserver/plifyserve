@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useTemplate } from '@/hooks/useTemplates'
+import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export default function EditTemplatePage() {
   const params = useParams()
@@ -25,6 +27,7 @@ export default function EditTemplatePage() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [imageToRemoveId, setImageToRemoveId] = useState<string | null>(null)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -38,9 +41,9 @@ export default function EditTemplatePage() {
     setSaving(true)
     try {
       await updateTemplate({ title, description })
-      alert('Template salvo com sucesso!')
+      toast.success('Template salvo com sucesso!')
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao salvar template')
+      toast.error(err instanceof Error ? err.message : 'Erro ao salvar template')
     } finally {
       setSaving(false)
     }
@@ -51,12 +54,12 @@ export default function EditTemplatePage() {
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione uma imagem.')
+      toast.error('Por favor, selecione uma imagem.')
       return
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 5MB.')
+      toast.error('A imagem deve ter no máximo 5MB.')
       return
     }
 
@@ -64,7 +67,7 @@ export default function EditTemplatePage() {
     try {
       await addImage(file)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao fazer upload')
+      toast.error(err instanceof Error ? err.message : 'Erro ao fazer upload')
     } finally {
       setUploading(false)
       if (fileInputRef.current) {
@@ -73,12 +76,15 @@ export default function EditTemplatePage() {
     }
   }
 
-  const handleRemoveImage = async (imageId: string) => {
-    if (!confirm('Remover esta imagem?')) return
+  const handleRemoveImage = (imageId: string) => setImageToRemoveId(imageId)
+  const confirmRemoveImage = async () => {
+    if (!imageToRemoveId) return
     try {
-      await removeImage(imageId)
+      await removeImage(imageToRemoveId)
+      toast.success('Imagem removida.')
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao remover imagem')
+      toast.error(err instanceof Error ? err.message : 'Erro ao remover imagem')
+      return false
     }
   }
 
@@ -273,6 +279,15 @@ export default function EditTemplatePage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!imageToRemoveId}
+        onOpenChange={(open) => !open && setImageToRemoveId(null)}
+        title="Remover imagem?"
+        description="Esta imagem será removida do template."
+        confirmLabel="Remover"
+        onConfirm={confirmRemoveImage}
+      />
     </div>
   )
 }

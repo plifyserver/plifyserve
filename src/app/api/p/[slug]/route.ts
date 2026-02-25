@@ -25,7 +25,7 @@ export async function GET(
       accepted_at
     `)
     .eq('public_slug', slug)
-    .in('status', ['sent', 'viewed', 'accepted'])
+    .in('status', ['sent', 'viewed', 'accepted', 'open'])
     .single()
 
   if (error || !proposal) {

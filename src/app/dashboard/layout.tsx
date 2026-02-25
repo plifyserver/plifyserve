@@ -71,6 +71,7 @@ export default function DashboardLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings | null>(null)
+  const [logoCacheBust, setLogoCacheBust] = useState(() => Date.now())
   const [profileOpen, setProfileOpen] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const headerRef = useRef<HTMLDivElement>(null)
@@ -88,7 +89,7 @@ export default function DashboardLayout({
   }, [])
 
   const fetchSettings = useCallback(() => {
-    fetch('/api/app-settings', { credentials: 'include' })
+    fetch('/api/app-settings', { credentials: 'include', cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setSettings(data))
       .catch(() => setSettings(null))
@@ -99,10 +100,15 @@ export default function DashboardLayout({
   }, [fetchSettings])
 
   useEffect(() => {
-    const onSettingsUpdated = () => fetchSettings()
+    const onSettingsUpdated = () => {
+      fetchSettings()
+      setLogoCacheBust(Date.now())
+    }
     window.addEventListener('app-settings-updated', onSettingsUpdated)
     return () => window.removeEventListener('app-settings-updated', onSettingsUpdated)
   }, [fetchSettings])
+
+  const DEFAULT_FAVICON = '/logopreto.ico'
 
   useEffect(() => {
     if (!settings) return
@@ -110,15 +116,13 @@ export default function DashboardLayout({
     const secondary = settings.secondary_color || '#1E293B'
     document.documentElement.style.setProperty('--primary-color', primary)
     document.documentElement.style.setProperty('--secondary-color', secondary)
-    if (settings.favicon_url) {
-      let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null
-      if (!link) {
-        link = document.createElement('link')
-        link.rel = 'icon'
-        document.head.appendChild(link)
-      }
-      link.href = settings.favicon_url
+    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'icon'
+      document.head.appendChild(link)
     }
+    link.href = settings.favicon_url && settings.favicon_url.trim() !== '' ? settings.favicon_url : DEFAULT_FAVICON
     if (settings.app_name) document.title = settings.app_name
   }, [settings])
 
@@ -137,7 +141,10 @@ export default function DashboardLayout({
   const accentColor = settings?.primary_color || '#ea580c'
   const sidebarBg = settings?.secondary_color || '#000020'
   const appName = settings?.app_name || ''
-  const logoUrl = settings?.logo_url && settings.logo_url.trim() !== '' ? settings.logo_url : '/logobranco.png'
+  const logoBase = settings?.logo_url && settings.logo_url.trim() !== '' ? settings.logo_url.trim() : null
+  const logoUrl = logoBase
+    ? logoBase + (logoBase.includes('?') ? '&' : '?') + 't=' + logoCacheBust
+    : '/logobranco.png'
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -145,6 +152,16 @@ export default function DashboardLayout({
         :root {
           --primary-color: ${accentColor};
           --secondary-color: ${sidebarBg};
+        }
+        @keyframes upgradeGlow {
+          0%, 100% { box-shadow: 0 1px 3px ${accentColor}40; opacity: 1; }
+          50% { box-shadow: 0 0 14px ${accentColor}60, 0 1px 3px ${accentColor}40; opacity: 0.95; }
+        }
+        .btn-upgrade-animated {
+          animation: upgradeGlow 2.5s ease-in-out infinite;
+        }
+        .btn-upgrade-animated:hover {
+          animation: upgradeGlow 1.2s ease-in-out infinite;
         }
       `}</style>
 
@@ -210,9 +227,13 @@ export default function DashboardLayout({
             <button
               type="button"
               onClick={() => setShowUpgradeModal(true)}
-              className="flex items-center gap-3 w-full px-3 py-2.5 mb-1 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium transition-all"
+              className="btn-upgrade-animated flex items-center gap-3 w-full px-3 py-2.5 mb-1 rounded-lg text-white font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
+                boxShadow: `0 1px 3px ${accentColor}40`,
+              }}
             >
-              <Sparkles className="w-5 h-5 flex-shrink-0" />
+              <Sparkles className="w-5 h-5 flex-shrink-0 animate-pulse" />
               <span>Upgrade Pro</span>
             </button>
           )}
@@ -220,10 +241,14 @@ export default function DashboardLayout({
             <button
               type="button"
               onClick={() => setShowUpgradeModal(true)}
-              className="flex items-center justify-center w-full p-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              className="btn-upgrade-animated flex items-center justify-center w-full p-2.5 rounded-lg text-white transition-all hover:scale-105 active:scale-95"
               title="Upgrade Pro"
+              style={{
+                background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
+                boxShadow: `0 1px 3px ${accentColor}40`,
+              }}
             >
-              <Sparkles className="w-5 h-5 text-white" />
+              <Sparkles className="w-5 h-5 text-white animate-pulse" />
             </button>
           )}
           {!sidebarCollapsed ? (
@@ -310,9 +335,13 @@ export default function DashboardLayout({
                 setSidebarOpen(false)
                 setShowUpgradeModal(true)
               }}
-              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium"
+              className="btn-upgrade-animated flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-white font-medium hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
+                boxShadow: `0 1px 3px ${accentColor}40`,
+              }}
             >
-              <Sparkles className="w-5 h-5" />
+              <Sparkles className="w-5 h-5 animate-pulse" />
               Upgrade Pro
             </button>
           )}
@@ -359,7 +388,11 @@ export default function DashboardLayout({
                   aria-haspopup="true"
                 >
                   {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    <img
+                      src={`${profile.avatar_url}${profile.avatar_url.includes('?') ? '&' : '?'}t=${profile.updated_at || ''}`}
+                      alt=""
+                      className="w-8 h-8 rounded-full object-cover shrink-0"
+                    />
                   ) : (
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0"

@@ -22,7 +22,10 @@ export default function ConfiguracoesPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
-  const avatarUrl = profile?.avatar_url ?? null
+  // Cache buster para a foto atualizar ao trocar (mesmo que no header e em Meu perfil)
+  const avatarUrl = profile?.avatar_url
+    ? `${profile.avatar_url}${profile.avatar_url.includes('?') ? '&' : '?'}t=${profile.updated_at || Date.now()}`
+    : null
 
   const UPLOAD_TIMEOUT_MS = 25000
 

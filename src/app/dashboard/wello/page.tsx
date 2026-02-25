@@ -21,6 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { toast } from 'sonner'
 
 interface WelloBoard {
   id: string
@@ -63,6 +65,7 @@ export default function WelloPage() {
   const [boardForm, setBoardForm] = useState({ name: '', description: '' })
   const [listForm, setListForm] = useState({ name: '' })
   const [cardForm, setCardForm] = useState({ title: '', description: '', due_date: '', list_id: '' })
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'board' | 'list' | 'card'; id: string } | null>(null)
 
   const fetchBoards = async () => {
     const res = await fetch('/api/wello/boards', { credentials: 'include' })
@@ -224,32 +227,58 @@ export default function WelloPage() {
     }
   }
 
-  const deleteBoard = async (id: string) => {
-    if (!confirm('Excluir este board e todas as listas e cards?')) return
-    const res = await fetch(`/api/wello/boards/${id}`, { method: 'DELETE', credentials: 'include' })
-    if (res.ok) {
-      if (currentBoard?.id === id) setCurrentBoard(null)
-      await fetchBoards()
+  const deleteBoard = (id: string) => setConfirmDelete({ type: 'board', id })
+  const deleteList = (id: string) => setConfirmDelete({ type: 'list', id })
+  const deleteCard = (id: string) => setConfirmDelete({ type: 'card', id })
+
+  const confirmDeleteAction = async () => {
+    if (!confirmDelete) return
+    const { type, id } = confirmDelete
+    if (type === 'board') {
+      const res = await fetch(`/api/wello/boards/${id}`, { method: 'DELETE', credentials: 'include' })
+      if (res.ok) {
+        if (currentBoard?.id === id) setCurrentBoard(null)
+        await fetchBoards()
+        toast.success('Board excluído.')
+      } else {
+        toast.error('Não foi possível excluir o board.')
+        return false
+      }
+    } else if (type === 'list') {
+      const res = await fetch(`/api/wello/lists/${id}`, { method: 'DELETE', credentials: 'include' })
+      if (res.ok && currentBoard) {
+        await fetchBoardData(currentBoard.id)
+        setListDialogOpen(false)
+        toast.success('Lista excluída.')
+      } else {
+        toast.error('Não foi possível excluir a lista.')
+        return false
+      }
+    } else {
+      const res = await fetch(`/api/wello/cards/${id}`, { method: 'DELETE', credentials: 'include' })
+      if (res.ok && currentBoard) {
+        await fetchBoardData(currentBoard.id)
+        setCardDialogOpen(false)
+        toast.success('Card excluído.')
+      } else {
+        toast.error('Não foi possível excluir o card.')
+        return false
+      }
     }
   }
 
-  const deleteList = async (id: string) => {
-    if (!confirm('Excluir esta lista e todos os cards?')) return
-    const res = await fetch(`/api/wello/lists/${id}`, { method: 'DELETE', credentials: 'include' })
-    if (res.ok && currentBoard) {
-      await fetchBoardData(currentBoard.id)
-      setListDialogOpen(false)
-    }
-  }
-
-  const deleteCard = async (id: string) => {
-    if (!confirm('Excluir este card?')) return
-    const res = await fetch(`/api/wello/cards/${id}`, { method: 'DELETE', credentials: 'include' })
-    if (res.ok && currentBoard) {
-      await fetchBoardData(currentBoard.id)
-      setCardDialogOpen(false)
-    }
-  }
+  const confirmTitle =
+    confirmDelete?.type === 'board'
+      ? 'Excluir board?'
+      : confirmDelete?.type === 'list'
+        ? 'Excluir lista?'
+        : 'Excluir card?'
+  const confirmDesc =
+    confirmDelete?.type === 'board'
+      ? 'Este board e todas as listas e cards serão removidos. Esta ação não pode ser desfeita.'
+      : confirmDelete?.type === 'list'
+        ? 'Esta lista e todos os cards serão removidos. Esta ação não pode ser desfeita.'
+        : 'Este card será removido. Esta ação não pode ser desfeita.'
 
   return (
     <div className="space-y-6">
@@ -457,6 +486,15 @@ export default function WelloPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(open) => !open && setConfirmDelete(null)}
+        title={confirmTitle}
+        description={confirmDesc}
+        confirmLabel="Excluir"
+        onConfirm={confirmDeleteAction}
+      />
     </div>
   )
 }

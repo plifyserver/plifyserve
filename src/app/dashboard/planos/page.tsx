@@ -6,6 +6,7 @@ import { useBilling } from '@/hooks/useBilling'
 import { PLANS, type PlanType } from '@/services/billing'
 import { useAuth } from '@/contexts/AuthContext'
 import { profileService } from '@/lib/services/profile'
+import { toast } from 'sonner'
 
 export default function PlanosPage() {
   const {
@@ -31,9 +32,9 @@ export default function PlanosPage() {
       await profileService.upgradePlan(planId)
       await refreshProfile()
       refetch()
-      alert(`Seu plano foi atualizado para ${planId === 'pro' ? 'Pro' : 'Essential'}!`)
+      toast.success(`Seu plano foi atualizado para ${planId === 'pro' ? 'Pro' : 'Essential'}!`)
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Erro ao processar upgrade')
+      toast.error(error instanceof Error ? error.message : 'Erro ao processar upgrade')
     } finally {
       setUpgrading(null)
     }

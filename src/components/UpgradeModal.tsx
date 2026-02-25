@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 import { profileService } from '@/lib/services/profile'
 import { Sparkles, Crown, Zap, Check, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface UpgradeModalProps {
   open: boolean
@@ -24,9 +25,9 @@ export function UpgradeModal({ open, onClose, type = 'plan' }: UpgradeModalProps
       await profileService.upgradeToSocio()
       await refreshProfile()
       onClose()
-      alert('Parabéns! Agora você é um sócio.')
+      toast.success('Parabéns! Agora você é um sócio.')
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Erro ao processar upgrade')
+      toast.error(error instanceof Error ? error.message : 'Erro ao processar upgrade')
     } finally {
       setLoading(false)
     }
@@ -39,9 +40,9 @@ export function UpgradeModal({ open, onClose, type = 'plan' }: UpgradeModalProps
       await profileService.upgradePlan(plan)
       await refreshProfile()
       onClose()
-      alert(`Seu plano foi atualizado para ${plan === 'pro' ? 'Pro' : 'Essential'}!`)
+      toast.success(`Seu plano foi atualizado para ${plan === 'pro' ? 'Pro' : 'Essential'}!`)
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Erro ao processar upgrade')
+      toast.error(error instanceof Error ? error.message : 'Erro ao processar upgrade')
     } finally {
       setLoading(false)
       setSelectedPlan(null)

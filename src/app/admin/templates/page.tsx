@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 interface Template {
   id: string
@@ -85,7 +86,7 @@ export default function AdminTemplatesPage() {
         setDeleteTemplate(null)
       }
     } catch {
-      alert('Erro ao excluir template')
+      toast.error('Erro ao excluir template')
     } finally {
       setDeleting(false)
     }

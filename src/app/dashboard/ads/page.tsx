@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Megaphone, DollarSign, Users, Target, MoreHorizontal, Edit, Trash2 } from 'lucide-react'
+import { Plus, Megaphone, DollarSign, Users, Target, MoreHorizontal, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -22,12 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { toast } from 'sonner'
 import MetricsCard from '@/components/ads/MetricsCard'
 
 const PLATFORMS = [
@@ -71,6 +67,7 @@ export default function AdsPage() {
     status: 'active',
     account_link: '',
   })
+  const [campaignToDeleteId, setCampaignToDeleteId] = useState<string | null>(null)
 
   const fetchCampaigns = async () => {
     const res = await fetch('/api/ad-campaigns', { credentials: 'include' })
@@ -151,10 +148,17 @@ export default function AdsPage() {
     }
   }
 
-  const remove = async (id: string) => {
-    if (!confirm('Excluir esta campanha?')) return
-    const res = await fetch(`/api/ad-campaigns/${id}`, { method: 'DELETE', credentials: 'include' })
-    if (res.ok) await fetchCampaigns()
+  const remove = (id: string) => setCampaignToDeleteId(id)
+  const confirmRemove = async () => {
+    if (!campaignToDeleteId) return
+    const res = await fetch(`/api/ad-campaigns/${campaignToDeleteId}`, { method: 'DELETE', credentials: 'include' })
+    if (res.ok) {
+      await fetchCampaigns()
+      toast.success('Campanha excluída.')
+    } else {
+      toast.error('Não foi possível excluir a campanha.')
+      return false
+    }
   }
 
   return (
@@ -257,26 +261,15 @@ export default function AdsPage() {
                       {c.end_date ? ` - ${format(new Date(c.end_date), 'dd/MM/yyyy', { locale: ptBR })}` : ''}
                     </td>
                     <td className="p-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl">
-                          <DropdownMenuItem onClick={() => openDialog(c)} className="rounded-lg">
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => remove(c.id)}
-                            className="text-red-600 rounded-lg"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => openDialog(c)}
+                        title="Editar campanha"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -307,7 +300,7 @@ export default function AdsPage() {
                 <Label>Plataforma</Label>
                 <Select value={form.platform} onValueChange={(v) => setForm({ ...form, platform: v })}>
                   <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue />
+                    <span>{PLATFORMS.find((p) => p.value === form.platform)?.label ?? form.platform}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {PLATFORMS.map((p) => (
@@ -322,7 +315,7 @@ export default function AdsPage() {
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue />
+                    <span>{STATUS_OPTIONS.find((s) => s.value === form.status)?.label ?? form.status}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {STATUS_OPTIONS.map((s) => (
@@ -393,7 +386,23 @@ export default function AdsPage() {
                 className="rounded-xl mt-1"
               />
             </div>
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-4 flex-wrap gap-2">
+              {selected && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 order-first w-full sm:order-none sm:w-auto"
+                  onClick={() => {
+                    if (selected) {
+                      setCampaignToDeleteId(selected.id)
+                      setDialogOpen(false)
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Excluir campanha
+                </Button>
+              )}
               <Button type="button" variant="outline" onClick={closeDialog} className="rounded-xl">
                 Cancelar
               </Button>
@@ -404,6 +413,15 @@ export default function AdsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!campaignToDeleteId}
+        onOpenChange={(open) => !open && setCampaignToDeleteId(null)}
+        title="Excluir campanha?"
+        description="Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        onConfirm={confirmRemove}
+      />
     </div>
   )
 }

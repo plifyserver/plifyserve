@@ -11,6 +11,7 @@ import { useTemplates } from '@/hooks/useTemplates'
 import { useAuth } from '@/contexts/AuthContext'
 import { UpgradeModal } from '@/components/UpgradeModal'
 import type { TemplateBase } from '@/types'
+import { toast } from 'sonner'
 
 const DEFAULT_TEMPLATES: TemplateBase[] = [
   {
@@ -56,7 +57,7 @@ export default function TemplatesPage() {
         setShowCreateModal(false)
         setShowUpgradeModal(true)
       } else {
-        alert(error instanceof Error ? error.message : 'Erro ao criar template')
+        toast.error(error instanceof Error ? error.message : 'Erro ao criar template')
       }
     } finally {
       setCreating(false)
@@ -70,7 +71,7 @@ export default function TemplatesPage() {
       await deleteTemplate(deleteId)
       setDeleteId(null)
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Erro ao excluir template')
+      toast.error(error instanceof Error ? error.message : 'Erro ao excluir template')
     } finally {
       setDeleting(false)
     }

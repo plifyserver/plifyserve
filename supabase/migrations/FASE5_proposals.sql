@@ -222,7 +222,7 @@ BEGIN
   SET status = 'accepted',
       accepted_at = NOW(),
       updated_at = NOW()
-  WHERE id = p_proposal_id AND status IN ('sent', 'viewed')
+  WHERE id = p_proposal_id AND status IN ('sent', 'viewed', 'open')
   RETURNING user_id, title, client_name INTO proposal_owner_id, proposal_title, proposal_client;
   
   IF proposal_owner_id IS NULL THEN
@@ -249,8 +249,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 11. Habilitar Realtime para notifications
-ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+-- 11. Habilitar Realtime para notifications (só adiciona se ainda não estiver na publication)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'notifications'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+  END IF;
+END $$;
 
 -- 12. Grants
 GRANT SELECT ON proposals TO anon;

@@ -6,6 +6,7 @@ import type { TemplateStructure, ProposalPlan } from '@/types'
 import { COLOR_PALETTES } from '@/types'
 import type { Client } from '@/types'
 import { ProposalTemplate3D } from '@/components/ProposalTemplate3D'
+import { toast } from 'sonner'
 
 
 /** Parse BR format: "2.000" = 2000, "2.000,50" = 2000.50, "2000" = 2000 */
@@ -115,7 +116,7 @@ const [footerLogoVersion, setFooterLogoVersion] = useState(0)
       }
       setContent((prev) => ({ ...prev, gallery: [...(prev.gallery || []), ...urls] }))
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao enviar fotos')
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar fotos')
     }
     setUploadingGallery(false)
     if (galleryInputRef.current) galleryInputRef.current.value = ''
@@ -131,7 +132,7 @@ const [footerLogoVersion, setFooterLogoVersion] = useState(0)
       setContent((prev) => ({ ...prev, productPhotoUrl: urlWithCache }))
       setProductPhotoVersion((v) => v + 1)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao enviar foto')
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar foto')
     }
     setUploadingProduct(false)
     if (productInputRef.current) productInputRef.current.value = ''
@@ -156,7 +157,7 @@ const [footerLogoVersion, setFooterLogoVersion] = useState(0)
       setContent((prev) => ({ ...prev, companyLogo: urlWithCache }))
       setLogoVersion((v) => v + 1)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao enviar logo')
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar logo')
     }
     setUploadingLogo(false)
     if (logoInputRef.current) logoInputRef.current.value = ''
@@ -181,7 +182,7 @@ const [footerLogoVersion, setFooterLogoVersion] = useState(0)
       setContent((prev) => ({ ...prev, footerLogo: urlWithCache }))
       setFooterLogoVersion((v) => v + 1)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao enviar logo do rodapé')
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar logo do rodapé')
     }
     setUploadingFooterLogo(false)
     if (footerLogoInputRef.current) footerLogoInputRef.current.value = ''
@@ -198,7 +199,7 @@ const [footerLogoVersion, setFooterLogoVersion] = useState(0)
       next[index] = url
       setContent({ ...content, middlePhotos: next })
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao enviar foto')
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar foto')
     }
     setUploadingMiddle(false)
     if (index === 0 && middlePhoto1Ref.current) middlePhoto1Ref.current.value = ''

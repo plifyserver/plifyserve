@@ -103,7 +103,7 @@ export function ProposalPreview({ data, className }: ProposalPreviewProps) {
               <img 
                 src={data.company.logo} 
                 alt={data.company.name}
-                className="h-12 w-auto object-contain mb-4"
+                className="h-36 w-auto object-contain mb-4"
               />
             )}
             <h1 className="text-3xl md:text-4xl font-bold mb-2">
@@ -113,22 +113,22 @@ export function ProposalPreview({ data, className }: ProposalPreviewProps) {
               Proposta para {data.clientName || 'Cliente'}
             </p>
           </div>
-          <div className="text-right text-sm opacity-80 space-y-1">
+          <div className="text-center text-sm opacity-80 space-y-1 flex flex-col items-center">
             {data.company.email && (
-              <p className="flex items-center gap-2 justify-end">
-                <Mail className="w-4 h-4" />
+              <p className="flex items-center justify-center gap-2">
+                <Mail className="w-4 h-4 shrink-0" />
                 {data.company.email}
               </p>
             )}
             {data.company.phone && (
-              <p className="flex items-center gap-2 justify-end">
-                <Phone className="w-4 h-4" />
+              <p className="flex items-center justify-center gap-2">
+                <Phone className="w-4 h-4 shrink-0" />
                 {data.company.phone}
               </p>
             )}
             {data.company.address && (
-              <p className="flex items-center gap-2 justify-end">
-                <MapPin className="w-4 h-4" />
+              <p className="flex items-center justify-center gap-2">
+                <MapPin className="w-4 h-4 shrink-0" />
                 {data.company.address}
               </p>
             )}
@@ -266,24 +266,6 @@ export function ProposalPreview({ data, className }: ProposalPreviewProps) {
                   </button>
                 </div>
               ))}
-            </div>
-          </section>
-        )}
-
-        {/* Single Price */}
-        {data.paymentType === 'single' && data.singlePrice > 0 && (
-          <section className="text-center py-8">
-            <h2 
-              className="text-xl font-semibold mb-4"
-              style={{ color: palette.secondary }}
-            >
-              Investimento
-            </h2>
-            <div className="inline-flex flex-col items-center bg-slate-50 rounded-2xl px-12 py-8">
-              <span className="text-5xl font-bold" style={{ color: palette.primary }}>
-                R$ {data.singlePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-              <span className="text-slate-500 mt-2">valor único</span>
             </div>
           </section>
         )}

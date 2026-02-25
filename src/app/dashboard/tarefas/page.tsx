@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, CheckSquare, Square, MoreHorizontal, Edit, Trash2 } from 'lucide-react'
+import { Plus, CheckSquare, Square, MoreHorizontal, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -23,12 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { toast } from 'sonner'
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pendente' },
@@ -75,6 +71,7 @@ export default function TarefasPage() {
     priority: 'medium',
     description: '',
   })
+  const [taskToDeleteId, setTaskToDeleteId] = useState<string | null>(null)
 
   const fetchData = async () => {
     const base = '/api/tasks'
@@ -163,10 +160,17 @@ export default function TarefasPage() {
     if (res.ok) await fetchData()
   }
 
-  const remove = async (id: string) => {
-    if (!confirm('Excluir esta tarefa?')) return
-    const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE', credentials: 'include' })
-    if (res.ok) await fetchData()
+  const remove = (id: string) => setTaskToDeleteId(id)
+  const confirmRemove = async () => {
+    if (!taskToDeleteId) return
+    const res = await fetch(`/api/tasks/${taskToDeleteId}`, { method: 'DELETE', credentials: 'include' })
+    if (res.ok) {
+      await fetchData()
+      toast.success('Tarefa excluída.')
+    } else {
+      toast.error('Não foi possível excluir a tarefa.')
+      return false
+    }
   }
 
   return (
@@ -231,7 +235,9 @@ export default function TarefasPage() {
                     {t.title}
                   </p>
                   <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
-                    {t.client_name && <span>{t.client_name}</span>}
+                    {(t.client_name || clients.find((c) => c.id === t.client_id)?.name) && (
+                      <span>{t.client_name || clients.find((c) => c.id === t.client_id)?.name}</span>
+                    )}
                     {t.due_date && (
                       <span>
                         Venc: {format(new Date(t.due_date), 'dd/MM/yyyy', { locale: ptBR })}
@@ -261,30 +267,15 @@ export default function TarefasPage() {
                 >
                   {STATUS_OPTIONS.find((s) => s.value === t.status)?.label ?? t.status}
                 </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-xl">
-                    <DropdownMenuItem onClick={() => openDialog(t)} className="rounded-lg">
-                      <Edit className="w-4 h-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => remove(t.id)}
-                      className="text-red-600 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                  onClick={() => openDialog(t)}
+                  title="Editar tarefa"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
               </div>
             ))}
           </div>
@@ -310,11 +301,15 @@ export default function TarefasPage() {
             <div>
               <Label>Cliente</Label>
               <Select
-                value={form.client_id}
-                onValueChange={(v) => setForm({ ...form, client_id: v })}
+                value={form.client_id || ''}
+                onValueChange={(v) => setForm({ ...form, client_id: v || '' })}
               >
                 <SelectTrigger className="rounded-xl mt-1">
-                  <SelectValue placeholder="Selecione" />
+                  <span className={!form.client_id ? 'text-slate-500' : ''}>
+                    {form.client_id
+                      ? (clients.find((c) => c.id === form.client_id)?.name ?? 'Cliente')
+                      : 'Selecione'}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map((c) => (
@@ -350,7 +345,7 @@ export default function TarefasPage() {
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue />
+                    <span>{STATUS_OPTIONS.find((s) => s.value === form.status)?.label ?? form.status}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {STATUS_OPTIONS.map((s) => (
@@ -365,7 +360,7 @@ export default function TarefasPage() {
                 <Label>Prioridade</Label>
                 <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
                   <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue />
+                    <span>{PRIORITY_OPTIONS.find((p) => p.value === form.priority)?.label ?? form.priority}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {PRIORITY_OPTIONS.map((p) => (
@@ -386,7 +381,23 @@ export default function TarefasPage() {
                 className="rounded-xl mt-1"
               />
             </div>
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-4 flex-wrap gap-2">
+              {selected && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 order-first w-full sm:order-none sm:w-auto"
+                  onClick={() => {
+                    if (selected) {
+                      setTaskToDeleteId(selected.id)
+                      setDialogOpen(false)
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Excluir tarefa
+                </Button>
+              )}
               <Button type="button" variant="outline" onClick={closeDialog} className="rounded-xl">
                 Cancelar
               </Button>
@@ -397,6 +408,15 @@ export default function TarefasPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!taskToDeleteId}
+        onOpenChange={(open) => !open && setTaskToDeleteId(null)}
+        title="Excluir tarefa?"
+        description="Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        onConfirm={confirmRemove}
+      />
     </div>
   )
 }

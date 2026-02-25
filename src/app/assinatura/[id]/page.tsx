@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import SignatureCanvas, { type SignatureData } from '@/components/contracts/SignatureCanvas'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { toast } from 'sonner'
 
 interface Contract {
   id: string
@@ -106,7 +107,7 @@ export default function AssinaturaPage() {
       setSigned(true)
       setSignDialogOpen(false)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao assinar contrato')
+      toast.error(err instanceof Error ? err.message : 'Erro ao assinar contrato')
     } finally {
       setSigning(false)
     }
