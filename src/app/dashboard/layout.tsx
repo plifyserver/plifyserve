@@ -54,7 +54,6 @@ const navItems = [
 interface AppSettings {
   app_name?: string | null
   logo_url?: string | null
-  favicon_url?: string | null
   primary_color?: string | null
   secondary_color?: string | null
   theme?: string | null
@@ -101,6 +100,10 @@ export default function DashboardLayout({
   }, [fetchSettings])
 
   useEffect(() => {
+    navItems.slice(0, 6).forEach((item) => router.prefetch(item.href))
+  }, [router])
+
+  useEffect(() => {
     const onSettingsUpdated = () => {
       fetchSettings()
       setLogoCacheBust(Date.now())
@@ -109,23 +112,13 @@ export default function DashboardLayout({
     return () => window.removeEventListener('app-settings-updated', onSettingsUpdated)
   }, [fetchSettings])
 
-  const DEFAULT_FAVICON = '/logopreto.ico'
-
   useEffect(() => {
-    if (!settings) return
-    const primary = settings.primary_color || '#3B82F6'
-    const secondary = settings.secondary_color || '#1E293B'
+    const primary = settings?.primary_color || '#3B82F6'
+    const secondary = settings?.secondary_color || '#1E293B'
     document.documentElement.style.setProperty('--primary-color', primary)
     document.documentElement.style.setProperty('--secondary-color', secondary)
-    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null
-    if (!link) {
-      link = document.createElement('link')
-      link.rel = 'icon'
-      document.head.appendChild(link)
-    }
-    link.href = settings.favicon_url && settings.favicon_url.trim() !== '' ? settings.favicon_url : DEFAULT_FAVICON
-    if (settings.app_name) document.title = settings.app_name
-  }, [settings])
+    document.title = (settings?.app_name?.trim() && settings.app_name) ? settings.app_name : 'Plify - Gestão e Propostas'
+  }, [settings, pathname])
 
   const handleSignOut = useCallback(async (e?: React.MouseEvent) => {
     if (e) {
@@ -188,9 +181,9 @@ export default function DashboardLayout({
               <Image 
                 src={logoUrl} 
                 alt="Logo" 
-                width={160} 
-                height={40} 
-                className="h-10 w-auto object-contain object-left" 
+                width={320} 
+                height={80} 
+                className="h-20 w-auto object-contain object-left" 
                 priority 
                 onError={(e) => {
                   const target = e.target as HTMLImageElement
@@ -291,7 +284,7 @@ export default function DashboardLayout({
           <Menu className="w-6 h-6 text-slate-700" />
         </button>
         <Link href="/dashboard" className="flex items-center">
-          <Image src="/logopreto.png" alt="Logo" width={140} height={36} className="h-9 max-w-[140px] object-contain" priority />
+          <Image src="/logopreto.png" alt="Logo" width={280} height={72} className="h-[2.25rem] max-w-[180px] object-contain" priority />
         </Link>
         <div className="w-10" />
       </div>
@@ -313,9 +306,9 @@ export default function DashboardLayout({
             <Image 
               src={logoUrl} 
               alt="Logo" 
-              width={120} 
-              height={32} 
-              className="h-8 w-auto object-contain" 
+              width={240} 
+              height={64} 
+              className="h-16 w-auto object-contain" 
               priority 
             />
           </Link>

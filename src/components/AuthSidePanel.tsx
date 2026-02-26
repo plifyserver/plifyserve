@@ -13,9 +13,10 @@ export function AuthSidePanel() {
           alt=""
           fill
           className="object-cover object-center"
-          sizes="(min-width: 1024px) 100vw, 0vw"
-          quality={95}
+          sizes="(min-width: 1024px) 50vw, 0vw"
+          quality={75}
           priority
+          fetchPriority="high"
         />
       </div>
       {/* Overlay escuro leve para legibilidade do texto */}
@@ -24,7 +25,7 @@ export function AuthSidePanel() {
       <div className="relative z-10 flex flex-col w-full min-h-screen p-8">
         <div className="flex items-start justify-between flex-shrink-0">
           <Link href="/" className="flex items-center">
-            <Image src="/logobranco.png" alt="Logo" width={400} height={112} className="h-28 w-auto object-contain" />
+            <Image src="/logobranco.png" alt="Logo" width={400} height={112} className="h-28 w-auto object-contain" priority />
           </Link>
           <span className="text-sm text-white/90">© {new Date().getFullYear()}</span>
         </div>

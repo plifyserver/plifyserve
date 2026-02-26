@@ -4,6 +4,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { SpaceKeyFix } from "@/components/SpaceKeyFix";
+import { FaviconFix } from "@/components/FaviconFix";
 
 export const metadata: Metadata = {
   title: "Plify - Gestão e Propostas",
@@ -29,6 +30,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="antialiased">
+        <FaviconFix />
         <SpaceKeyFix />
         <QueryProvider>
           <AuthProvider>
