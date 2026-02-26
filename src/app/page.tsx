@@ -5,39 +5,6 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Globe } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import {
-  LayoutDashboard,
-  Users,
-  FileText,
-  Briefcase,
-  Search,
-  TrendingUp,
-} from 'lucide-react'
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts'
-
-const ACCENT_RED = '#dc2626'
-const performanceData = [
-  { mes: 'Mar', valor: 3800 },
-  { mes: 'Abr', valor: 5100 },
-  { mes: 'Maio', valor: 6200 },
-  { mes: 'Jun', valor: 7500 },
-  { mes: 'Jul', valor: 8200 },
-]
-const distributionData = [
-  { name: 'Novos', value: 60, color: ACCENT_RED },
-  { name: 'Recorrentes', value: 40, color: '#e2e8f0' },
-]
 
 const STATS = [
   { target: 500, suffix: '+', label: 'Usuários ativos' },
@@ -50,10 +17,9 @@ function easeOutCubic(t: number) {
   return 1 - (1 - t) ** 3
 }
 
-function LandingDashboardMockup() {
+function DashboardImageSection() {
   const sectionRef = useRef<HTMLDivElement>(null)
-  // Início "deitada" (inclinada); ao rolar fica "em pé" (reta)
-  const [tilt, setTilt] = useState({ x: -12, y: 22 })
+  const [tiltX, setTiltX] = useState(18)
 
   useEffect(() => {
     const el = sectionRef.current
@@ -65,9 +31,7 @@ function LandingDashboardMockup() {
       const distance = centerY - viewportMid
       const maxDist = 500
       const t = Math.min(1, Math.max(0, 1 - Math.abs(distance) / maxDist))
-      const x = -12 + 12 * t
-      const y = 22 - 22 * t
-      setTilt({ x, y })
+      setTiltX(18 - 18 * t)
     }
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -75,107 +39,26 @@ function LandingDashboardMockup() {
   }, [])
 
   return (
-    <div ref={sectionRef} className="w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 transition-transform duration-500 ease-out" style={{ transform: `perspective(1200px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg)`, boxShadow: '0 50px 80px -20px rgba(0,0,0,0.25), 0 30px 50px -30px rgba(0,0,0,0.3)' }}>
-      <div className="flex min-h-[520px] bg-slate-100">
-        <aside className="w-56 flex-shrink-0 flex flex-col bg-[#1e293b]">
-          <div className="p-4 border-b border-white/10">
-            <span className="font-semibold text-white text-sm lowercase">plify</span>
-          </div>
-          <nav className="p-2 space-y-0.5 flex-1">
-            <div className="flex items-center gap-3 px-3 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: ACCENT_RED }}>
-              <LayoutDashboard className="w-4 h-4" />
-              Dashboard
-            </div>
-            {['Clientes', 'Propostas', 'Contratos', 'Projetos', 'Agenda', 'Mapa Mental'].map((label) => (
-              <div key={label} className="flex items-center gap-3 px-3 py-2 rounded-lg text-white/70 text-sm">
-                <span className="w-4 h-4" />
-                {label}
-              </div>
-            ))}
-          </nav>
-        </aside>
-        <div className="flex-1 min-w-0 bg-slate-100">
-          <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
-            <div className="relative w-48 flex items-center rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-3">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <span className="text-sm text-slate-500">Buscar...</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-red-500 flex items-center justify-center text-white text-xs font-medium">J</div>
-              <span className="text-sm font-medium text-slate-700">jp1297</span>
-            </div>
-          </div>
-          <div className="p-4 space-y-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Dashboard</h2>
-              <p className="text-sm text-slate-500">Bem-vindo! Aqui está a visão geral do seu negócio.</p>
-            </div>
-            <div className="grid grid-cols-4 gap-3">
-              {[
-                { title: 'Total de Clientes', value: '4', trend: '+12% último mês', color: ACCENT_RED, icon: Users },
-                { title: 'Receita Aprovada', value: 'R$ 40.000', trend: '+18% último mês', color: '#10B981', icon: TrendingUp },
-                { title: 'Projetos Ativos', value: '3', trend: '+5% último mês', color: '#8B5CF6', icon: Briefcase },
-                { title: 'Propostas', value: '4', trend: '+15% último mês', color: '#F59E0B', icon: FileText },
-              ].map((card) => (
-                <div key={card.title} className="p-4 rounded-xl bg-white border border-slate-100 shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs font-medium text-slate-500">{card.title}</p>
-                      <p className="text-xl font-bold text-slate-900 mt-0.5">{card.value}</p>
-                      <p className="text-xs text-emerald-600 font-medium mt-1">{card.trend}</p>
-                    </div>
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${card.color}20` }}>
-                      <card.icon className="w-4 h-4" style={{ color: card.color }} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2 p-4 rounded-xl bg-white border border-slate-100 shadow-sm">
-                <h3 className="text-sm font-semibold text-slate-900">Desempenho</h3>
-                <p className="text-xs text-slate-500 mb-2">Acompanhe a evolução do seu negócio</p>
-                <div className="h-36">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={performanceData}>
-                      <defs>
-                        <linearGradient id="mockGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={ACCENT_RED} stopOpacity={0.35} />
-                          <stop offset="95%" stopColor={ACCENT_RED} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} tickFormatter={(v) => `R$${v / 1000}k`} />
-                      <Tooltip formatter={(v: number) => [`R$ ${v.toLocaleString('pt-BR')}`, '']} />
-                      <Area type="monotone" dataKey="valor" stroke={ACCENT_RED} strokeWidth={2} fill="url(#mockGrad)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex justify-end mt-1">
-                  <span className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500">Anual</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-xl bg-white border border-slate-100 shadow-sm">
-                <h3 className="text-sm font-semibold text-slate-900">Distribuição de Clientes</h3>
-                <p className="text-xs text-slate-500 mb-2">Novos vs recorrentes</p>
-                <div className="h-36 flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={distributionData} cx="50%" cy="50%" innerRadius={32} outerRadius={48} paddingAngle={2} dataKey="value">
-                        {distributionData.map((entry, i) => (
-                          <Cell key={i} fill={entry.color} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
+    <section ref={sectionRef} className="px-4 pb-24 pt-4">
+      <div className="max-w-6xl mx-auto flex justify-center">
+        <div
+          className="w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 transition-transform duration-500 ease-out"
+          style={{
+            transform: `perspective(1200px) rotateX(${tiltX}deg)`,
+            boxShadow: '0 50px 80px -20px rgba(0,0,0,0.25), 0 30px 50px -30px rgba(0,0,0,0.3)',
+          }}
+        >
+          <Image
+            src="/imagem_dashboard.jpeg"
+            alt="Dashboard Plify - visão geral do sistema com menu, gráficos e indicadores"
+            width={1200}
+            height={720}
+            className="w-full h-auto object-contain"
+            priority
+          />
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -210,8 +93,10 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100">
-        <nav className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-1 font-bold text-xl text-black">
+        {/* Linha laranja acima do conteúdo do header */}
+        <div className="h-1.5 w-full bg-orange-500" role="presentation" />
+        <nav className="max-w-6xl mx-auto px-4 sm:px-6 min-h-16 py-2 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-1 font-bold text-4xl text-black">
             plify<span className="text-red-500">.</span>
           </Link>
           <div className="absolute left-1/2 -translate-x-1/2 hidden sm:block">
@@ -258,12 +143,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Dashboard mockup - inclinado; ao scroll normaliza */}
-      <section className="px-4 pb-24 pt-4">
-        <div className="max-w-6xl mx-auto flex justify-center">
-          <LandingDashboardMockup />
-        </div>
-      </section>
+      {/* Imagem do dashboard: degrade (inclinada + desfoque nas bordas); ao scroll fica reta */}
+      <DashboardImageSection />
 
       {/* Footer mínimo */}
       <footer className="py-8 px-4 border-t border-slate-100">

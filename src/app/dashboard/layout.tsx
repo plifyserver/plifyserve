@@ -74,6 +74,7 @@ export default function DashboardLayout({
   const [logoCacheBust, setLogoCacheBust] = useState(() => Date.now())
   const [profileOpen, setProfileOpen] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const headerRef = useRef<HTMLDivElement>(null)
 
   const isPro = profile?.plan === 'pro' || profile?.plan_type === 'pro' || profile?.account_type === 'admin'
@@ -126,16 +127,23 @@ export default function DashboardLayout({
     if (settings.app_name) document.title = settings.app_name
   }, [settings])
 
-  const handleSignOut = useCallback((e?: React.MouseEvent) => {
+  const handleSignOut = useCallback(async (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
     }
+    if (signingOut) return
+    setSigningOut(true)
     setSidebarOpen(false)
     setProfileOpen(false)
-    // Redireciona imediatamente; signOut roda em segundo plano para não travar se a API demorar
-    window.location.href = '/login'
-    signOut().catch(() => {})
+    try {
+      await signOut()
+      window.location.href = '/login'
+    } catch {
+      window.location.href = '/login'
+    } finally {
+      setSigningOut(false)
+    }
   }, [signOut])
 
   const accentColor = settings?.primary_color || '#ea580c'
@@ -208,6 +216,8 @@ export default function DashboardLayout({
             <Link
               key={item.href}
               href={item.href}
+              prefetch
+              onMouseEnter={() => router.prefetch(item.href)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-full transition-colors ${
                 pathname === item.href
                   ? 'text-white'
@@ -255,16 +265,18 @@ export default function DashboardLayout({
             <button
               type="button"
               onClick={(e) => handleSignOut(e)}
-              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-white/70 hover:bg-white/10 text-left"
+              disabled={signingOut}
+              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-white/70 hover:bg-white/10 text-left disabled:opacity-50"
             >
               <LogOut className="w-5 h-5 flex-shrink-0" />
-              <span>Sair</span>
+              <span>{signingOut ? 'Saindo...' : 'Sair'}</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={(e) => handleSignOut(e)}
-              className="flex items-center justify-center w-full p-2.5 rounded-lg text-white/70 hover:bg-white/10"
+              disabled={signingOut}
+              className="flex items-center justify-center w-full p-2.5 rounded-lg text-white/70 hover:bg-white/10 disabled:opacity-50"
               title="Sair"
             >
               <LogOut className="w-5 h-5" />
@@ -316,6 +328,8 @@ export default function DashboardLayout({
             <Link
               key={item.href}
               href={item.href}
+              prefetch
+              onMouseEnter={() => router.prefetch(item.href)}
               onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-full ${
                 pathname === item.href ? 'text-white' : 'text-white/70'
@@ -348,10 +362,11 @@ export default function DashboardLayout({
           <button
             type="button"
             onClick={(e) => handleSignOut(e)}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-white/70 hover:bg-white/10"
+            disabled={signingOut}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-white/70 hover:bg-white/10 disabled:opacity-50"
           >
             <LogOut className="w-5 h-5" />
-            Sair
+            {signingOut ? 'Saindo...' : 'Sair'}
           </button>
         </div>
       </aside>
