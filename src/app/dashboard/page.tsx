@@ -1,12 +1,10 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { Users, FileText, Briefcase, TrendingUp, LucideIcon, MoreHorizontal } from 'lucide-react'
+import { Users, FileText, FileSignature, Repeat, TrendingUp, LucideIcon, MoreHorizontal, Calendar } from 'lucide-react'
 import {
   AreaChart,
   Area,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,11 +13,12 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from 'recharts'
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { chartPaletteFromPrimary } from '@/lib/colorUtils'
 
-const CHART_ORANGE = '#ea580c'
-const CHART_ORANGE_PALETTE = ['#ea580c', '#c2410c', '#f97316', '#fb923c']
+const FALLBACK_PRIMARY = '#ea580c'
 
 interface StatsCardProps {
   title: string
@@ -67,29 +66,55 @@ function RevenueTooltip({ active, payload, label }: CustomTooltipProps) {
   return null
 }
 
+type PeriodType = 'day' | 'week' | 'month' | 'year' | 'range'
+
+interface DashboardStats {
+  totalClients: number
+  mmr: number
+  contractsFinalized: number
+  financeBalance: number
+  totalProposals: number
+  period: string
+  from: string
+  to: string
+}
+
+function buildStatsUrl(period: PeriodType, start?: string, end?: string): string {
+  const params = new URLSearchParams()
+  params.set('period', period)
+  if (period === 'range' && start && end) {
+    params.set('start', start)
+    params.set('end', end)
+  }
+  return `/api/dashboard/stats?${params.toString()}`
+}
+
 export default function DashboardPage() {
-  const [clients, setClients] = useState<
-    { id: string; name: string; status: string; created_at?: string }[]
-  >([])
-  const [proposals, setProposals] = useState<
-    {
-      id: string
-      title: string
-      status: string
-      client_name?: string
-      created_at?: string
-      proposal_value?: number
-    }[]
-  >([])
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [settings, setSettings] = useState<{ primary_color?: string } | null>(null)
+  const [clients, setClients] = useState<{ created_at?: string }[]>([])
+  const [proposals, setProposals] = useState<{ status: string; created_at?: string; proposal_value?: number }[]>([])
   const [loading, setLoading] = useState(true)
+  const [period, setPeriod] = useState<PeriodType>('month')
+  const [dateStart, setDateStart] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [dateEnd, setDateEnd] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [filterOpen, setFilterOpen] = useState(false)
+
+  const primaryColor = settings?.primary_color || FALLBACK_PRIMARY
+  const chartPalette = useMemo(() => chartPaletteFromPrimary(primaryColor), [primaryColor])
 
   useEffect(() => {
+    setLoading(true)
     const load = async () => {
       try {
-        const [cr, pr] = await Promise.all([
+        const [sRes, setRes, cr, pr] = await Promise.all([
+          fetch(buildStatsUrl(period, dateStart, dateEnd), { credentials: 'include' }),
+          fetch('/api/app-settings', { credentials: 'include' }),
           fetch('/api/clients', { credentials: 'include' }),
           fetch('/api/proposals', { credentials: 'include' }),
         ])
+        if (sRes.ok) setStats(await sRes.json())
+        if (setRes.ok) setSettings(await setRes.json())
         if (cr.ok) setClients(await cr.json())
         if (pr.ok) setProposals(await pr.json())
       } finally {
@@ -97,46 +122,56 @@ export default function DashboardPage() {
       }
     }
     load()
-  }, [])
+  }, [period, dateStart, dateEnd])
 
-  const totalClients = clients.length
-  const activeClients = clients.filter((c) => c.status === 'active').length
-  const inactiveClients = clients.filter((c) => c.status === 'inactive').length
-  const pendingClients = clients.filter((c) => c.status === 'pending').length
-  const totalProposals = proposals.length
-  const totalRevenue = proposals
-    .filter((p) => p.status === 'accepted')
-    .reduce((sum, p) => sum + (Number(p.proposal_value) || 0), 0)
+  const applyPeriod = (p: PeriodType) => {
+    const now = new Date()
+    setPeriod(p)
+    switch (p) {
+      case 'day':
+        setDateStart(format(startOfDay(now), 'yyyy-MM-dd'))
+        setDateEnd(format(endOfDay(now), 'yyyy-MM-dd'))
+        break
+      case 'week':
+        setDateStart(format(startOfWeek(now, { weekStartsOn: 0 }), 'yyyy-MM-dd'))
+        setDateEnd(format(endOfWeek(now, { weekStartsOn: 0 }), 'yyyy-MM-dd'))
+        break
+      case 'month':
+        setDateStart(format(startOfMonth(now), 'yyyy-MM-dd'))
+        setDateEnd(format(endOfMonth(now), 'yyyy-MM-dd'))
+        break
+      case 'year':
+        setDateStart(format(new Date(now.getFullYear(), 0, 1), 'yyyy-MM-dd'))
+        setDateEnd(format(new Date(now.getFullYear(), 11, 31), 'yyyy-MM-dd'))
+        break
+      default:
+        break
+    }
+    setFilterOpen(false)
+  }
+
+  const activeClients = clients.filter((c) => (c as { status?: string }).status === 'active').length
+  const inactiveClients = clients.filter((c) => (c as { status?: string }).status === 'inactive').length
+  const pendingClients = clients.filter((c) => (c as { status?: string }).status === 'pending').length
 
   const revenueData = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     const currentMonth = new Date().getMonth()
-    
     const monthlyRevenue: Record<number, number> = {}
     proposals
       .filter((p) => p.status === 'accepted' && p.created_at)
       .forEach((p) => {
-        const date = new Date(p.created_at!)
-        const month = date.getMonth()
-        monthlyRevenue[month] = (monthlyRevenue[month] || 0) + (Number(p.proposal_value) || 0)
+        const m = new Date(p.created_at!).getMonth()
+        monthlyRevenue[m] = (monthlyRevenue[m] || 0) + (Number(p.proposal_value) || 0)
       })
-
     const data = []
     for (let i = 0; i <= currentMonth; i++) {
       data.push({
         name: months[i],
-        value: monthlyRevenue[i] || Math.floor(Math.random() * 50 + 20) * 100,
+        value: monthlyRevenue[i] || 0,
       })
     }
-    
-    if (data.length === 0) {
-      return months.slice(0, 10).map((m, i) => ({
-        name: m,
-        value: [5500, 5800, 4200, 3800, 4500, 5200, 3500, 4800, 5000, 6200][i] || 4000,
-      }))
-    }
-    
-    return data
+    return data.length ? data : months.slice(0, 10).map((m, i) => ({ name: m, value: 0 }))
   }, [proposals])
 
   const clientDistributionData = useMemo(() => {
@@ -144,12 +179,11 @@ export default function DashboardPage() {
     const inactive = inactiveClients || 0
     const pending = pendingClients || 0
     const total = active + inactive + pending || 1
-
     return [
       { name: 'Ativos', value: active, percentage: Math.round((active / total) * 100) },
       { name: 'Inativos', value: inactive, percentage: Math.round((inactive / total) * 100) },
       { name: 'Pendentes', value: pending, percentage: Math.round((pending / total) * 100) },
-    ].filter(item => item.value > 0)
+    ].filter((item) => item.value > 0)
   }, [activeClients, inactiveClients, pendingClients])
 
   const clientGrowthDataFull = useMemo(() => {
@@ -164,10 +198,19 @@ export default function DashboardPage() {
     return months.slice(0, new Date().getMonth() + 1).map((name, i) => ({ name, clientes: byMonth[i] || 0 }))
   }, [clients])
 
-  const PIE_COLORS = CHART_ORANGE_PALETTE
   const totalPercentage = clientDistributionData.reduce((sum, item) => sum + item.percentage, 0)
+  const periodLabel =
+    period === 'day'
+      ? 'Hoje'
+      : period === 'week'
+        ? 'Esta semana'
+        : period === 'month'
+          ? 'Este mês'
+          : period === 'year'
+            ? 'Este ano'
+            : `${format(new Date(dateStart), 'dd/MM/yyyy', { locale: ptBR })} - ${format(new Date(dateEnd), 'dd/MM/yyyy', { locale: ptBR })}`
 
-  if (loading) {
+  if (loading || !stats) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
@@ -177,38 +220,119 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-light text-slate-900 tracking-tight">Dashboard</h1>
-        <p className="text-slate-500 font-light text-sm mt-0.5">
-          Bem-vindo! Aqui está a visão geral do seu negócio.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-light text-slate-900 tracking-tight">Dashboard</h1>
+          <p className="text-slate-500 font-light text-sm mt-0.5">Bem-vindo! Aqui está a visão geral do seu negócio.</p>
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setFilterOpen((v) => !v)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-sm"
+          >
+            <Calendar className="w-4 h-4" />
+            {periodLabel}
+          </button>
+          {filterOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setFilterOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-xl border border-slate-200 bg-white shadow-lg py-2">
+                <button
+                  type="button"
+                  onClick={() => applyPeriod('day')}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  Hoje
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPeriod('week')}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  Esta semana
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPeriod('month')}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  Este mês
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPeriod('year')}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  Este ano
+                </button>
+                <div className="border-t border-slate-100 my-2" />
+                <div className="px-4 py-2">
+                  <p className="text-xs font-medium text-slate-500 mb-2">Período personalizado</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={dateStart}
+                      onChange={(e) => setDateStart(e.target.value)}
+                      className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={dateEnd}
+                      onChange={(e) => setDateEnd(e.target.value)}
+                      className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPeriod('range')
+                      setFilterOpen(false)
+                    }}
+                    className="mt-2 w-full py-1.5 rounded-lg text-sm font-medium text-white"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard
           title="Total de Clientes"
-          value={totalClients}
+          value={stats.totalClients}
           icon={Users}
           trendValue="+12% último mês"
-          color={CHART_ORANGE}
+          color={primaryColor}
         />
         <StatsCard
           title="Receita Aprovada"
-          value={`R$ ${totalRevenue.toLocaleString('pt-BR')}`}
+          value={`R$ ${stats.financeBalance.toLocaleString('pt-BR')}`}
           icon={TrendingUp}
-          trendValue="+8% último mês"
+          trendValue={`Saldo ${periodLabel.toLowerCase()}`}
           color="#10B981"
         />
         <StatsCard
-          title="Projetos Ativos"
-          value={activeClients}
-          icon={Briefcase}
-          trendValue="+5% último mês"
+          title="MMR"
+          value={stats.mmr}
+          icon={Repeat}
+          trendValue="Clientes recorrentes"
           color="#8B5CF6"
         />
         <StatsCard
+          title="Contratos"
+          value={stats.contractsFinalized}
+          icon={FileSignature}
+          trendValue="Finalizados"
+          color="#6366F1"
+        />
+        <StatsCard
           title="Propostas"
-          value={totalProposals}
+          value={stats.totalProposals}
           icon={FileText}
           trendValue="+15% último mês"
           color="#F59E0B"
@@ -216,7 +340,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Gráfico de Linha - Receita Mensal */}
         <div className="bg-white rounded-2xl shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -232,21 +355,21 @@ export default function DashboardPage() {
               <AreaChart data={revenueData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_ORANGE} stopOpacity={0.35} />
-                    <stop offset="95%" stopColor={CHART_ORANGE} stopOpacity={0} />
+                    <stop offset="5%" stopColor={primaryColor} stopOpacity={0.35} />
+                    <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fill: '#94A3B8', fontSize: 11, fontFamily: 'inherit' }}
                   dy={8}
                 />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fill: '#94A3B8', fontSize: 11 }}
                   tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
                   dx={-8}
@@ -255,18 +378,17 @@ export default function DashboardPage() {
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke={CHART_ORANGE}
+                  stroke={primaryColor}
                   strokeWidth={2.5}
                   fill="url(#colorRevenue)"
-                  dot={{ fill: CHART_ORANGE, strokeWidth: 2, r: 4, stroke: '#fff' }}
-                  activeDot={{ r: 6, fill: CHART_ORANGE, stroke: '#fff', strokeWidth: 2 }}
+                  dot={{ fill: primaryColor, strokeWidth: 2, r: 4, stroke: '#fff' }}
+                  activeDot={{ r: 6, fill: primaryColor, stroke: '#fff', strokeWidth: 2 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Gráfico de Pizza - Distribuição de Clientes */}
         <div className="bg-white rounded-2xl shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -292,7 +414,7 @@ export default function DashboardPage() {
                     stroke="none"
                   >
                     {clientDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={chartPalette[index % chartPalette.length]} />
                     ))}
                   </Pie>
                 </PieChart>
@@ -307,10 +429,7 @@ export default function DashboardPage() {
             <div className="w-1/2 flex flex-col justify-center gap-3 pl-4">
               {clientDistributionData.map((item, index) => (
                 <div key={item.name} className="flex items-center gap-3">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} 
-                  />
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartPalette[index % chartPalette.length] }} />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-slate-700 font-light">{item.name}</p>
                     <p className="text-xs text-slate-500 font-light">{item.value} clientes</p>
@@ -323,7 +442,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Gráfico Aumento de Clientes */}
       <div className="bg-white rounded-2xl shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -339,26 +457,14 @@ export default function DashboardPage() {
             <AreaChart data={clientGrowthDataFull.length ? clientGrowthDataFull : [{ name: 'Jan', clientes: 0 }]} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorClientes" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={CHART_ORANGE} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={CHART_ORANGE} stopOpacity={0} />
+                  <stop offset="5%" stopColor={primaryColor} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#94A3B8', fontSize: 11 }}
-                dy={8}
-              />
-              <YAxis 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#94A3B8', fontSize: 11 }}
-                allowDecimals={false}
-                dx={-8}
-              />
-              <Tooltip 
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} dy={8} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} allowDecimals={false} dx={-8} />
+              <Tooltip
                 formatter={(value: number) => [value, 'Clientes']}
                 labelFormatter={(label) => label}
                 contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
@@ -366,11 +472,11 @@ export default function DashboardPage() {
               <Area
                 type="monotone"
                 dataKey="clientes"
-                stroke={CHART_ORANGE}
+                stroke={primaryColor}
                 strokeWidth={2.5}
                 fill="url(#colorClientes)"
-                dot={{ fill: CHART_ORANGE, strokeWidth: 2, r: 4, stroke: '#fff' }}
-                activeDot={{ r: 6, fill: CHART_ORANGE, stroke: '#fff', strokeWidth: 2 }}
+                dot={{ fill: primaryColor, strokeWidth: 2, r: 4, stroke: '#fff' }}
+                activeDot={{ r: 6, fill: primaryColor, stroke: '#fff', strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

@@ -12,6 +12,7 @@ interface Template {
   icon: React.ReactNode
   iconBg: string
   iconColor: string
+  locked?: boolean
 }
 
 const templates: Template[] = [
@@ -22,6 +23,7 @@ const templates: Template[] = [
     icon: <Sparkles className="w-6 h-6" />,
     iconBg: 'bg-blue-100',
     iconColor: 'text-blue-600',
+    locked: false,
   },
   {
     id: 'executive',
@@ -30,6 +32,7 @@ const templates: Template[] = [
     icon: <Briefcase className="w-6 h-6" />,
     iconBg: 'bg-purple-100',
     iconColor: 'text-purple-600',
+    locked: true,
   },
   {
     id: 'simple',
@@ -38,6 +41,7 @@ const templates: Template[] = [
     icon: <FileText className="w-6 h-6" />,
     iconBg: 'bg-emerald-100',
     iconColor: 'text-emerald-600',
+    locked: true,
   },
 ]
 
@@ -74,33 +78,59 @@ export function TemplateSelector({ open, onClose, onSelect }: TemplateSelectorPr
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {templates.map((template) => (
-            <button
+            <div
               key={template.id}
-              onClick={() => onSelect(template.id)}
               className={cn(
                 'group relative p-6 rounded-2xl border-2 border-slate-200 bg-white',
-                'hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10',
-                'transition-all duration-200 text-left'
+                template.locked
+                  ? 'opacity-75 cursor-not-allowed'
+                  : 'cursor-pointer hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10'
               )}
             >
-              <div className={cn(
-                'w-14 h-14 rounded-xl flex items-center justify-center mb-4',
-                'transition-transform group-hover:scale-110',
-                template.iconBg, template.iconColor
-              )}>
-                {template.icon}
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                {template.name}
-              </h3>
-              <p className="text-sm text-slate-500 leading-relaxed">
-                {template.description}
-              </p>
-              <div className={cn(
-                'absolute inset-0 rounded-2xl border-2 border-indigo-500 opacity-0',
-                'group-hover:opacity-100 transition-opacity pointer-events-none'
-              )} />
-            </button>
+              {template.locked ? (
+                <>
+                  <div className={cn(
+                    'w-14 h-14 rounded-xl flex items-center justify-center mb-4',
+                    template.iconBg, template.iconColor
+                  )}>
+                    {template.icon}
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                    {template.name}
+                  </h3>
+                  <p className="text-sm text-slate-500 leading-relaxed mb-3">
+                    {template.description}
+                  </p>
+                  <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                    Ainda estamos criando esse modelo.
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onSelect(template.id)}
+                  className="w-full text-left"
+                >
+                  <div className={cn(
+                    'w-14 h-14 rounded-xl flex items-center justify-center mb-4',
+                    'transition-transform group-hover:scale-110',
+                    template.iconBg, template.iconColor
+                  )}>
+                    {template.icon}
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                    {template.name}
+                  </h3>
+                  <p className="text-sm text-slate-500 leading-relaxed">
+                    {template.description}
+                  </p>
+                  <div className={cn(
+                    'absolute inset-0 rounded-2xl border-2 border-indigo-500 opacity-0',
+                    'group-hover:opacity-100 transition-opacity pointer-events-none'
+                  )} />
+                </button>
+              )}
+            </div>
           ))}
         </div>
 

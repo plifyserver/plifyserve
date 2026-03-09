@@ -17,7 +17,6 @@ import {
   CheckSquare,
   Columns3,
   Network,
-  FileBarChart,
   Palette,
   Settings,
   LogOut,
@@ -42,7 +41,6 @@ const navItems = [
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/mapa-mental', icon: Network, label: 'Mapa Mental' },
   { href: '/dashboard/ads', icon: BarChart3, label: 'Ads' },
-  { href: '/dashboard/relatorios', icon: FileBarChart, label: 'Relatórios' },
   { href: '/dashboard/financeiro', icon: DollarSign, label: 'Financeiro' },
   { href: '/dashboard/tarefas', icon: CheckSquare, label: 'Tarefas' },
   { href: '/dashboard/kanban', icon: Columns3, label: 'Kanban' },
@@ -120,7 +118,7 @@ export default function DashboardLayout({
     document.title = (settings?.app_name?.trim() && settings.app_name) ? settings.app_name : 'Plify - Gestão e Propostas'
   }, [settings, pathname])
 
-  const handleSignOut = useCallback(async (e?: React.MouseEvent) => {
+  const handleSignOut = useCallback((e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
@@ -129,18 +127,13 @@ export default function DashboardLayout({
     setSigningOut(true)
     setSidebarOpen(false)
     setProfileOpen(false)
-    try {
-      await signOut()
-      window.location.href = '/login'
-    } catch {
-      window.location.href = '/login'
-    } finally {
-      setSigningOut(false)
-    }
+    // Redireciona imediatamente para evitar delay perceptível; signOut em background
+    window.location.href = '/login'
+    signOut().catch(() => {}).finally(() => setSigningOut(false))
   }, [signOut])
 
   const accentColor = settings?.primary_color || '#ea580c'
-  const sidebarBg = settings?.secondary_color || '#000020'
+  const sidebarBg = settings?.secondary_color || '#121212'
   const appName = settings?.app_name || ''
   const logoBase = settings?.logo_url && settings.logo_url.trim() !== '' ? settings.logo_url.trim() : null
   const logoUrl = logoBase
@@ -211,7 +204,7 @@ export default function DashboardLayout({
               href={item.href}
               prefetch
               onMouseEnter={() => router.prefetch(item.href)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-full transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                 pathname === item.href
                   ? 'text-white'
                   : 'text-white/70 hover:bg-white/10 hover:text-white'
@@ -324,7 +317,7 @@ export default function DashboardLayout({
               prefetch
               onMouseEnter={() => router.prefetch(item.href)}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-full ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${
                 pathname === item.href ? 'text-white' : 'text-white/70'
               }`}
               style={pathname === item.href ? { backgroundColor: accentColor } : undefined}

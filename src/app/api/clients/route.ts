@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
   const status = (body.status as ClientStatus) || 'active'
   const validStatuses: ClientStatus[] = ['active', 'inactive', 'lead', 'archived']
   const finalStatus = validStatuses.includes(status) ? status : 'active'
+  const paymentType = body.payment_type === 'recorrente' ? 'recorrente' : 'pontual'
 
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
       source: body.source ?? null,
       responsible: body.responsible ?? null,
       kanban_stage: body.kanban_stage ?? 'lead',
+      payment_type: paymentType,
     })
     .select()
     .single()

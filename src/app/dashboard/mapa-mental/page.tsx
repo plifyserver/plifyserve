@@ -247,7 +247,7 @@ function EditNodeModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4" onClick={onClose}>
       <div
-        className="w-full max-w-sm max-h-[90vh] flex flex-col rounded-xl bg-white border border-gray-200 shadow-xl"
+        className="w-full max-w-sm max-h-[90vh] flex flex-col rounded-xl bg-white border border-gray-200 shadow-xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-4 border-b border-gray-200 shrink-0">
@@ -428,19 +428,18 @@ function EditNodeModal({
           </div>
         </div>
 
-        <div className="flex gap-2 p-4 border-t border-gray-200 shrink-0">
+        <div className="flex flex-wrap gap-2 p-4 border-t border-gray-200 shrink-0 bg-white">
           <button
             type="button"
             onClick={onDelete}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 text-sm"
+            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 text-sm shrink-0"
           >
             <Trash2 className="w-4 h-4" /> Excluir
           </button>
-          <div className="flex-1" />
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-sm"
+            className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-sm shrink-0"
           >
             Cancelar
           </button>
@@ -459,7 +458,7 @@ function EditNodeModal({
               width: (node.data as NodeData)?.width,
               height: (node.data as NodeData)?.height,
             })}
-            className="px-4 py-2 rounded-lg bg-avocado text-white font-medium hover:bg-avocado-light text-sm"
+            className="px-4 py-2 rounded-lg bg-avocado text-white font-medium hover:bg-avocado-light text-sm shrink-0"
           >
             Salvar
           </button>

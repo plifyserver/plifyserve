@@ -23,6 +23,7 @@ interface Client {
   created_at: string
   notes?: string | null
   source?: string | null
+  payment_type?: 'recorrente' | 'pontual'
 }
 
 export default function ClientesPage() {
@@ -43,6 +44,7 @@ export default function ClientesPage() {
     notes: '',
     source: '',
     responsible: '',
+    payment_type: 'pontual' as 'recorrente' | 'pontual',
   })
 
   const fetchClients = async () => {
@@ -76,10 +78,11 @@ export default function ClientesPage() {
         notes: client.notes || '',
         source: client.source || '',
         responsible: client.responsible || '',
+        payment_type: (client.payment_type === 'recorrente' ? 'recorrente' : 'pontual'),
       })
     } else {
       setSelected(null)
-      setForm({ name: '', email: '', phone: '', company: '', status: 'lead', notes: '', source: '', responsible: '' })
+      setForm({ name: '', email: '', phone: '', company: '', status: 'lead', notes: '', source: '', responsible: '', payment_type: 'pontual' })
     }
     setDialogOpen(true)
   }
@@ -109,6 +112,7 @@ export default function ClientesPage() {
           notes: form.notes || null,
           source: form.source || null,
           responsible: form.responsible || null,
+          payment_type: form.payment_type,
         }),
       })
       if (res.ok) {
@@ -304,6 +308,17 @@ export default function ClientesPage() {
                     <option value="active">Ativo</option>
                     <option value="inactive">Inativo</option>
                     <option value="archived">Arquivado</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de pagamento</label>
+                  <select
+                    value={form.payment_type}
+                    onChange={(e) => setForm((f) => ({ ...f, payment_type: e.target.value as 'recorrente' | 'pontual' }))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
+                  >
+                    <option value="pontual">Pontual (pagamento único)</option>
+                    <option value="recorrente">Recorrente (pagamento mensal)</option>
                   </select>
                 </div>
                 <div className="col-span-2">

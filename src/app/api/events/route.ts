@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
   }
-  let body: { title?: string; description?: string; location?: string; start_at?: string; end_at?: string; all_day?: boolean }
+  let body: { title?: string; description?: string; location?: string; start_at?: string; end_at?: string; all_day?: boolean; color?: string }
   try {
     body = await request.json()
   } catch {
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Data de início e fim são obrigatórias' }, { status: 400 })
   }
   const supabase = await createClient()
+  const color = typeof body.color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(body.color) ? body.color : null
   const row = {
     user_id: userId,
     title,
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
     start_at: startAt,
     end_at: endAt,
     all_day: body.all_day ?? false,
+    color,
   }
   const { data, error } = await supabase.from('events').insert(row).select().single()
   if (error) {

@@ -61,7 +61,7 @@ export default function AgendaPage() {
   const [deleting, setDeleting] = useState(false)
   const [date, setDate] = useState(new Date())
   const [view, setView] = useState<ViewType>('month')
-  const [form, setForm] = useState({ title: '', description: '', location: '', start: '', end: '', all_day: false, type: 'default' as EventItem['type'] })
+  const [form, setForm] = useState({ title: '', description: '', location: '', start: '', end: '', all_day: false, type: 'default' as EventItem['type'], color: '#6366F1' })
   const [showIntegrations, setShowIntegrations] = useState(false)
   const [peopleSearch, setPeopleSearch] = useState('')
 
@@ -81,7 +81,7 @@ export default function AgendaPage() {
             location: e.location,
             all_day: e.all_day,
             type: (e.type as EventItem['type']) || 'default',
-            color: EVENT_COLORS[(e.type as keyof typeof EVENT_COLORS) || 'default'] || EVENT_COLORS.default,
+            color: (e as { color?: string }).color || EVENT_COLORS[(e.type as keyof typeof EVENT_COLORS) || 'default'] || EVENT_COLORS.default,
           }))
         )
       }
@@ -103,6 +103,7 @@ export default function AgendaPage() {
       end: end.toISOString().slice(0, 16),
       all_day: false,
       type: 'default',
+      color: '#6366F1',
     })
     setShowModal(true)
   }
@@ -120,6 +121,7 @@ export default function AgendaPage() {
       start_at: new Date(form.start).toISOString(),
       end_at: new Date(form.end).toISOString(),
       all_day: form.all_day,
+      color: form.color || null,
     }
     const res = await fetch('/api/events', {
       method: 'POST',
@@ -133,7 +135,7 @@ export default function AgendaPage() {
       return
     }
     setShowModal(false)
-    setForm({ title: '', description: '', location: '', start: '', end: '', all_day: false, type: 'default' })
+    setForm({ title: '', description: '', location: '', start: '', end: '', all_day: false, type: 'default', color: '#6366F1' })
     toast.success('Evento criado!')
     fetchEvents()
   }
@@ -667,6 +669,23 @@ export default function AgendaPage() {
                 <label htmlFor="all_day" className="text-sm text-slate-600">
                   Dia inteiro
                 </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Cor no calendário</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.color}
+                    onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                    className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200 bg-transparent"
+                  />
+                  <input
+                    type="text"
+                    value={form.color}
+                    onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                    className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono w-24"
+                  />
+                </div>
               </div>
               <div className="flex gap-3 pt-4 border-t border-slate-100">
                 <Button
