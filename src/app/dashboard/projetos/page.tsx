@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from 'react'
 import {
   Plus,
   Search,
-  Edit2,
   Trash2,
   Play,
   Pause,
@@ -14,11 +13,12 @@ import {
   FolderKanban,
   MoreHorizontal,
   Calendar,
-  Target,
   TrendingUp,
   Filter,
   LayoutGrid,
   List,
+  CheckSquare,
+  Square,
 } from 'lucide-react'
 import { format, differenceInDays, isPast, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -41,6 +41,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Card } from '@/components/ui/card'
 
 const statusConfig = {
   in_progress: { label: 'Em Andamento', color: 'bg-blue-100 text-blue-700', bgColor: 'bg-blue-500', icon: Play },
@@ -49,7 +51,31 @@ const statusConfig = {
   cancelled: { label: 'Cancelado', color: 'bg-red-100 text-red-700', bgColor: 'bg-red-500', icon: Clock },
 } as const
 
+const TASK_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pendente' },
+  { value: 'in_progress', label: 'Em progresso' },
+  { value: 'completed', label: 'Concluída' },
+]
+const TASK_PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Baixa' },
+  { value: 'medium', label: 'Média' },
+  { value: 'high', label: 'Alta' },
+]
+
 type StatusType = keyof typeof statusConfig
+
+interface Task {
+  id: string
+  title: string
+  client_id: string | null
+  client_name: string | null
+  responsible: string | null
+  due_date: string | null
+  status: string
+  priority: string
+  description: string | null
+  created_at: string
+}
 
 interface Project {
   id: string
@@ -81,6 +107,21 @@ export default function ProjetosPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selected, setSelected] = useState<Project | null>(null)
 
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [taskStatusFilter, setTaskStatusFilter] = useState<string>('')
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [taskToDeleteId, setTaskToDeleteId] = useState<string | null>(null)
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    client_id: '',
+    responsible: '',
+    due_date: '',
+    status: 'pending',
+    priority: 'medium',
+    description: '',
+  })
+
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -94,12 +135,15 @@ export default function ProjetosPage() {
 
   const load = async () => {
     try {
-      const [pr, cr] = await Promise.all([
+      const taskUrl = taskStatusFilter ? `/api/tasks?status=${taskStatusFilter}` : '/api/tasks'
+      const [pr, cr, tr] = await Promise.all([
         fetch('/api/projects', { credentials: 'include' }),
         fetch('/api/clients', { credentials: 'include' }),
+        fetch(taskUrl, { credentials: 'include' }),
       ])
       if (pr.ok) setProjects(await pr.json())
       if (cr.ok) setClients(await cr.json())
+      if (tr.ok) setTasks(await tr.json())
     } catch (err) {
       console.error('Erro ao carregar dados:', err)
     } finally {
@@ -109,7 +153,7 @@ export default function ProjetosPage() {
 
   useEffect(() => {
     load()
-  }, [])
+  }, [taskStatusFilter])
 
   const filtered = useMemo(() => {
     return projects.filter((p) => {
@@ -135,6 +179,93 @@ export default function ProjetosPage() {
       ? Math.round(projects.reduce((sum, p) => sum + (p.progress || 0), 0) / projects.length)
       : 0,
   }), [projects])
+
+  const taskStats = useMemo(() => ({
+    total: tasks.length,
+    active: tasks.filter((t) => t.status !== 'completed').length,
+    completed: tasks.filter((t) => t.status === 'completed').length,
+  }), [tasks])
+
+  const openTaskDialog = (task: Task | null) => {
+    if (task) {
+      setSelectedTask(task)
+      setTaskForm({
+        title: task.title,
+        client_id: task.client_id || '',
+        responsible: task.responsible || '',
+        due_date: task.due_date || '',
+        status: task.status,
+        priority: task.priority,
+        description: task.description || '',
+      })
+    } else {
+      setSelectedTask(null)
+      setTaskForm({
+        title: '',
+        client_id: '',
+        responsible: '',
+        due_date: '',
+        status: 'pending',
+        priority: 'medium',
+        description: '',
+      })
+    }
+    setTaskDialogOpen(true)
+  }
+
+  const closeTaskDialog = () => {
+    setTaskDialogOpen(false)
+    setSelectedTask(null)
+  }
+
+  const saveTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const clientName = taskForm.client_id ? clients.find((c) => c.id === taskForm.client_id)?.name ?? '' : ''
+    const url = selectedTask ? `/api/tasks/${selectedTask.id}` : '/api/tasks'
+    const method = selectedTask ? 'PUT' : 'POST'
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        title: taskForm.title,
+        client_id: taskForm.client_id || null,
+        client_name: clientName || null,
+        responsible: taskForm.responsible || null,
+        due_date: taskForm.due_date || null,
+        status: taskForm.status,
+        priority: taskForm.priority,
+        description: taskForm.description || null,
+      }),
+    })
+    if (res.ok) {
+      await load()
+      closeTaskDialog()
+    }
+  }
+
+  const toggleTaskComplete = async (task: Task) => {
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed'
+    const res = await fetch(`/api/tasks/${task.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ ...task, status: newStatus }),
+    })
+    if (res.ok) await load()
+  }
+
+  const confirmRemoveTask = async () => {
+    if (!taskToDeleteId) return
+    const res = await fetch(`/api/tasks/${taskToDeleteId}`, { method: 'DELETE', credentials: 'include' })
+    if (res.ok) {
+      await load()
+      toast.success('Tarefa excluída.')
+    } else {
+      toast.error('Não foi possível excluir a tarefa.')
+      return false
+    }
+  }
 
   const openDialog = (project: Project | null) => {
     if (project) {
@@ -547,6 +678,144 @@ export default function ProjetosPage() {
         </div>
       )}
 
+      {/* Seção Tarefas */}
+      <div className="space-y-4 pt-8 border-t border-slate-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Tarefas</h2>
+            <p className="text-slate-500 text-sm">Organize e acompanhe suas atividades</p>
+          </div>
+          <Button onClick={() => openTaskDialog(null)} className="gap-2 rounded-xl bg-blue-600 hover:bg-blue-700">
+            <Plus className="w-4 h-4" />
+            Nova tarefa
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-slate-500 text-sm font-medium">Total</span>
+              <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
+                <CheckSquare className="w-4 h-4 text-slate-600" />
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-slate-900">{taskStats.total}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-slate-500 text-sm font-medium">Ativas</span>
+              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-blue-600" />
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-slate-900">{taskStats.active}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-slate-500 text-sm font-medium">Concluídas</span>
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-slate-900">{taskStats.completed}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <label className="text-slate-600 text-sm">Filtrar por status:</label>
+          <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
+            <SelectTrigger className="w-44 rounded-xl">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todos</SelectItem>
+              {TASK_STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden">
+          {tasks.length === 0 ? (
+            <div className="p-12 text-center text-slate-500">
+              Nenhuma tarefa. Clique em &quot;Nova tarefa&quot; para começar.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {tasks.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center gap-4 p-4 hover:bg-slate-50/50 group"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleTaskComplete(t)}
+                    className="flex-shrink-0 text-slate-400 hover:text-emerald-600 transition-colors"
+                  >
+                    {t.status === 'completed' ? (
+                      <CheckSquare className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <Square className="w-5 h-5" />
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`font-medium ${t.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-900'}`}
+                    >
+                      {t.title}
+                    </p>
+                    <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+                      {(t.client_name || clients.find((c) => c.id === t.client_id)?.name) && (
+                        <span>{t.client_name || clients.find((c) => c.id === t.client_id)?.name}</span>
+                      )}
+                      {t.due_date && (
+                        <span>
+                          Venc: {format(new Date(t.due_date), 'dd/MM/yyyy', { locale: ptBR })}
+                        </span>
+                      )}
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          t.priority === 'high'
+                            ? 'bg-red-100 text-red-700'
+                            : t.priority === 'medium'
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {TASK_PRIORITY_OPTIONS.find((p) => p.value === t.priority)?.label ?? t.priority}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-xs font-medium px-2 py-1 rounded-lg ${
+                      t.status === 'completed'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : t.status === 'in_progress'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {TASK_STATUS_OPTIONS.find((s) => s.value === t.status)?.label ?? t.status}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                    onClick={() => openTaskDialog(t)}
+                    title="Editar tarefa"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto">
@@ -722,6 +991,143 @@ export default function ProjetosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Task Create/Edit Dialog */}
+      <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+        <DialogContent className="sm:max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>{selectedTask ? 'Editar tarefa' : 'Nova tarefa'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={saveTask} className="space-y-4">
+            <div>
+              <Label>Título *</Label>
+              <Input
+                value={taskForm.title}
+                onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                placeholder="Ex: Revisar proposta"
+                required
+                className="rounded-xl mt-1"
+              />
+            </div>
+            <div>
+              <Label>Cliente</Label>
+              <Select
+                value={taskForm.client_id || ''}
+                onValueChange={(v) => setTaskForm({ ...taskForm, client_id: v || '' })}
+              >
+                <SelectTrigger className="rounded-xl mt-1">
+                  <span className={!taskForm.client_id ? 'text-slate-500' : ''}>
+                    {taskForm.client_id
+                      ? (clients.find((c) => c.id === taskForm.client_id)?.name ?? 'Cliente')
+                      : 'Selecione'}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Vencimento</Label>
+                <Input
+                  type="date"
+                  value={taskForm.due_date}
+                  onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
+                  className="rounded-xl mt-1"
+                />
+              </div>
+              <div>
+                <Label>Responsável</Label>
+                <Input
+                  value={taskForm.responsible}
+                  onChange={(e) => setTaskForm({ ...taskForm, responsible: e.target.value })}
+                  placeholder="Nome"
+                  className="rounded-xl mt-1"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Status</Label>
+                <Select value={taskForm.status} onValueChange={(v) => setTaskForm({ ...taskForm, status: v })}>
+                  <SelectTrigger className="rounded-xl mt-1">
+                    <span>{TASK_STATUS_OPTIONS.find((s) => s.value === taskForm.status)?.label ?? taskForm.status}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TASK_STATUS_OPTIONS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Prioridade</Label>
+                <Select value={taskForm.priority} onValueChange={(v) => setTaskForm({ ...taskForm, priority: v })}>
+                  <SelectTrigger className="rounded-xl mt-1">
+                    <span>{TASK_PRIORITY_OPTIONS.find((p) => p.value === taskForm.priority)?.label ?? taskForm.priority}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TASK_PRIORITY_OPTIONS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea
+                value={taskForm.description}
+                onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                rows={3}
+                className="rounded-xl mt-1"
+              />
+            </div>
+            <DialogFooter className="pt-4 flex-wrap gap-2">
+              {selectedTask && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 order-first w-full sm:order-none sm:w-auto"
+                  onClick={() => {
+                    if (selectedTask) {
+                      setTaskToDeleteId(selectedTask.id)
+                      setTaskDialogOpen(false)
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Excluir tarefa
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={closeTaskDialog} className="rounded-xl">
+                Cancelar
+              </Button>
+              <Button type="submit" className="rounded-xl">
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!taskToDeleteId}
+        onOpenChange={(open) => !open && setTaskToDeleteId(null)}
+        title="Excluir tarefa?"
+        description="Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        onConfirm={confirmRemoveTask}
+      />
     </div>
   )
 }

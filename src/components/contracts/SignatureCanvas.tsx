@@ -353,8 +353,10 @@ export default function SignatureCanvas({
         </button>
       </div>
 
-      {/* Signature Canvas */}
-      <Card className="border-2 border-dashed border-slate-300 rounded-xl p-4 bg-slate-50">
+      {/* Signature Canvas - borda vermelha fina delimitando o campo */}
+      <div className="rounded-xl p-1 border border-red-500/80 bg-slate-50">
+        <p className="text-xs text-red-600 mb-2 font-medium">Campo da assinatura — desenhe dentro da área abaixo</p>
+        <Card className="border-2 border-dashed border-slate-300 rounded-lg p-4 bg-white">
         {mode === 'draw' ? (
           <canvas
             ref={canvasRef}
@@ -402,6 +404,7 @@ export default function SignatureCanvas({
           </button>
         </div>
       </Card>
+      </div>
 
       {/* Warning */}
       <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">

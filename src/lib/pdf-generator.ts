@@ -17,6 +17,9 @@ export interface SignatoryForPDF {
   signed: boolean
   signed_at?: string | null
   signature_url?: string | null
+  cpf?: string | null
+  birth_date?: string | null
+  location?: { latitude: number | null; longitude: number | null; address: string | null } | null
   ip_address?: string
   browser?: string
 }
@@ -53,50 +56,10 @@ export async function generateSignedPDF(
 
   const documentHash = await generateHash(existingPdfBytes)
   const verificationCode = generateVerificationCode()
-  const timestamp = new Date().toISOString()
 
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i]
-    const { width, height } = page.getSize()
-
-    if (signatures && signatures.length > 0) {
-      let yPosition = 60
-      for (const sig of signatures) {
-        if (sig.signed && sig.signature_url) {
-          try {
-            const signatureImage = await fetch(sig.signature_url).then((res) => res.arrayBuffer())
-            const image = await pdfDoc.embedPng(signatureImage)
-            page.drawImage(image, {
-              x: width - 200,
-              y: yPosition,
-              width: 150,
-              height: 40,
-            })
-            page.drawText(sig.name, {
-              x: width - 200,
-              y: yPosition - 12,
-              size: 8,
-              font,
-              color: rgb(0, 0, 0),
-            })
-            page.drawText(
-              `${format(new Date(sig.signed_at!), 'dd/MM/yyyy HH:mm')}`,
-              {
-                x: width - 200,
-                y: yPosition - 24,
-                size: 7,
-                font,
-                color: rgb(0.4, 0.4, 0.4),
-              }
-            )
-            yPosition += 80
-          } catch {
-            // skip invalid signature image
-          }
-        }
-      }
-    }
-
+    const { width } = page.getSize()
     page.drawText(`Documento verificável | Código: ${verificationCode}`, {
       x: 50,
       y: 20,
@@ -111,6 +74,106 @@ export async function generateSignedPDF(
       font,
       color: rgb(0.5, 0.5, 0.5),
     })
+  }
+
+  // Página de assinaturas (após o contrato, antes do certificado) — evita interferir nas cláusulas
+  const signaturesPage = pdfDoc.addPage([595, 842])
+  let sigY = signaturesPage.getHeight() - 50
+  signaturesPage.drawText('REGISTRO DE ASSINATURAS', {
+    x: 50,
+    y: sigY,
+    size: 16,
+    font: boldFont,
+    color: rgb(0, 0.4, 0.6),
+  })
+  sigY -= 35
+  signaturesPage.drawText(
+    'As assinaturas abaixo foram realizadas eletronicamente e não constam no corpo do documento para preservar a integridade das cláusulas.',
+    { x: 50, y: sigY, size: 9, font, color: rgb(0.3, 0.3, 0.3) }
+  )
+  sigY -= 30
+
+  if (signatures?.length) {
+    let currentSignaturesPage = signaturesPage
+    for (let idx = 0; idx < signatures.length; idx++) {
+      const sig = signatures[idx]
+      if (!sig.signed) continue
+      let boxYFinal = sigY - 140
+      if (boxYFinal < 50) {
+        currentSignaturesPage = pdfDoc.addPage([595, 842])
+        sigY = currentSignaturesPage.getHeight() - 50
+        boxYFinal = sigY - 140
+      }
+      const page = currentSignaturesPage
+      const y = sigY
+      page.drawRectangle({
+        x: 50,
+        y: boxYFinal,
+        width: 495,
+        height: 140,
+        borderColor: rgb(0.8, 0.8, 0.8),
+        borderWidth: 0.5,
+      })
+      page.drawText('PLIFY', {
+        x: 55,
+        y: y - 18,
+        size: 10,
+        font: boldFont,
+        color: rgb(0, 0.4, 0.6),
+      })
+      page.drawText(`Nome: ${sig.name}`, { x: 55, y: y - 32, size: 9, font })
+      if (sig.cpf) {
+        const cpfFmt = sig.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+        page.drawText(`CPF: ${cpfFmt}`, { x: 55, y: y - 46, size: 9, font })
+      }
+      if (sig.birth_date) {
+        page.drawText(
+          `Data de nascimento: ${format(new Date(sig.birth_date), 'dd/MM/yyyy')}`,
+          { x: 55, y: y - 60, size: 9, font }
+        )
+      }
+      if (sig.signed_at) {
+        page.drawText(
+          `Data e hora da assinatura: ${format(new Date(sig.signed_at), 'dd/MM/yyyy HH:mm:ss')}`,
+          { x: 55, y: y - 74, size: 9, font }
+        )
+      }
+      if (sig.location?.address) {
+        page.drawText(`Local: ${sig.location.address}`, {
+          x: 55,
+          y: y - 88,
+          size: 8,
+          font,
+          color: rgb(0.4, 0.4, 0.4),
+        })
+      } else if (sig.location?.latitude != null) {
+        page.drawText(
+          `Local: ${sig.location.latitude?.toFixed(6)}, ${sig.location.longitude?.toFixed(6)}`,
+          { x: 55, y: y - 88, size: 8, font, color: rgb(0.4, 0.4, 0.4) }
+        )
+      }
+      if (sig.signature_url) {
+        try {
+          const signatureImage = await fetch(sig.signature_url).then((res) => res.arrayBuffer())
+          const image = await pdfDoc.embedPng(signatureImage)
+          page.drawImage(image, {
+            x: 350,
+            y: boxYFinal + 30,
+            width: 180,
+            height: 80,
+          })
+        } catch {
+          page.drawText('[Imagem da assinatura]', {
+            x: 350,
+            y: boxYFinal + 60,
+            size: 8,
+            font,
+            color: rgb(0.5, 0.5, 0.5),
+          })
+        }
+      }
+      sigY = boxYFinal - 25
+    }
   }
 
   const certPage = pdfDoc.addPage([595, 842])

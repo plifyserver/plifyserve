@@ -54,6 +54,10 @@ export async function PUT(
   if (body.responsible !== undefined) updates.responsible = body.responsible
   if (body.kanban_stage !== undefined) updates.kanban_stage = body.kanban_stage
   if (body.payment_type !== undefined && ['recorrente', 'pontual'].includes(body.payment_type)) updates.payment_type = body.payment_type
+  if (body.recurring_amount !== undefined) {
+    const val = body.recurring_amount
+    updates.recurring_amount = val == null || val === '' || Number.isNaN(Number(val)) ? null : Number(val)
+  }
 
   const supabase = await createClient()
   const { data, error } = await supabase

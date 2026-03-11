@@ -71,6 +71,7 @@ type PeriodType = 'day' | 'week' | 'month' | 'year' | 'range'
 interface DashboardStats {
   totalClients: number
   mmr: number
+  receitaTotalMes: number
   contractsFinalized: number
   financeBalance: number
   totalProposals: number
@@ -310,17 +311,17 @@ export default function DashboardPage() {
           color={primaryColor}
         />
         <StatsCard
-          title="Receita Aprovada"
-          value={`R$ ${stats.financeBalance.toLocaleString('pt-BR')}`}
+          title="Receita Total Mês"
+          value={`R$ ${(stats.receitaTotalMes ?? stats.financeBalance).toLocaleString('pt-BR')}`}
           icon={TrendingUp}
-          trendValue={`Saldo ${periodLabel.toLowerCase()}`}
+          trendValue="Total de pontual e recorrentes"
           color="#10B981"
         />
         <StatsCard
           title="MMR"
-          value={stats.mmr}
+          value={typeof stats.mmr === 'number' ? `R$ ${stats.mmr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : stats.mmr}
           icon={Repeat}
-          trendValue="Clientes recorrentes"
+          trendValue="Receita recorrente"
           color="#8B5CF6"
         />
         <StatsCard

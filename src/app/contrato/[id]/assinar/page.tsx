@@ -3,8 +3,16 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { FileText, Download, PenLine, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import SignatureCanvas, { type SignatureData } from '@/components/contracts/SignatureCanvas'
 import { toast } from 'sonner'
 
@@ -42,12 +50,15 @@ export default function AssinarContratoPage() {
   const [contract, setContract] = useState<Contract | null>(null)
   const [step, setStep] = useState<PageStep>('loading')
   const [signatoryIndex, setSignatoryIndex] = useState<number>(-1)
+  const [selectedSignatoryEmail, setSelectedSignatoryEmail] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const effectiveSignatoryEmail = selectedSignatoryEmail || signatoryEmail || null
 
   useEffect(() => {
     const fetchContract = async () => {
       try {
-        const res = await fetch(`/api/contracts/${contractId}/sign`)
+        const res = await fetch(`/api/contracts/${contractId}/sign`, { cache: 'no-store' })
         if (!res.ok) {
           setError('Contrato não encontrado.')
           setStep('error')
@@ -63,6 +74,7 @@ export default function AssinarContratoPage() {
           )
           if (idx >= 0) {
             setSignatoryIndex(idx)
+            setSelectedSignatoryEmail(null)
             if (data.signatories[idx].signed) {
               setStep('already_signed')
             } else {
@@ -73,6 +85,7 @@ export default function AssinarContratoPage() {
             setStep('error')
           }
         } else {
+          setSignatoryIndex(-1)
           setStep('view')
         }
       } catch {
@@ -85,14 +98,15 @@ export default function AssinarContratoPage() {
   }, [contractId, signatoryEmail])
 
   const handleSignatureComplete = async (signatureData: SignatureData) => {
-    if (!contract || signatoryIndex < 0 || !signatoryEmail) return
+    const emailToUse = effectiveSignatoryEmail || contract?.signatories?.[signatoryIndex]?.email
+    if (!contract || signatoryIndex < 0 || !emailToUse) return
     
     try {
       const res = await fetch(`/api/contracts/${contract.id}/sign`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          signatoryEmail,
+          signatoryEmail: emailToUse,
           signatureData,
         }),
       })
@@ -207,100 +221,88 @@ export default function AssinarContratoPage() {
     )
   }
 
+  const unsignedSignatories = (contract?.signatories ?? [])
+    .map((s, i) => ({ ...s, index: i }))
+    .filter((s) => !s.signed)
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-4 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Header: logo à esquerda, botão ASSINAR à direita */}
+      <header className="bg-white border-b border-slate-200 px-4 py-3 flex-shrink-0">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center">
+            <Image src="/logopreto.png" alt="Plify" width={100} height={28} className="h-7 w-auto" />
+          </Link>
           <div className="flex items-center gap-3">
-            <Image src="/logopreto.png" alt="Logo" width={120} height={32} className="h-8 w-auto" />
-          </div>
-          {contract?.file_url && (
-            <Button variant="outline" className="rounded-xl gap-2" asChild>
-              <a href={contract.file_url} download target="_blank" rel="noopener noreferrer">
-                <Download className="w-4 h-4" />
-                Baixar PDF
-              </a>
-            </Button>
-          )}
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto p-4 md:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Contract Info */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-indigo-600" />
-                </div>
-                <div>
-                  <h1 className="font-semibold text-slate-900">{contract?.title}</h1>
-                  <p className="text-sm text-slate-500">Contrato para assinatura</p>
-                </div>
-              </div>
-              
-              {contract?.client_name && (
-                <div className="text-sm text-slate-600 mb-4">
-                  <span className="text-slate-500">Cliente:</span> {contract.client_name}
-                </div>
-              )}
-              
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-sm font-medium text-slate-700 mb-3">Signatários</p>
-                <ul className="space-y-2">
-                  {contract?.signatories.map((s, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                        s.signed ? 'bg-emerald-100' : 'bg-slate-100'
-                      }`}>
-                        {s.signed ? (
-                          <CheckCircle className="w-4 h-4 text-emerald-600" />
-                        ) : (
-                          <span className="w-2 h-2 rounded-full bg-slate-300" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-900 truncate">{s.name}</p>
-                        <p className="text-slate-500 truncate">{s.email}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {signatoryIndex >= 0 && !contract?.signatories[signatoryIndex].signed && (
-              <Button 
+            {contract?.file_url && (
+              <Button variant="outline" size="sm" className="rounded-xl gap-1.5" asChild>
+                <a href={contract.file_url} download target="_blank" rel="noopener noreferrer">
+                  <Download className="w-4 h-4" />
+                  Baixar PDF
+                </a>
+              </Button>
+            )}
+            {signatoryIndex >= 0 && !contract?.signatories[signatoryIndex]?.signed && (
+              <Button
                 onClick={() => setStep('sign')}
-                className="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 gap-2 text-base"
+                className="rounded-xl bg-indigo-600 hover:bg-indigo-700 gap-2"
               >
-                <PenLine className="w-5 h-5" />
-                Assinar documento
+                <PenLine className="w-4 h-4" />
+                ASSINAR CONTRATO
               </Button>
             )}
           </div>
+        </div>
+      </header>
 
-          {/* PDF Preview */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              {contract?.file_url ? (
-                <iframe
-                  src={contract.file_url}
-                  className="w-full h-[600px] lg:h-[700px]"
-                  title="Visualização do contrato"
-                />
-              ) : (
-                <div className="h-[400px] flex items-center justify-center text-slate-500">
-                  <div className="text-center">
-                    <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                    <p>Nenhum documento anexado</p>
-                  </div>
-                </div>
-              )}
-            </div>
+      <main className="flex-1 flex flex-col p-4 max-w-6xl w-full mx-auto">
+        {/* Quando não veio email na URL: selecionar "Sou eu" */}
+        {!signatoryEmail && contract?.signatories && contract.signatories.length > 0 && signatoryIndex < 0 && (
+          <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
+            <p className="text-sm font-medium text-slate-700 mb-3">Identifique-se para assinar</p>
+            <Select
+              value={selectedSignatoryEmail ?? ''}
+              onValueChange={(email) => {
+                const idx = contract.signatories.findIndex((s) => s.email === email)
+                if (idx >= 0) {
+                  setSignatoryIndex(idx)
+                  setSelectedSignatoryEmail(email)
+                }
+              }}
+            >
+              <SelectTrigger className="w-full max-w-sm rounded-xl">
+                <SelectValue placeholder="Quem é você? Selecione seu nome" />
+              </SelectTrigger>
+              <SelectContent>
+                {unsignedSignatories.map((s) => (
+                  <SelectItem key={s.index} value={s.email}>
+                    {s.name || s.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {unsignedSignatories.length === 0 && (
+              <p className="text-sm text-slate-500 mt-2">Todos os signatários já assinaram.</p>
+            )}
           </div>
+        )}
+
+        {/* PDF em destaque - altura generosa para leitura */}
+        <div className="flex-1 min-h-[70vh] bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200">
+          {contract?.file_url ? (
+            <iframe
+              src={contract.file_url}
+              className="w-full h-full min-h-[70vh]"
+              title={contract?.title ?? 'Contrato'}
+            />
+          ) : (
+            <div className="h-[50vh] flex items-center justify-center text-slate-500">
+              <div className="text-center">
+                <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                <p>Nenhum documento anexado</p>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle, Search, Mail } from 'lucide-react'
+import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle, Search, Mail, MessageCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -90,6 +90,7 @@ export default function DocumentosPage() {
   const [viewContract, setViewContract] = useState<Contract | null>(null)
   const [deleteContractId, setDeleteContractId] = useState<string | null>(null)
   const [docSearch, setDocSearch] = useState('')
+  const [signatoryToSignByContract, setSignatoryToSignByContract] = useState<Record<string, number>>({})
   const [form, setForm] = useState({
     title: '',
     file_url: '',
@@ -176,7 +177,6 @@ export default function DocumentosPage() {
 
     const url = selected ? `/api/contracts/${selected.id}` : '/api/contracts'
     const method = selected ? 'PUT' : 'POST'
-    const clientName = form.client_id ? clients.find((c) => c.id === form.client_id)?.name ?? '' : ''
     const allSigned = form.signatories.length > 0 && form.signatories.every((s) => s.signed)
     const statusToSend = selected
       ? allSigned
@@ -194,8 +194,8 @@ export default function DocumentosPage() {
         body: JSON.stringify({
           title: form.title,
           file_url: form.file_url || null,
-          client_id: form.client_id || null,
-          client_name: clientName || null,
+          client_id: null,
+          client_name: null,
           status: statusToSend,
           signatories: form.signatories,
         }),
@@ -281,6 +281,16 @@ export default function DocumentosPage() {
     toast.success(signatory ? `Link de ${signatory.name} copiado!` : 'Link copiado!')
   }
 
+  const shareContractWhatsApp = (contract: Contract, signatory?: Signatory) => {
+    const base = `${typeof window !== 'undefined' ? window.location.origin : ''}/contrato/${contract.id}/assinar`
+    const url = signatory ? `${base}?email=${encodeURIComponent(signatory.email)}` : base
+    const text = encodeURIComponent(
+      `Olá! Segue seu link para assinatura do documento "${contract.title}":\n\n${url}\n\nAbra o link para assinar.`
+    )
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer')
+    toast.success(signatory ? `WhatsApp aberto para ${signatory.name}` : 'WhatsApp aberto')
+  }
+
   const sendContractByEmail = (contract: Contract, signatory?: Signatory) => {
     const base = `${typeof window !== 'undefined' ? window.location.origin : ''}/contrato/${contract.id}/assinar`
     const url = signatory ? `${base}?email=${encodeURIComponent(signatory.email)}` : base
@@ -361,7 +371,16 @@ export default function DocumentosPage() {
       return
     }
     try {
-      const signatures = (contract.signatories || []) as { name: string; email: string; signed: boolean; signed_at?: string | null; signature_url?: string | null }[]
+      const signatures = (contract.signatories || []).map((s) => ({
+        name: s.name,
+        email: s.email,
+        signed: s.signed,
+        signed_at: s.signed_at,
+        signature_url: s.signature_url,
+        cpf: s.cpf,
+        birth_date: s.birth_date,
+        location: s.location,
+      }))
       const pdfBytes = await generateSignedPDF(
         {
           id: contract.id,
@@ -506,21 +525,50 @@ export default function DocumentosPage() {
                         {finalizado && <CheckCircle className="w-3 h-3" />}
                         {finalizado ? 'Finalizado' : isRascunho ? 'Rascunho' : 'Pendente Assinatura'}
                       </span>
-                      {pendenteAssinatura && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-lg border-slate-200 gap-1.5"
-                          onClick={() => {
-                            const idx = c.signatories?.findIndex((s) => !s.signed) ?? 0
-                            setSelected(c)
-                            setSignatoriesForSign(c.signatories?.length ? c.signatories : [])
-                            if (c.signatories?.length && idx >= 0) openSign(c, idx)
-                          }}
-                        >
-                          <PenLine className="w-3.5 h-3.5" />
-                          Assinar
-                        </Button>
+                      {pendenteAssinatura && c.signatories && c.signatories.length > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Select
+                            value={(() => {
+                              const sel = signatoryToSignByContract[c.id]
+                              if (sel === undefined || c.signatories[sel]?.signed) return ''
+                              return String(sel)
+                            })()}
+                            onValueChange={(v) => setSignatoryToSignByContract((prev) => ({ ...prev, [c.id]: Number(v) }))}
+                          >
+                            <SelectTrigger className="w-[180px] rounded-lg border-slate-200 h-9 text-sm">
+                              <SelectValue placeholder="Selecione o signatário" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {c.signatories
+                                .map((s, idx) => ({ s, idx }))
+                                .filter(({ s }) => !s.signed)
+                                .map(({ s, idx }) => (
+                                  <SelectItem key={idx} value={String(idx)}>
+                                    {s.name || s.email || `Signatário ${idx + 1}`}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-lg border-slate-200 gap-1.5"
+                            onClick={() => {
+                              const unsignedIdxs = c.signatories?.map((s, i) => ({ s, i })).filter(({ s }) => !s.signed) ?? []
+                              const selectedIdx = signatoryToSignByContract[c.id]
+                              const idx = selectedIdx !== undefined && !c.signatories?.[selectedIdx]?.signed
+                                ? selectedIdx
+                                : unsignedIdxs[0]?.i ?? 0
+                              setSelected(c)
+                              setSignatoriesForSign(c.signatories?.length ? c.signatories : [])
+                              if (c.signatories?.length && idx >= 0 && !c.signatories[idx].signed) openSign(c, idx)
+                            }}
+                            disabled={!c.signatories?.some((s) => !s.signed)}
+                          >
+                            <PenLine className="w-3.5 h-3.5" />
+                            Assinar
+                          </Button>
+                        </div>
                       )}
                       <Button
                         variant="ghost"
@@ -614,7 +662,7 @@ export default function DocumentosPage() {
                               </span>
                             )}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             <Button
                               variant="outline"
                               size="sm"
@@ -627,11 +675,20 @@ export default function DocumentosPage() {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="rounded-lg gap-1.5 bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                              onClick={() => shareContractWhatsApp(viewContract, sig)}
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              WhatsApp
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="rounded-lg gap-1.5"
                               onClick={() => sendContractByEmail(viewContract, sig)}
                             >
                               <Mail className="w-3.5 h-3.5" />
-                              Enviar e-mail
+                              E-mail
                             </Button>
                           </div>
                         </div>
@@ -710,25 +767,6 @@ export default function DocumentosPage() {
                   disabled={selected ? isContractFinalizado(selected) : false}
                 />
               </div>
-            </div>
-            <div>
-              <Label>Cliente</Label>
-              <Select value={form.client_id || ''} onValueChange={(v) => setForm({ ...form, client_id: v || '' })}>
-                <SelectTrigger className="rounded-xl mt-1">
-                  <span className={!form.client_id ? 'text-slate-500' : ''}>
-                    {form.client_id
-                      ? (clients.find((c) => c.id === form.client_id)?.name ?? 'Cliente')
-                      : 'Selecione'}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">

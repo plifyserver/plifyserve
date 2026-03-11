@@ -592,8 +592,8 @@ export default function AgendaPage() {
       {/* Modal Novo Evento */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex justify-between items-center mb-6">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
                   <Plus className="w-5 h-5 text-indigo-600" />
@@ -604,9 +604,9 @@ export default function AgendaPage() {
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Título *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Título *</label>
                 <input
                   type="text"
                   value={form.title}
@@ -617,17 +617,17 @@ export default function AgendaPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Descrição</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   placeholder="Adicione detalhes sobre o evento..."
-                  rows={3}
+                  rows={2}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all resize-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Local</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Local</label>
                 <input
                   type="text"
                   value={form.location}
@@ -636,9 +636,9 @@ export default function AgendaPage() {
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Início</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Início</label>
                   <input
                     type="datetime-local"
                     value={form.start}
@@ -648,7 +648,7 @@ export default function AgendaPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Fim</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Fim</label>
                   <input
                     type="datetime-local"
                     value={form.end}
@@ -671,7 +671,7 @@ export default function AgendaPage() {
                 </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Cor no calendário</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Cor no calendário</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -687,7 +687,7 @@ export default function AgendaPage() {
                   />
                 </div>
               </div>
-              <div className="flex gap-3 pt-4 border-t border-slate-100">
+              <div className="flex gap-3 pt-3 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="outline"

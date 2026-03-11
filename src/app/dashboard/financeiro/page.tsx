@@ -436,31 +436,31 @@ export default function FinanceiroPage() {
         </div>
 
         {/* Entradas */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-500 text-sm font-medium">Entradas</span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <ArrowUpRight className="w-5 h-5 text-emerald-600" />
-            </div>
+        <div className="relative overflow-hidden rounded-2xl bg-emerald-100 p-6">
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
+            <ArrowUpRight className="w-8 h-8 text-emerald-600" strokeWidth={2.5} />
           </div>
-          <p className="text-3xl font-bold text-slate-900">{formatCurrency(monthlyIncome)}</p>
-          <p className="mt-2 text-sm text-slate-400">
-            {filteredTransactions.filter((t) => t.type === 'income').length} transações
-          </p>
+          <div className="relative pr-12">
+            <span className="text-emerald-700 text-sm font-medium">Entradas</span>
+            <p className="text-3xl font-bold text-emerald-800 mt-2">{formatCurrency(monthlyIncome)}</p>
+            <p className="mt-2 text-sm text-emerald-600">
+              {filteredTransactions.filter((t) => t.type === 'income').length} transações
+            </p>
+          </div>
         </div>
 
         {/* Saídas */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-500 text-sm font-medium">Saídas</span>
-            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-              <ArrowDownRight className="w-5 h-5 text-red-600" />
-            </div>
+        <div className="relative overflow-hidden rounded-2xl bg-red-100 p-6">
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
+            <ArrowDownRight className="w-8 h-8 text-red-600" strokeWidth={2.5} />
           </div>
-          <p className="text-3xl font-bold text-black">{formatCurrency(monthlyExpense)}</p>
-          <p className="mt-2 text-sm text-slate-400">
-            {filteredTransactions.filter((t) => t.type === 'expense').length} transações
-          </p>
+          <div className="relative pr-12">
+            <span className="text-red-700 text-sm font-medium">Saídas</span>
+            <p className="text-3xl font-bold text-red-800 mt-2">{formatCurrency(monthlyExpense)}</p>
+            <p className="mt-2 text-sm text-red-600">
+              {filteredTransactions.filter((t) => t.type === 'expense').length} transações
+            </p>
+          </div>
         </div>
       </div>
 

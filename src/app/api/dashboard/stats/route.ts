@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
   const [clientsRes, contractsRes, transactionsRes, proposalsRes] = await Promise.all([
-    supabase.from('clients').select('id, status, payment_type').eq('user_id', userId),
+    supabase.from('clients').select('id, status, payment_type, recurring_amount').eq('user_id', userId),
     supabase.from('contracts').select('id, signatories').eq('user_id', userId),
     supabase
       .from('finance_transactions')
@@ -71,7 +71,9 @@ export async function GET(request: NextRequest) {
   const proposals = proposalsRes.data ?? []
 
   const totalClients = clients.length
-  const mmr = clients.filter((c) => (c as { payment_type?: string }).payment_type === 'recorrente').length
+  const mmr = clients
+    .filter((c) => (c as { payment_type?: string }).payment_type === 'recorrente')
+    .reduce((s, c) => s + Number((c as { recurring_amount?: number | null }).recurring_amount ?? 0), 0)
 
   const isContractFinalizado = (c: { signatories?: unknown[] }) => {
     const sigs = (c.signatories ?? []) as { signed?: boolean }[]
@@ -89,9 +91,14 @@ export async function GET(request: NextRequest) {
 
   const totalProposals = proposals.length
 
+  const periodDays = Math.max(1, Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000)) + 1)
+  const recurringProrated = mmr * (periodDays / 30)
+  const receitaTotalMes = financeBalance + recurringProrated
+
   return NextResponse.json({
     totalClients,
     mmr,
+    receitaTotalMes,
     contractsFinalized,
     financeBalance,
     totalProposals,

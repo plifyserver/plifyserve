@@ -24,6 +24,7 @@ interface Client {
   notes?: string | null
   source?: string | null
   payment_type?: 'recorrente' | 'pontual'
+  recurring_amount?: number | null
 }
 
 export default function ClientesPage() {
@@ -45,6 +46,7 @@ export default function ClientesPage() {
     source: '',
     responsible: '',
     payment_type: 'pontual' as 'recorrente' | 'pontual',
+    recurring_amount: '' as string | number,
   })
 
   const fetchClients = async () => {
@@ -63,7 +65,7 @@ export default function ClientesPage() {
     (c) =>
       c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.company?.toLowerCase().includes(searchQuery.toLowerCase())
+      (c.company && c.company.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   const openDialog = (client: Client | null) => {
@@ -79,10 +81,11 @@ export default function ClientesPage() {
         source: client.source || '',
         responsible: client.responsible || '',
         payment_type: (client.payment_type === 'recorrente' ? 'recorrente' : 'pontual'),
+        recurring_amount: client.recurring_amount != null ? client.recurring_amount : '',
       })
     } else {
       setSelected(null)
-      setForm({ name: '', email: '', phone: '', company: '', status: 'lead', notes: '', source: '', responsible: '', payment_type: 'pontual' })
+      setForm({ name: '', email: '', phone: '', company: '', status: 'lead', notes: '', source: '', responsible: '', payment_type: 'pontual', recurring_amount: '' })
     }
     setDialogOpen(true)
   }
@@ -113,6 +116,7 @@ export default function ClientesPage() {
           source: form.source || null,
           responsible: form.responsible || null,
           payment_type: form.payment_type,
+          recurring_amount: form.payment_type === 'recorrente' && form.recurring_amount !== '' ? Number(form.recurring_amount) : null,
         }),
       })
       if (res.ok) {
@@ -211,7 +215,9 @@ export default function ClientesPage() {
                   <td className="px-4 py-3">
                     <div>
                       <p className="font-medium text-slate-900">{client.name}</p>
-                      {client.company && <p className="text-sm text-slate-500">{client.company}</p>}
+                      {client.payment_type === 'recorrente' && client.recurring_amount != null && (
+                        <p className="text-sm text-slate-500">R$ {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês</p>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -289,14 +295,23 @@ export default function ClientesPage() {
                     className="w-full px-3 py-2 rounded-xl border border-slate-200"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Empresa</label>
-                  <input
-                    value={form.company}
-                    onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                  />
-                </div>
+                {form.payment_type === 'recorrente' && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor Recorrente (R$)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={form.recurring_amount === '' ? '' : Number(form.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, '')
+                        setForm((f) => ({ ...f, recurring_amount: v === '' ? '' : Number(v) / 100 }))
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                    />
+                    <p className="text-xs text-slate-500 mt-0.5">Valor fixo que o cliente paga por mês</p>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
                   <select

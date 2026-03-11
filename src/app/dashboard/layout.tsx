@@ -14,7 +14,6 @@ import {
   BarChart3,
   DollarSign,
   FileSignature,
-  CheckSquare,
   Columns3,
   Network,
   Palette,
@@ -42,7 +41,6 @@ const navItems = [
   { href: '/dashboard/mapa-mental', icon: Network, label: 'Mapa Mental' },
   { href: '/dashboard/ads', icon: BarChart3, label: 'Ads' },
   { href: '/dashboard/financeiro', icon: DollarSign, label: 'Financeiro' },
-  { href: '/dashboard/tarefas', icon: CheckSquare, label: 'Tarefas' },
   { href: '/dashboard/kanban', icon: Columns3, label: 'Kanban' },
   { href: '/dashboard/personalizacao', icon: Palette, label: 'Personalização' },
   { href: '/dashboard/planos', icon: CreditCard, label: 'Planos' },
@@ -118,7 +116,7 @@ export default function DashboardLayout({
     document.title = (settings?.app_name?.trim() && settings.app_name) ? settings.app_name : 'Plify - Gestão e Propostas'
   }, [settings, pathname])
 
-  const handleSignOut = useCallback((e?: React.MouseEvent) => {
+  const handleSignOut = useCallback(async (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
@@ -127,9 +125,14 @@ export default function DashboardLayout({
     setSigningOut(true)
     setSidebarOpen(false)
     setProfileOpen(false)
-    // Redireciona imediatamente para evitar delay perceptível; signOut em background
+    try {
+      await signOut()
+    } catch {
+      // segue para login mesmo se falhar
+    } finally {
+      setSigningOut(false)
+    }
     window.location.href = '/login'
-    signOut().catch(() => {}).finally(() => setSigningOut(false))
   }, [signOut])
 
   const accentColor = settings?.primary_color || '#ea580c'
