@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import { UpgradeModal } from '@/components/UpgradeModal'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
+import { LOGO_PRETO, LOGO_BRANCO } from '@/lib/logo'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -62,14 +63,13 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, profile, signOut } = useAuth()
+  const { user, profile } = useAuth()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [logoCacheBust, setLogoCacheBust] = useState(() => Date.now())
   const [profileOpen, setProfileOpen] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
-  const [signingOut, setSigningOut] = useState(false)
   const headerRef = useRef<HTMLDivElement>(null)
 
   const isPro = profile?.plan === 'pro' || profile?.plan_type === 'pro' || profile?.account_type === 'admin'
@@ -116,24 +116,15 @@ export default function DashboardLayout({
     document.title = (settings?.app_name?.trim() && settings.app_name) ? settings.app_name : 'Plify - Gestão e Propostas'
   }, [settings, pathname])
 
-  const handleSignOut = useCallback(async (e?: React.MouseEvent) => {
+  const handleSignOut = useCallback((e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
     }
-    if (signingOut) return
-    setSigningOut(true)
     setSidebarOpen(false)
     setProfileOpen(false)
-    try {
-      await signOut()
-    } catch {
-      // segue para login mesmo se falhar
-    } finally {
-      setSigningOut(false)
-    }
-    window.location.href = '/login'
-  }, [signOut])
+    window.location.href = '/api/auth/logout'
+  }, [])
 
   const accentColor = settings?.primary_color || '#ea580c'
   const sidebarBg = settings?.secondary_color || '#121212'
@@ -141,7 +132,7 @@ export default function DashboardLayout({
   const logoBase = settings?.logo_url && settings.logo_url.trim() !== '' ? settings.logo_url.trim() : null
   const logoUrl = logoBase
     ? logoBase + (logoBase.includes('?') ? '&' : '?') + 't=' + logoCacheBust
-    : '/logobranco.png'
+    : LOGO_BRANCO
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -171,20 +162,20 @@ export default function DashboardLayout({
           height: 'calc(100vh - 0.5rem)',
         }}
       >
-        <div className="px-4 py-3 flex items-center justify-between min-h-[64px] border-b border-white/10">
+        <div className="px-4 py-3 flex items-center justify-between min-h-[56px] border-b border-white/10">
           {!sidebarCollapsed && (
-            <Link href="/dashboard" className="flex-1 min-w-0">
+            <Link href="/dashboard" className="flex-1 min-w-0 flex items-center">
               <Image 
                 src={logoUrl} 
                 alt="Logo" 
-                width={320} 
-                height={80} 
-                className="h-20 w-auto object-contain object-left" 
+                width={160} 
+                height={40} 
+                className="h-10 w-auto max-w-[180px] object-contain object-left" 
                 priority 
                 onError={(e) => {
                   const target = e.target as HTMLImageElement
-                  if (target.src !== '/logobranco.png') {
-                    target.src = '/logobranco.png'
+                  if (!target.src.endsWith(LOGO_BRANCO)) {
+                    target.src = LOGO_BRANCO
                   }
                 }}
               />
@@ -254,18 +245,16 @@ export default function DashboardLayout({
             <button
               type="button"
               onClick={(e) => handleSignOut(e)}
-              disabled={signingOut}
-              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-white/70 hover:bg-white/10 text-left disabled:opacity-50"
+              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-white/70 hover:bg-white/10 text-left"
             >
               <LogOut className="w-5 h-5 flex-shrink-0" />
-              <span>{signingOut ? 'Saindo...' : 'Sair'}</span>
+              <span>Sair</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={(e) => handleSignOut(e)}
-              disabled={signingOut}
-              className="flex items-center justify-center w-full p-2.5 rounded-lg text-white/70 hover:bg-white/10 disabled:opacity-50"
+              className="flex items-center justify-center w-full p-2.5 rounded-lg text-white/70 hover:bg-white/10"
               title="Sair"
             >
               <LogOut className="w-5 h-5" />
@@ -280,7 +269,7 @@ export default function DashboardLayout({
           <Menu className="w-6 h-6 text-slate-700" />
         </button>
         <Link href="/dashboard" className="flex items-center">
-          <Image src="/logopreto.png" alt="Logo" width={280} height={72} className="h-[2.25rem] max-w-[180px] object-contain" priority />
+          <Image src={LOGO_PRETO} alt="Logo" width={140} height={40} className="h-10 w-auto max-w-[180px] object-contain" priority />
         </Link>
         <div className="w-10" />
       </div>
@@ -298,13 +287,13 @@ export default function DashboardLayout({
         style={{ backgroundColor: sidebarBg }}
       >
         <div className="p-4 flex justify-between items-center border-b border-white/10">
-          <Link href="/dashboard" onClick={() => setSidebarOpen(false)}>
+          <Link href="/dashboard" onClick={() => setSidebarOpen(false)} className="flex items-center">
             <Image 
               src={logoUrl} 
               alt="Logo" 
-              width={240} 
-              height={64} 
-              className="h-16 w-auto object-contain" 
+              width={160} 
+              height={40} 
+              className="h-10 w-auto max-w-[180px] object-contain" 
               priority 
             />
           </Link>
@@ -351,11 +340,10 @@ export default function DashboardLayout({
           <button
             type="button"
             onClick={(e) => handleSignOut(e)}
-            disabled={signingOut}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-white/70 hover:bg-white/10 disabled:opacity-50"
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-white/70 hover:bg-white/10"
           >
             <LogOut className="w-5 h-5" />
-            {signingOut ? 'Saindo...' : 'Sair'}
+            Sair
           </button>
         </div>
       </aside>

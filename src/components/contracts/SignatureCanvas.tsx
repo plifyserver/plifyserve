@@ -3,7 +3,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
 import { X, Upload, MapPin, Calendar, Clock, User, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -353,57 +352,63 @@ export default function SignatureCanvas({
         </button>
       </div>
 
-      {/* Signature Canvas - borda vermelha fina delimitando o campo */}
-      <div className="rounded-xl p-1 border border-red-500/80 bg-slate-50">
-        <p className="text-xs text-red-600 mb-2 font-medium">Campo da assinatura — desenhe dentro da área abaixo</p>
-        <Card className="border-2 border-dashed border-slate-300 rounded-lg p-4 bg-white">
-        {mode === 'draw' ? (
-          <canvas
-            ref={canvasRef}
-            width={600}
-            height={200}
-            className="w-full bg-white rounded-lg cursor-crosshair touch-none"
-            style={{ touchAction: 'none' }}
-            onMouseDown={startDrawing}
-            onMouseMove={draw}
-            onMouseUp={stopDrawing}
-            onMouseLeave={stopDrawing}
-            onTouchStart={startDrawing}
-            onTouchMove={draw}
-            onTouchEnd={stopDrawing}
-          />
-        ) : (
-          <div className="w-full h-[200px] bg-white rounded-lg flex items-center justify-center">
-            {uploadedImage ? (
-              <canvas ref={canvasRef} width={600} height={200} className="w-full max-h-[200px] object-contain rounded-lg" />
-            ) : (
-              <label className="cursor-pointer flex flex-col items-center gap-3 p-6">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center">
-                  <Upload className="w-6 h-6 text-slate-400" />
-                </div>
-                <p className="text-slate-600 text-center">Clique para fazer upload da assinatura</p>
-                <p className="text-slate-400 text-sm">PNG, JPG ou WEBP</p>
-              </label>
-            )}
+      {/* Campo de assinatura: linha fina vermelha onde se assina */}
+      <div className="rounded-xl bg-slate-50 p-4">
+        <p className="text-xs text-red-600 mb-2 font-medium">Campo da assinatura — desenhe na linha abaixo</p>
+        <div className="bg-white rounded-lg overflow-hidden">
+          {mode === 'draw' ? (
+            <>
+              <div className="w-full border-b-2 border-red-500" aria-hidden />
+              <canvas
+                ref={canvasRef}
+                width={600}
+                height={160}
+                className="w-full bg-white cursor-crosshair touch-none block"
+                style={{ touchAction: 'none' }}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+              />
+            </>
+          ) : (
+            <>
+              <div className="w-full border-b-2 border-red-500" aria-hidden />
+              <div className="w-full h-[160px] flex items-center justify-center">
+                {uploadedImage ? (
+                  <canvas ref={canvasRef} width={600} height={160} className="w-full max-h-[160px] object-contain block" />
+                ) : (
+                  <label className="cursor-pointer flex flex-col items-center gap-3 p-6">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <Upload className="w-6 h-6 text-slate-400" />
+                    </div>
+                    <p className="text-slate-600 text-center">Clique para fazer upload da assinatura</p>
+                    <p className="text-slate-400 text-sm">PNG, JPG ou WEBP</p>
+                  </label>
+                )}
+              </div>
+            </>
+          )}
+          <div className="flex items-center justify-center py-3 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={clearSignature}
+              className="flex items-center gap-2 text-slate-600 hover:text-red-600 transition-colors px-4 py-2 rounded-lg hover:bg-red-50"
+            >
+              <X className="w-4 h-4" />
+              <span className="text-sm font-medium">Limpar assinatura</span>
+            </button>
           </div>
-        )}
-        <div className="flex items-center justify-center mt-4">
-          <button
-            type="button"
-            onClick={clearSignature}
-            className="flex items-center gap-2 text-slate-600 hover:text-red-600 transition-colors px-4 py-2 rounded-lg hover:bg-red-50"
-          >
-            <X className="w-4 h-4" />
-            <span className="text-sm font-medium">Limpar assinatura</span>
-          </button>
         </div>
-      </Card>
       </div>
 
       {/* Warning */}

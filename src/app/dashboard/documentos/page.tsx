@@ -17,13 +17,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -90,7 +83,7 @@ export default function DocumentosPage() {
   const [viewContract, setViewContract] = useState<Contract | null>(null)
   const [deleteContractId, setDeleteContractId] = useState<string | null>(null)
   const [docSearch, setDocSearch] = useState('')
-  const [signatoryToSignByContract, setSignatoryToSignByContract] = useState<Record<string, number>>({})
+  const [contractToPickSignatory, setContractToPickSignatory] = useState<Contract | null>(null)
   const [form, setForm] = useState({
     title: '',
     file_url: '',
@@ -525,50 +518,23 @@ export default function DocumentosPage() {
                         {finalizado && <CheckCircle className="w-3 h-3" />}
                         {finalizado ? 'Finalizado' : isRascunho ? 'Rascunho' : 'Pendente Assinatura'}
                       </span>
-                      {pendenteAssinatura && c.signatories && c.signatories.length > 0 && (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Select
-                            value={(() => {
-                              const sel = signatoryToSignByContract[c.id]
-                              if (sel === undefined || c.signatories[sel]?.signed) return ''
-                              return String(sel)
-                            })()}
-                            onValueChange={(v) => setSignatoryToSignByContract((prev) => ({ ...prev, [c.id]: Number(v) }))}
-                          >
-                            <SelectTrigger className="w-[180px] rounded-lg border-slate-200 h-9 text-sm">
-                              <SelectValue placeholder="Selecione o signatário" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {c.signatories
-                                .map((s, idx) => ({ s, idx }))
-                                .filter(({ s }) => !s.signed)
-                                .map(({ s, idx }) => (
-                                  <SelectItem key={idx} value={String(idx)}>
-                                    {s.name || s.email || `Signatário ${idx + 1}`}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="rounded-lg border-slate-200 gap-1.5"
-                            onClick={() => {
-                              const unsignedIdxs = c.signatories?.map((s, i) => ({ s, i })).filter(({ s }) => !s.signed) ?? []
-                              const selectedIdx = signatoryToSignByContract[c.id]
-                              const idx = selectedIdx !== undefined && !c.signatories?.[selectedIdx]?.signed
-                                ? selectedIdx
-                                : unsignedIdxs[0]?.i ?? 0
-                              setSelected(c)
-                              setSignatoriesForSign(c.signatories?.length ? c.signatories : [])
-                              if (c.signatories?.length && idx >= 0 && !c.signatories[idx].signed) openSign(c, idx)
-                            }}
-                            disabled={!c.signatories?.some((s) => !s.signed)}
-                          >
-                            <PenLine className="w-3.5 h-3.5" />
-                            Assinar
-                          </Button>
-                        </div>
+                      {pendenteAssinatura && c.signatories && c.signatories.some((s) => !s.signed) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-lg border-slate-200 gap-1.5"
+                          onClick={() => {
+                            const unsigned = c.signatories?.map((s, i) => ({ s, i })).filter(({ s }) => !s.signed) ?? []
+                            if (unsigned.length === 1) {
+                              openSign(c, unsigned[0].i)
+                            } else {
+                              setContractToPickSignatory(c)
+                            }
+                          }}
+                        >
+                          <PenLine className="w-3.5 h-3.5" />
+                          Assinar
+                        </Button>
                       )}
                       <Button
                         variant="ghost"
@@ -650,12 +616,17 @@ export default function DocumentosPage() {
                   </p>
                   <div className="space-y-3">
                     {viewContract.signatories.map((sig, idx) => {
-                      const linkUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/contrato/${viewContract.id}/assinar?email=${encodeURIComponent(sig.email)}`
+                      const hasEmail = Boolean(sig.email?.trim())
+                      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+                      const linkUrl = hasEmail ? `${baseUrl}/contrato/${viewContract.id}/assinar?email=${encodeURIComponent(sig.email!.trim())}` : ''
                       return (
                         <div key={idx} className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-white border border-slate-100">
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-slate-900 truncate">{sig.name}</p>
-                            <p className="text-xs text-slate-500 truncate">{sig.email}</p>
+                            <p className="text-xs text-slate-500 truncate">{sig.email || '—'}</p>
+                            {!hasEmail && (
+                              <p className="text-xs text-amber-600 mt-1 font-medium">E-mail obrigatório para gerar o link — edite o contrato e salve.</p>
+                            )}
                             {sig.signed && (
                               <span className="inline-flex items-center gap-1 mt-1 text-xs text-emerald-600">
                                 <CheckCircle className="w-3 h-3" /> Já assinou
@@ -667,7 +638,15 @@ export default function DocumentosPage() {
                               variant="outline"
                               size="sm"
                               className="rounded-lg gap-1.5"
-                              onClick={() => { navigator.clipboard.writeText(linkUrl); toast.success(`Link de ${sig.name} copiado`); }}
+                              disabled={!hasEmail}
+                              onClick={() => {
+                                if (!hasEmail) {
+                                  toast.error('Cadastre o e-mail deste signatário no contrato (Editar) para gerar o link.')
+                                  return
+                                }
+                                navigator.clipboard.writeText(linkUrl)
+                                toast.success(`Link de ${sig.name} copiado`)
+                              }}
                             >
                               <Copy className="w-3.5 h-3.5" />
                               Copiar link
@@ -676,7 +655,14 @@ export default function DocumentosPage() {
                               variant="outline"
                               size="sm"
                               className="rounded-lg gap-1.5 bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                              onClick={() => shareContractWhatsApp(viewContract, sig)}
+                              disabled={!hasEmail}
+                              onClick={() => {
+                                if (!hasEmail) {
+                                  toast.error('Cadastre o e-mail deste signatário no contrato (Editar) para enviar o link.')
+                                  return
+                                }
+                                shareContractWhatsApp(viewContract, sig)
+                              }}
                             >
                               <MessageCircle className="w-3.5 h-3.5" />
                               WhatsApp
@@ -685,7 +671,14 @@ export default function DocumentosPage() {
                               variant="outline"
                               size="sm"
                               className="rounded-lg gap-1.5"
-                              onClick={() => sendContractByEmail(viewContract, sig)}
+                              disabled={!hasEmail}
+                              onClick={() => {
+                                if (!hasEmail) {
+                                  toast.error('Cadastre o e-mail deste signatário no contrato (Editar) para enviar o link.')
+                                  return
+                                }
+                                sendContractByEmail(viewContract, sig)
+                              }}
                             >
                               <Mail className="w-3.5 h-3.5" />
                               E-mail
@@ -864,6 +857,37 @@ export default function DocumentosPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: escolher quem vai assinar (ao clicar em Assinar com vários pendentes) */}
+      <Dialog open={!!contractToPickSignatory} onOpenChange={(open) => { if (!open) setContractToPickSignatory(null) }}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Quem vai assinar?</DialogTitle>
+            <DialogDescription>Selecione o signatário que irá assinar agora.</DialogDescription>
+          </DialogHeader>
+          {contractToPickSignatory && (
+            <div className="flex flex-col gap-2 py-2">
+              {contractToPickSignatory.signatories
+                ?.map((s, idx) => ({ s, idx }))
+                .filter(({ s }) => !s.signed)
+                .map(({ s, idx }) => (
+                  <Button
+                    key={idx}
+                    variant="outline"
+                    className="justify-start h-auto py-3 rounded-xl border-slate-200 gap-2"
+                    onClick={() => {
+                      openSign(contractToPickSignatory, idx)
+                      setContractToPickSignatory(null)
+                    }}
+                  >
+                    <PenLine className="w-4 h-4 text-slate-500" />
+                    {s.name || s.email || `Signatário ${idx + 1}`}
+                  </Button>
+                ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Mail, Lock, Loader2 } from 'lucide-react'
@@ -26,6 +26,11 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => {
+    supabase.auth.signOut().catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rodar uma vez ao montar para limpar sessão ao vir do logout
+  }, [])
 
   const handleGoogleSignIn = async () => {
     setError('')

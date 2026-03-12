@@ -458,7 +458,7 @@ function EditNodeModal({
               width: (node.data as NodeData)?.width,
               height: (node.data as NodeData)?.height,
             })}
-            className="px-4 py-2 rounded-lg bg-avocado text-white font-medium hover:bg-avocado-light text-sm shrink-0"
+            className="px-4 py-2 rounded-lg bg-[#568203] text-white font-medium hover:bg-[#6b9d04] text-sm shrink-0 border border-[#568203]"
           >
             Salvar
           </button>

@@ -1,5 +1,35 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import { PDFDocument, rgb, StandardFonts, type PDFFont } from 'pdf-lib'
 import { format } from 'date-fns'
+
+/** Quebra texto em linhas que cabem na largura máxima (em pontos). */
+function wrapText(font: PDFFont, text: string, fontSize: number, maxWidth: number): string[] {
+  const lines: string[] = []
+  const words = text.trim().split(/\s+/)
+  let current = ''
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word
+    const w = font.widthOfTextAtSize(candidate, fontSize)
+    if (w <= maxWidth) {
+      current = candidate
+    } else {
+      if (current) lines.push(current)
+      current = font.widthOfTextAtSize(word, fontSize) <= maxWidth ? word : ''
+      if (!current && word) {
+        let chunk = ''
+        for (const c of word) {
+          if (font.widthOfTextAtSize(chunk + c, fontSize) <= maxWidth) chunk += c
+          else {
+            if (chunk) lines.push(chunk)
+            chunk = c
+          }
+        }
+        current = chunk
+      }
+    }
+  }
+  if (current) lines.push(current)
+  return lines
+}
 
 export interface ContractForPDF {
   id: string
@@ -87,11 +117,18 @@ export async function generateSignedPDF(
     color: rgb(0, 0.4, 0.6),
   })
   sigY -= 35
-  signaturesPage.drawText(
+  const introLines = wrapText(
+    font,
     'As assinaturas abaixo foram realizadas eletronicamente e não constam no corpo do documento para preservar a integridade das cláusulas.',
-    { x: 50, y: sigY, size: 9, font, color: rgb(0.3, 0.3, 0.3) }
+    9,
+    495
   )
-  sigY -= 30
+  const introLineHeight = 12
+  for (const line of introLines) {
+    signaturesPage.drawText(line, { x: 50, y: sigY, size: 9, font, color: rgb(0.3, 0.3, 0.3) })
+    sigY -= introLineHeight
+  }
+  sigY -= 18
 
   if (signatures?.length) {
     let currentSignaturesPage = signaturesPage
@@ -138,18 +175,22 @@ export async function generateSignedPDF(
           { x: 55, y: y - 74, size: 9, font }
         )
       }
+      const localColor = rgb(0.4, 0.4, 0.4)
+      const localFontSize = 8
+      const localMaxWidth = 275
+      const localLineHeight = 10
+      const maxLocalLines = 3
       if (sig.location?.address) {
-        page.drawText(`Local: ${sig.location.address}`, {
-          x: 55,
-          y: y - 88,
-          size: 8,
-          font,
-          color: rgb(0.4, 0.4, 0.4),
-        })
+        const localLines = wrapText(font, `Local: ${sig.location.address}`, localFontSize, localMaxWidth).slice(0, maxLocalLines)
+        let localY = y - 88
+        for (const line of localLines) {
+          page.drawText(line, { x: 55, y: localY, size: localFontSize, font, color: localColor })
+          localY -= localLineHeight
+        }
       } else if (sig.location?.latitude != null) {
         page.drawText(
           `Local: ${sig.location.latitude?.toFixed(6)}, ${sig.location.longitude?.toFixed(6)}`,
-          { x: 55, y: y - 88, size: 8, font, color: rgb(0.4, 0.4, 0.4) }
+          { x: 55, y: y - 88, size: localFontSize, font, color: localColor }
         )
       }
       if (sig.signature_url) {
@@ -157,7 +198,7 @@ export async function generateSignedPDF(
           const signatureImage = await fetch(sig.signature_url).then((res) => res.arrayBuffer())
           const image = await pdfDoc.embedPng(signatureImage)
           page.drawImage(image, {
-            x: 350,
+            x: 340,
             y: boxYFinal + 30,
             width: 180,
             height: 80,

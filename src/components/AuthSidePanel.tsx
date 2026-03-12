@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { LOGO_BRANCO } from '@/lib/logo'
 
 export function AuthSidePanel() {
   return (
@@ -25,7 +26,7 @@ export function AuthSidePanel() {
       <div className="relative z-10 flex flex-col w-full min-h-screen p-8">
         <div className="flex items-start justify-between flex-shrink-0">
           <Link href="/" className="flex items-center">
-            <Image src="/logobranco.png" alt="Logo" width={400} height={112} className="h-28 w-auto object-contain" priority />
+            <Image src={LOGO_BRANCO} alt="Logo" width={200} height={56} className="h-14 w-auto max-w-[200px] object-contain" priority />
           </Link>
           <span className="text-sm text-white/90">© {new Date().getFullYear()}</span>
         </div>

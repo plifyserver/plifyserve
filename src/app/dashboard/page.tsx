@@ -401,7 +401,7 @@ export default function DashboardPage() {
             </button>
           </div>
           <div className="h-60 flex items-center">
-            <div className="w-1/2 h-full">
+            <div className="w-1/2 h-full relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -420,10 +420,10 @@ export default function DashboardPage() {
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ position: 'relative', top: '-150px' }}>
-                <div className="text-center">
-                  <p className="text-2xl font-semibold text-slate-900 font-light">{totalPercentage}%</p>
-                  <p className="text-xs text-slate-500 font-light">Total</p>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center justify-center gap-0 leading-none">
+                  <span className="text-xl font-semibold text-slate-900 font-light">{totalPercentage}%</span>
+                  <span className="text-xs text-slate-500 font-light">Total</span>
                 </div>
               </div>
             </div>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { FileText, Download, PenLine, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react'
+import { FileText, PenLine, CheckCircle, AlertCircle, Loader2, ArrowLeft, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import SignatureCanvas, { type SignatureData } from '@/components/contracts/SignatureCanvas'
+import { useAuth } from '@/contexts/AuthContext'
+import { LOGO_PRETO } from '@/lib/logo'
 import { toast } from 'sonner'
 
 interface Contract {
@@ -44,8 +46,10 @@ type PageStep = 'loading' | 'view' | 'sign' | 'success' | 'error' | 'already_sig
 export default function AssinarContratoPage() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const { user } = useAuth()
   const contractId = params.id as string
-  const signatoryEmail = searchParams.get('email')
+  const signatoryEmailRaw = searchParams.get('email') ?? searchParams.get('ernail')
+  const signatoryEmail = signatoryEmailRaw?.trim() || null
   
   const [contract, setContract] = useState<Contract | null>(null)
   const [step, setStep] = useState<PageStep>('loading')
@@ -184,11 +188,15 @@ export default function AssinarContratoPage() {
             Sua assinatura foi registrada com sucesso. Você receberá uma cópia do documento por email.
           </p>
           <Button 
-            onClick={() => window.close()}
+            onClick={() => {
+              window.close()
+              setTimeout(() => { window.location.href = 'about:blank' }, 150)
+            }}
             className="rounded-xl bg-indigo-600 hover:bg-indigo-700"
           >
             Fechar
           </Button>
+          <p className="text-xs text-slate-500 mt-3">Se a aba não fechar, use Ctrl+W (ou Cmd+W no Mac).</p>
         </div>
       </div>
     )
@@ -227,28 +235,20 @@ export default function AssinarContratoPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header: logo à esquerda, botão ASSINAR à direita */}
+      {/* Header: logo proporcional, botão verde Assinar à direita */}
       <header className="bg-white border-b border-slate-200 px-4 py-3 flex-shrink-0">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center">
-            <Image src="/logopreto.png" alt="Plify" width={100} height={28} className="h-7 w-auto" />
+            <Image src={LOGO_PRETO} alt="Plify" width={140} height={40} className="h-10 w-auto" priority />
           </Link>
           <div className="flex items-center gap-3">
-            {contract?.file_url && (
-              <Button variant="outline" size="sm" className="rounded-xl gap-1.5" asChild>
-                <a href={contract.file_url} download target="_blank" rel="noopener noreferrer">
-                  <Download className="w-4 h-4" />
-                  Baixar PDF
-                </a>
-              </Button>
-            )}
             {signatoryIndex >= 0 && !contract?.signatories[signatoryIndex]?.signed && (
               <Button
                 onClick={() => setStep('sign')}
-                className="rounded-xl bg-indigo-600 hover:bg-indigo-700 gap-2"
+                className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold shadow-sm"
               >
                 <PenLine className="w-4 h-4" />
-                ASSINAR CONTRATO
+                Assinar
               </Button>
             )}
           </div>
@@ -256,44 +256,71 @@ export default function AssinarContratoPage() {
       </header>
 
       <main className="flex-1 flex flex-col p-4 max-w-6xl w-full mx-auto">
-        {/* Quando não veio email na URL: selecionar "Sou eu" */}
+        {/* Sem email na URL: se logado no Plify = assinatura presencial (escolher signatário); senão = pedir uso do link exclusivo */}
         {!signatoryEmail && contract?.signatories && contract.signatories.length > 0 && signatoryIndex < 0 && (
           <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
-            <p className="text-sm font-medium text-slate-700 mb-3">Identifique-se para assinar</p>
-            <Select
-              value={selectedSignatoryEmail ?? ''}
-              onValueChange={(email) => {
-                const idx = contract.signatories.findIndex((s) => s.email === email)
-                if (idx >= 0) {
-                  setSignatoryIndex(idx)
-                  setSelectedSignatoryEmail(email)
-                }
-              }}
-            >
-              <SelectTrigger className="w-full max-w-sm rounded-xl">
-                <SelectValue placeholder="Quem é você? Selecione seu nome" />
-              </SelectTrigger>
-              <SelectContent>
-                {unsignedSignatories.map((s) => (
-                  <SelectItem key={s.index} value={s.email}>
-                    {s.name || s.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {unsignedSignatories.length === 0 && (
-              <p className="text-sm text-slate-500 mt-2">Todos os signatários já assinaram.</p>
+            {user ? (
+              <>
+                <p className="text-sm font-medium text-slate-700 mb-3">Identifique-se para assinar (assinatura presencial)</p>
+                <Select
+                  value={selectedSignatoryEmail ?? ''}
+                  onValueChange={(email) => {
+                    const idx = contract.signatories.findIndex((s) => s.email === email)
+                    if (idx >= 0) {
+                      setSignatoryIndex(idx)
+                      setSelectedSignatoryEmail(email)
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full max-w-sm rounded-xl">
+                    <SelectValue placeholder="Quem é você? Selecione seu nome" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unsignedSignatories.map((s) => (
+                      <SelectItem key={s.index} value={s.email}>
+                        {s.name || s.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {unsignedSignatories.length === 0 && (
+                  <p className="text-sm text-slate-500 mt-2">Todos os signatários já assinaram.</p>
+                )}
+              </>
+            ) : (
+              <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                <Mail className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-900">Use seu link exclusivo para assinar</p>
+                  <p className="text-sm text-amber-800 mt-1">
+                    Cada signatário recebe um link por e-mail ou WhatsApp. Use o link que foi enviado para você para assinar sua parte do contrato.
+                  </p>
+                  <p className="text-sm text-amber-700 mt-2 border-t border-amber-200 pt-2">
+                    Se você já recebeu o link e ainda vê esta mensagem, o link pode estar incompleto. Peça ao responsável pelo contrato que <strong>edite o documento, cadastre seu e-mail no seu nome (signatário) e salve</strong>. Depois, que copie o link novamente e envie para você.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         )}
 
-        {/* PDF em destaque - altura generosa para leitura */}
-        <div className="flex-1 min-h-[70vh] bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200">
+        {/* Nome do signatário quando identificado pelo link */}
+        {signatoryIndex >= 0 && contract?.signatories?.[signatoryIndex] && (
+          <div className="bg-white rounded-t-2xl border border-slate-200 border-b-0 px-6 py-3 shadow-sm">
+            <p className="text-slate-700 text-lg font-medium">
+              CONTRATO SENDO ASSINADO POR: <span className="text-slate-900 font-semibold">{contract.signatories[signatoryIndex].name || contract.signatories[signatoryIndex].email || 'Signatário'}</span>
+            </p>
+          </div>
+        )}
+
+        {/* PDF em destaque - proporcional à moldura (view=FitH para preencher largura) */}
+        <div className={`flex-1 min-h-[70vh] bg-white shadow-sm overflow-hidden border border-slate-200 flex flex-col ${signatoryIndex >= 0 ? 'rounded-b-2xl' : 'rounded-2xl'}`}>
           {contract?.file_url ? (
             <iframe
-              src={contract.file_url}
-              className="w-full h-full min-h-[70vh]"
+              src={`${contract.file_url}#view=FitH`}
+              className="w-full flex-1 min-h-[70vh]"
               title={contract?.title ?? 'Contrato'}
+              style={{ minHeight: '70vh' }}
             />
           ) : (
             <div className="h-[50vh] flex items-center justify-center text-slate-500">
