@@ -27,6 +27,7 @@ import {
   User,
   Sparkles,
   CreditCard,
+  Headphones,
 } from 'lucide-react'
 import { UpgradeModal } from '@/components/UpgradeModal'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
@@ -39,6 +40,7 @@ const navItems = [
   { href: '/dashboard/documentos', icon: FileSignature, label: 'Contratos' },
   { href: '/dashboard/projetos', icon: Briefcase, label: 'Projetos' },
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
+  { href: '/dashboard/chat-ia', icon: Headphones, label: 'Chat IA' },
   { href: '/dashboard/mapa-mental', icon: Network, label: 'Mapa Mental' },
   { href: '/dashboard/ads', icon: BarChart3, label: 'Ads' },
   { href: '/dashboard/financeiro', icon: DollarSign, label: 'Financeiro' },
@@ -70,7 +72,19 @@ export default function DashboardLayout({
   const [logoCacheBust, setLogoCacheBust] = useState(() => Date.now())
   const [profileOpen, setProfileOpen] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
+  const [supportName, setSupportName] = useState('')
+  const [supportMessage, setSupportMessage] = useState('')
   const headerRef = useRef<HTMLDivElement>(null)
+
+  const handleSupportSubmit = useCallback(() => {
+    const text = `*Suporte Plify*\n\nNome: ${supportName.trim() || 'Não informado'}\n\nDúvida/Sugestão:\n${supportMessage.trim() || '—'}`
+    const url = `https://wa.me/5543996769373?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+    setSupportOpen(false)
+    setSupportName('')
+    setSupportMessage('')
+  }, [supportName, supportMessage])
 
   const isPro = profile?.plan === 'pro' || profile?.plan_type === 'pro' || profile?.account_type === 'admin'
 
@@ -363,6 +377,16 @@ export default function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
+              {/* Suporte */}
+              <button
+                type="button"
+                onClick={() => setSupportOpen(true)}
+                className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+                title="Suporte"
+                aria-label="Abrir suporte"
+              >
+                <Headphones className="w-5 h-5" />
+              </button>
               {/* Notificações */}
               {user?.id && (
                 <NotificationsDropdown userId={user.id} />
@@ -447,6 +471,59 @@ export default function DashboardLayout({
         onClose={() => setShowUpgradeModal(false)} 
         type="plan" 
       />
+
+      {/* Suporte - popup */}
+      {supportOpen && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setSupportOpen(false)} aria-hidden />
+          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-xl" role="dialog" aria-modal aria-labelledby="support-title">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 id="support-title" className="text-lg font-semibold text-slate-900">Suporte</h2>
+              <button type="button" onClick={() => setSupportOpen(false)} className="p-1 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Fechar">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleSupportSubmit()
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label htmlFor="support-name" className="mb-1 block text-sm font-medium text-slate-700">Nome completo</label>
+                <input
+                  id="support-name"
+                  type="text"
+                  value={supportName}
+                  onChange={(e) => setSupportName(e.target.value)}
+                  placeholder="Seu nome"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                />
+              </div>
+              <div>
+                <label htmlFor="support-message" className="mb-1 block text-sm font-medium text-slate-700">Dúvida ou sugestão</label>
+                <textarea
+                  id="support-message"
+                  value={supportMessage}
+                  onChange={(e) => setSupportMessage(e.target.value)}
+                  placeholder="Descreva sua dúvida ou sugestão..."
+                  rows={4}
+                  className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setSupportOpen(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  Cancelar
+                </button>
+                <button type="submit" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                  Enviar
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
     </div>
   )
 }
