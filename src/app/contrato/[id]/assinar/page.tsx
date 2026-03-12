@@ -236,18 +236,18 @@ export default function AssinarContratoPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header: logo proporcional, botão verde Assinar à direita */}
-      <header className="bg-white border-b border-slate-200 px-4 py-3 flex-shrink-0">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center">
-            <Image src={LOGO_PRETO} alt="Plify" width={140} height={40} className="h-10 w-auto" priority />
+      <header className="bg-white border-b border-slate-200 px-3 sm:px-4 py-2.5 sm:py-3 flex-shrink-0">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4 min-w-0">
+          <Link href="/" className="flex items-center min-w-0 shrink">
+            <Image src={LOGO_PRETO} alt="Plify" width={140} height={40} className="h-8 w-auto sm:h-10 object-contain object-left" priority />
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {signatoryIndex >= 0 && !contract?.signatories[signatoryIndex]?.signed && (
               <Button
                 onClick={() => setStep('sign')}
-                className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold shadow-sm"
+                className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 sm:gap-2 font-semibold shadow-sm text-sm sm:text-base px-3 sm:px-4 py-2"
               >
-                <PenLine className="w-4 h-4" />
+                <PenLine className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 Assinar
               </Button>
             )}
@@ -255,10 +255,10 @@ export default function AssinarContratoPage() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col p-4 max-w-6xl w-full mx-auto">
+      <main className="flex-1 flex flex-col p-3 sm:p-4 max-w-6xl w-full mx-auto min-w-0">
         {/* Sem email na URL: se logado no Plify = assinatura presencial (escolher signatário); senão = pedir uso do link exclusivo */}
         {!signatoryEmail && contract?.signatories && contract.signatories.length > 0 && signatoryIndex < 0 && (
-          <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
+          <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 mb-3 sm:mb-4">
             {user ? (
               <>
                 <p className="text-sm font-medium text-slate-700 mb-3">Identifique-se para assinar (assinatura presencial)</p>
@@ -306,8 +306,8 @@ export default function AssinarContratoPage() {
 
         {/* Nome do signatário quando identificado pelo link */}
         {signatoryIndex >= 0 && contract?.signatories?.[signatoryIndex] && (
-          <div className="bg-white rounded-t-2xl border border-slate-200 border-b-0 px-6 py-3 shadow-sm">
-            <p className="text-slate-700 text-lg font-medium">
+          <div className="bg-white rounded-t-2xl border border-slate-200 border-b-0 px-4 sm:px-6 py-2.5 sm:py-3 shadow-sm">
+            <p className="text-slate-700 text-sm sm:text-base md:text-lg font-medium break-words">
               CONTRATO SENDO ASSINADO POR: <span className="text-slate-900 font-semibold">{contract.signatories[signatoryIndex].name || contract.signatories[signatoryIndex].email || 'Signatário'}</span>
             </p>
           </div>

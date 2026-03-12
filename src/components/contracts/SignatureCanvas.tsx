@@ -248,10 +248,10 @@ export default function SignatureCanvas({
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h3 className="text-2xl font-bold text-slate-900 mb-2">Assinatura Digital</h3>
+        <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">Assinatura Digital</h3>
         {signatoryName && (
           <p className="text-slate-600">Assinando como: <span className="font-semibold">{signatoryName}</span></p>
         )}
@@ -420,13 +420,13 @@ export default function SignatureCanvas({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
-        <Button variant="outline" onClick={onCancel} className="flex-1 h-12 rounded-xl">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+        <Button variant="outline" onClick={onCancel} className="flex-1 h-11 sm:h-12 rounded-xl text-sm sm:text-base">
           Cancelar
         </Button>
         <Button 
           onClick={handleSave} 
-          className="flex-1 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-base font-semibold"
+          className="flex-1 h-11 sm:h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-sm sm:text-base font-semibold"
         >
           Confirmar Assinatura
         </Button>

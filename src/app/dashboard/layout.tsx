@@ -264,14 +264,14 @@ export default function DashboardLayout({
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200 flex items-center justify-between p-4">
-        <button onClick={() => setSidebarOpen(true)} className="p-2">
-          <Menu className="w-6 h-6 text-slate-700" />
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200 flex items-center justify-between px-3 sm:px-4 py-3 min-h-[52px] sm:min-h-[56px]">
+        <button onClick={() => setSidebarOpen(true)} className="p-1.5 sm:p-2 -ml-1" aria-label="Abrir menu">
+          <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-slate-700" />
         </button>
-        <Link href="/dashboard" className="flex items-center">
-          <Image src={LOGO_PRETO} alt="Logo" width={140} height={40} className="h-10 w-auto max-w-[180px] object-contain" priority />
+        <Link href="/dashboard" className="flex items-center min-w-0 flex-1 justify-center">
+          <Image src={LOGO_PRETO} alt="Logo" width={140} height={40} className="h-8 w-auto sm:h-10 max-w-[140px] sm:max-w-[180px] object-contain" priority />
         </Link>
-        <div className="w-10" />
+        <div className="w-9 sm:w-10 shrink-0" aria-hidden />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -286,18 +286,18 @@ export default function DashboardLayout({
         }`}
         style={{ backgroundColor: sidebarBg }}
       >
-        <div className="p-4 flex justify-between items-center border-b border-white/10">
-          <Link href="/dashboard" onClick={() => setSidebarOpen(false)} className="flex items-center">
+        <div className="p-3 sm:p-4 flex justify-between items-center border-b border-white/10 min-h-[52px] sm:min-h-[56px]">
+          <Link href="/dashboard" onClick={() => setSidebarOpen(false)} className="flex items-center min-w-0">
             <Image 
               src={logoUrl} 
               alt="Logo" 
               width={160} 
               height={40} 
-              className="h-10 w-auto max-w-[180px] object-contain" 
+              className="h-8 w-auto sm:h-10 max-w-[140px] sm:max-w-[180px] object-contain" 
               priority 
             />
           </Link>
-          <button onClick={() => setSidebarOpen(false)} className="p-2 text-white/80">
+          <button onClick={() => setSidebarOpen(false)} className="p-1.5 sm:p-2 text-white/80 shrink-0" aria-label="Fechar menu">
             <X className="w-5 h-5" />
           </button>
         </div>

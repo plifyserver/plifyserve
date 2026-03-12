@@ -73,15 +73,15 @@ function easeOutCubic(t: number) {
 
 function PreviewStatsCard({ title, value, trendValue, color, icon: Icon }: { title: string; value: string; trendValue: string; color: string; icon: typeof Users }) {
   return (
-    <div className="p-5 rounded-2xl border-0 shadow-sm bg-white">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500 font-light">{title}</p>
-          <h3 className="text-2xl font-semibold text-slate-900 mt-1 font-light tracking-tight">{value}</h3>
-          <p className="text-sm mt-1 text-emerald-600 font-medium font-light">{trendValue}</p>
+    <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl border-0 shadow-sm bg-white">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-slate-500 font-light truncate">{title}</p>
+          <h3 className="text-lg sm:text-2xl font-semibold text-slate-900 mt-0.5 sm:mt-1 font-light tracking-tight truncate">{value}</h3>
+          <p className="text-xs sm:text-sm mt-0.5 sm:mt-1 text-emerald-600 font-medium font-light truncate">{trendValue}</p>
         </div>
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
-          <Icon className="w-6 h-6" style={{ color }} />
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}20` }}>
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6" style={{ color }} />
         </div>
       </div>
     </div>
@@ -91,51 +91,51 @@ function PreviewStatsCard({ title, value, trendValue, color, icon: Icon }: { tit
 function DashboardPreview() {
   const chartPalette = chartPaletteFromPrimary(ACCENT)
   return (
-    <div className="flex w-full bg-slate-100">
-      {/* Sidebar */}
-      <aside className="w-[220px] flex-shrink-0 flex flex-col rounded-l-2xl overflow-hidden" style={{ backgroundColor: '#101524' }}>
-        <div className="px-3 py-3 flex items-center justify-between min-h-[52px] border-b border-white/10">
-          <Image src={LOGO_BRANCO} alt="Plify" width={100} height={28} className="h-7 w-auto object-contain object-left" />
-          <Menu className="w-5 h-5 text-white/70" />
+    <div className="flex w-full min-w-0 bg-slate-100">
+      {/* Sidebar - mais estreito em mobile */}
+      <aside className="w-[140px] sm:w-[180px] md:w-[220px] flex-shrink-0 flex flex-col rounded-l-2xl overflow-hidden" style={{ backgroundColor: '#101524' }}>
+        <div className="px-2 sm:px-3 py-2 sm:py-3 flex items-center justify-between min-h-[44px] sm:min-h-[52px] border-b border-white/10">
+          <Image src={LOGO_BRANCO} alt="Plify" width={100} height={28} className="h-5 sm:h-6 md:h-7 w-auto object-contain object-left" />
+          <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-white/70" />
         </div>
-        <nav className="flex-1 p-2 space-y-0.5 overflow-hidden">
+        <nav className="flex-1 p-1.5 sm:p-2 space-y-0.5 overflow-hidden">
           {SIDEBAR_ITEMS.map((item, i) => (
             <div
               key={item.label}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${i === 0 ? 'text-white' : 'text-white/70'}`}
+              className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm ${i === 0 ? 'text-white' : 'text-white/70'}`}
               style={i === 0 ? { backgroundColor: ACCENT } : undefined}
             >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <item.icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               <span className="truncate">{item.label}</span>
             </div>
           ))}
         </nav>
       </aside>
       {/* Main - igual ao dashboard */}
-      <div className="flex-1 min-w-0 p-5 bg-slate-100 rounded-r-2xl space-y-5">
+      <div className="flex-1 min-w-0 p-3 sm:p-5 bg-slate-100 rounded-r-2xl space-y-3 sm:space-y-5">
         <div>
-          <h1 className="text-2xl font-light text-slate-900 tracking-tight">Dashboard</h1>
-          <p className="text-slate-500 font-light text-sm mt-0.5">Bem-vindo! Aqui está a visão geral do seu negócio.</p>
+          <h1 className="text-lg sm:text-xl md:text-2xl font-light text-slate-900 tracking-tight">Dashboard</h1>
+          <p className="text-slate-500 font-light text-xs sm:text-sm mt-0.5">Bem-vindo! Aqui está a visão geral do seu negócio.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <PreviewStatsCard title="Total de Clientes" value="1" trendValue="+12% último mês" color={ACCENT} icon={Users} />
           <PreviewStatsCard title="Receita Total Mês" value="R$ 9.300" trendValue="Total de pontual e recorrentes" color="#10B981" icon={TrendingUp} />
           <PreviewStatsCard title="MMR" value="R$ 0,00" trendValue="Receita recorrente" color="#8B5CF6" icon={Repeat} />
           <PreviewStatsCard title="Contratos" value="0" trendValue="Finalizados" color="#6366F1" icon={FileSignature} />
           <PreviewStatsCard title="Propostas" value="3" trendValue="+15% último mês" color="#F59E0B" icon={FileText} />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900 font-light">Receita Mensal</h2>
-                <p className="text-sm text-slate-500 font-light">Acompanhe sua receita ao longo do tempo</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm p-3 sm:p-5">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-base font-semibold text-slate-900 font-light truncate">Receita Mensal</h2>
+                <p className="text-xs sm:text-sm text-slate-500 font-light truncate">Acompanhe sua receita ao longo do tempo</p>
               </div>
-              <button type="button" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <MoreHorizontal className="w-5 h-5 text-slate-400" />
+              <button type="button" className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-colors shrink-0">
+                <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
               </button>
             </div>
-            <div className="h-60">
+            <div className="h-44 sm:h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={REVENUE_DATA} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
@@ -152,17 +152,17 @@ function DashboardPreview() {
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900 font-light">Distribuição de Clientes</h2>
-                <p className="text-sm text-slate-500 font-light">Status atual dos seus clientes</p>
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm p-3 sm:p-5">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-base font-semibold text-slate-900 font-light truncate">Distribuição de Clientes</h2>
+                <p className="text-xs sm:text-sm text-slate-500 font-light truncate">Status atual dos seus clientes</p>
               </div>
-              <button type="button" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <MoreHorizontal className="w-5 h-5 text-slate-400" />
+              <button type="button" className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-colors shrink-0">
+                <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
               </button>
             </div>
-            <div className="h-60 flex items-center">
+            <div className="h-44 sm:h-60 flex items-center">
               <div className="w-1/2 h-full relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -202,17 +202,17 @@ function DashboardPreview() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 font-light">Aumento de clientes</h2>
-              <p className="text-sm text-slate-500 font-light">Clientes cadastrados no sistema por mês</p>
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm p-3 sm:p-5">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-semibold text-slate-900 font-light truncate">Aumento de clientes</h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-light truncate">Clientes cadastrados no sistema por mês</p>
             </div>
-            <button type="button" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-              <MoreHorizontal className="w-5 h-5 text-slate-400" />
+            <button type="button" className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-colors shrink-0">
+              <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
             </button>
           </div>
-          <div className="h-64">
+          <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={CLIENTES_GROWTH_DATA} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <defs>
@@ -256,10 +256,10 @@ function DashboardImageSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="px-4 pb-24 pt-4">
-      <div className="max-w-6xl mx-auto flex justify-center">
+    <section ref={sectionRef} className="px-3 sm:px-4 pb-16 sm:pb-24 pt-4">
+      <div className="max-w-6xl mx-auto flex justify-center overflow-x-auto">
         <div
-          className="w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 transition-transform duration-500 ease-out bg-white"
+          className="w-full max-w-6xl min-w-[280px] rounded-2xl shadow-2xl overflow-hidden border border-slate-200 transition-transform duration-500 ease-out bg-white"
           style={{
             transform: `perspective(1200px) rotateX(${tiltX}deg)`,
             boxShadow: '0 50px 80px -20px rgba(0,0,0,0.25), 0 30px 50px -30px rgba(0,0,0,0.3)',
@@ -305,30 +305,30 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100">
         {/* Linha laranja acima do conteúdo do header */}
         <div className="h-1.5 w-full bg-orange-500" role="presentation" />
-        <nav className="max-w-6xl mx-auto px-4 sm:px-6 min-h-16 py-2 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <Image src={LOGO_PRETO} alt="Plify" width={140} height={40} className="h-10 w-auto" priority />
+        <nav className="max-w-6xl mx-auto px-4 sm:px-6 min-h-14 sm:min-h-16 py-2 flex items-center justify-between gap-2">
+          <Link href="/" className="flex items-center min-w-0 shrink">
+            <Image src={LOGO_PRETO} alt="Plify" width={140} height={40} className="h-8 w-auto sm:h-10 object-contain object-left" priority />
           </Link>
           <div className="absolute left-1/2 -translate-x-1/2 hidden sm:block">
             <span className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium">
               Smart Business System
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="p-2 text-slate-500 hover:text-slate-700">
-              <Globe className="w-5 h-5" />
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <span className="p-1.5 sm:p-2 text-slate-500 hover:text-slate-700">
+              <Globe className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
             {user ? (
               <Link
                 href="/dashboard"
-                className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-slate-800"
+                className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-black text-white text-xs sm:text-sm font-medium hover:bg-slate-800 whitespace-nowrap"
               >
                 Ir para o Painel
               </Link>
             ) : (
               <Link
                 href="/login"
-                className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-slate-800"
+                className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-black text-white text-xs sm:text-sm font-medium hover:bg-slate-800 whitespace-nowrap"
               >
                 começar
               </Link>
@@ -357,10 +357,10 @@ export default function LandingPage() {
       <DashboardImageSection />
 
       {/* Footer mínimo */}
-      <footer className="py-8 px-4 border-t border-slate-100">
+      <footer className="py-6 sm:py-8 px-4 border-t border-slate-100">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <Link href="/" className="flex items-center">
-            <Image src={LOGO_PRETO} alt="Plify" width={120} height={34} className="h-8 w-auto" />
+            <Image src={LOGO_PRETO} alt="Plify" width={120} height={34} className="h-6 sm:h-8 w-auto object-contain" />
           </Link>
           <div className="flex gap-6 text-sm text-slate-500">
             <Link href="/termos-privacidade" className="hover:text-black">Termos de Privacidade</Link>

@@ -64,10 +64,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Coluna esquerda - formulário centralizado no espaço branco */}
-      <div className="flex-1 flex items-center justify-center pl-6 pr-6 py-12 bg-white">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-white">
         <div className="w-full max-w-md">
-          <div className="p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-8">Fazer login</h1>
+          <div className="p-4 sm:p-8">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-8">Fazer login</h1>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
