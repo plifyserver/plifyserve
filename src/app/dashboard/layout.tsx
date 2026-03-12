@@ -168,9 +168,9 @@ export default function DashboardLayout({
               <Image 
                 src={logoUrl} 
                 alt="Logo" 
-                width={160} 
-                height={40} 
-                className="h-10 w-auto max-w-[180px] object-contain object-left" 
+                width={80} 
+                height={20} 
+                className="h-5 w-auto max-w-[90px] object-contain object-left" 
                 priority 
                 onError={(e) => {
                   const target = e.target as HTMLImageElement
@@ -291,9 +291,9 @@ export default function DashboardLayout({
             <Image 
               src={logoUrl} 
               alt="Logo" 
-              width={160} 
-              height={40} 
-              className="h-8 w-auto sm:h-10 max-w-[140px] sm:max-w-[180px] object-contain" 
+              width={80} 
+              height={20} 
+              className="h-4 w-auto sm:h-5 max-w-[70px] sm:max-w-[90px] object-contain" 
               priority 
             />
           </Link>
@@ -349,7 +349,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main - quadrado à esquerda (onde encontra o menu), redondo à direita */}
-      <div className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 lg:mt-1 lg:mr-2 lg:mb-2 rounded-tl-none rounded-bl-none rounded-tr-lg rounded-br-lg overflow-hidden bg-white shadow-sm ${sidebarCollapsed ? 'lg:ml-[84px]' : 'lg:ml-[260px]'}`}>
+      <div className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 lg:mt-1 lg:mr-2 lg:mb-2 rounded-tl-none rounded-bl-none rounded-tr-lg rounded-br-lg bg-white shadow-sm ${sidebarCollapsed ? 'lg:ml-[84px]' : 'lg:ml-[260px]'}`}>
         <header ref={headerRef} className="bg-white border-b border-slate-200 px-4 lg:px-6 py-3 relative">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 max-w-md hidden sm:block">
@@ -438,7 +438,7 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="p-4 lg:p-6 bg-slate-100">{children}</main>
+        <main className="p-4 lg:p-6 bg-slate-100 min-w-0 overflow-x-auto">{children}</main>
       </div>
 
       {/* Upgrade Modal */}

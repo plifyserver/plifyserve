@@ -70,7 +70,7 @@ export default function CadastroPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       {/* Coluna esquerda - formulário centralizado no espaço branco (igual ao login) */}
       <div className="flex-1 flex items-center justify-center pl-6 pr-6 py-12 bg-white">
         <div className="w-full max-w-md">
@@ -98,7 +98,7 @@ export default function CadastroPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Digite seu nome"
-                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-colors"
+                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                 />
               </div>
             </div>
@@ -113,7 +113,7 @@ export default function CadastroPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Digite seu email"
                   required
-                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-colors"
+                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                 />
               </div>
             </div>
@@ -129,7 +129,7 @@ export default function CadastroPage() {
                   placeholder="Digite sua senha"
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-colors"
+                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                 />
               </div>
             </div>
@@ -137,7 +137,7 @@ export default function CadastroPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-sm bg-black hover:bg-black/90 text-white font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-sm bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar conta'}
             </button>

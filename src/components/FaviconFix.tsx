@@ -2,10 +2,10 @@
 
 import { useEffect } from 'react'
 
-const FAVICON_HREF = '/logopreto.ico'
+const FAVICON_HREF = '/icone-site.ico'
 
 /**
- * Garante um único favicon fixo (logopreto.ico). Remove qualquer link para
+ * Garante um único favicon fixo (icone-site.ico). Remove qualquer link para
  * favicon.ico (ex.: padrão Next/Vercel) que faça o ícone "piscar" ao navegar.
  */
 export function FaviconFix() {

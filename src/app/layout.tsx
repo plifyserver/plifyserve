@@ -12,9 +12,9 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Plify" },
   icons: {
-    icon: "/logopreto.ico",
-    shortcut: "/logopreto.ico",
-    apple: "/logopreto.png",
+    icon: "/icone-site.ico",
+    shortcut: "/icone-site.ico",
+    apple: "/icone-site.ico",
   },
 };
 

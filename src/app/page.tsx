@@ -73,15 +73,15 @@ function easeOutCubic(t: number) {
 
 function PreviewStatsCard({ title, value, trendValue, color, icon: Icon }: { title: string; value: string; trendValue: string; color: string; icon: typeof Users }) {
   return (
-    <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl border-0 shadow-sm bg-white">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-xs sm:text-sm font-medium text-slate-500 font-light truncate">{title}</p>
-          <h3 className="text-lg sm:text-2xl font-semibold text-slate-900 mt-0.5 sm:mt-1 font-light tracking-tight truncate">{value}</h3>
-          <p className="text-xs sm:text-sm mt-0.5 sm:mt-1 text-emerald-600 font-medium font-light truncate">{trendValue}</p>
+    <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl border-0 shadow-sm bg-white min-w-0">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs sm:text-sm font-medium text-slate-500 font-light break-words leading-tight">{title}</p>
+          <h3 className="text-base sm:text-xl font-semibold text-slate-900 mt-0.5 sm:mt-1 font-light tracking-tight break-words leading-tight">{value}</h3>
+          <p className="text-xs sm:text-sm mt-0.5 sm:mt-1 text-emerald-600 font-medium font-light break-words leading-tight">{trendValue}</p>
         </div>
-        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}20` }}>
-          <Icon className="w-5 h-5 sm:w-6 sm:h-6" style={{ color }} />
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 flex-shrink-0" style={{ backgroundColor: `${color}20` }}>
+          <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
         </div>
       </div>
     </div>
@@ -256,10 +256,10 @@ function DashboardImageSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="px-3 sm:px-4 pb-16 sm:pb-24 pt-4">
-      <div className="max-w-6xl mx-auto flex justify-center overflow-x-auto">
+    <section ref={sectionRef} className="px-3 sm:px-4 pb-16 sm:pb-24 pt-4 overflow-hidden">
+      <div className="max-w-6xl mx-auto flex justify-center items-center">
         <div
-          className="w-full max-w-6xl min-w-[280px] rounded-2xl shadow-2xl overflow-hidden border border-slate-200 transition-transform duration-500 ease-out bg-white"
+          className="w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden transition-transform duration-500 ease-out bg-white origin-center"
           style={{
             transform: `perspective(1200px) rotateX(${tiltX}deg)`,
             boxShadow: '0 50px 80px -20px rgba(0,0,0,0.25), 0 30px 50px -30px rgba(0,0,0,0.3)',
