@@ -18,7 +18,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, e
 import { ptBR } from 'date-fns/locale'
 import { chartPaletteFromPrimary } from '@/lib/colorUtils'
 
-const FALLBACK_PRIMARY = '#ea580c'
+const FALLBACK_PRIMARY = '#dc2626'
 
 interface StatsCardProps {
   title: string
@@ -95,29 +95,41 @@ export default function DashboardPage() {
   const [settings, setSettings] = useState<{ primary_color?: string } | null>(null)
   const [clients, setClients] = useState<{ created_at?: string }[]>([])
   const [proposals, setProposals] = useState<{ status: string; created_at?: string; proposal_value?: number }[]>([])
+  const [transactions, setTransactions] = useState<{ type: string; amount: number; date?: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<PeriodType>('month')
   const [dateStart, setDateStart] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
   const [dateEnd, setDateEnd] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'))
   const [filterOpen, setFilterOpen] = useState(false)
+  const [pendingDateStart, setPendingDateStart] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [pendingDateEnd, setPendingDateEnd] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'))
 
   const primaryColor = settings?.primary_color || FALLBACK_PRIMARY
   const chartPalette = useMemo(() => chartPaletteFromPrimary(primaryColor), [primaryColor])
 
   useEffect(() => {
+    if (filterOpen) {
+      setPendingDateStart(dateStart)
+      setPendingDateEnd(dateEnd)
+    }
+  }, [filterOpen])
+
+  useEffect(() => {
     setLoading(true)
     const load = async () => {
       try {
-        const [sRes, setRes, cr, pr] = await Promise.all([
+        const [sRes, setRes, cr, pr, txRes] = await Promise.all([
           fetch(buildStatsUrl(period, dateStart, dateEnd), { credentials: 'include' }),
           fetch('/api/app-settings', { credentials: 'include' }),
           fetch('/api/clients', { credentials: 'include' }),
           fetch('/api/proposals', { credentials: 'include' }),
+          fetch('/api/finance/transactions', { credentials: 'include' }),
         ])
         if (sRes.ok) setStats(await sRes.json())
         if (setRes.ok) setSettings(await setRes.json())
         if (cr.ok) setClients(await cr.json())
         if (pr.ok) setProposals(await pr.json())
+        if (txRes.ok) setTransactions(await txRes.json())
       } finally {
         setLoading(false)
       }
@@ -151,55 +163,108 @@ export default function DashboardPage() {
     setFilterOpen(false)
   }
 
-  const activeClients = clients.filter((c) => (c as { status?: string }).status === 'active').length
-  const inactiveClients = clients.filter((c) => (c as { status?: string }).status === 'inactive').length
-  const pendingClients = clients.filter((c) => (c as { status?: string }).status === 'pending').length
+  const rangeStart = new Date(dateStart).getTime()
+  const rangeEnd = new Date(dateEnd + 'T23:59:59.999').getTime()
+  const clientsInPeriod = clients.filter((c) => {
+    const created = (c as { created_at?: string }).created_at
+    if (!created) return false
+    const t = new Date(created).getTime()
+    return t >= rangeStart && t <= rangeEnd
+  })
+  const activeClients = clientsInPeriod.filter((c) => (c as { status?: string }).status === 'active').length
+  const inactiveClients = clientsInPeriod.filter((c) => (c as { status?: string }).status === 'inactive').length
 
   const revenueData = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    const currentYear = new Date().getFullYear()
     const currentMonth = new Date().getMonth()
+
+    const transactionsInRange = transactions.filter((t) => {
+      if (t.type !== 'income' || !t.date) return false
+      const tTime = new Date(t.date).getTime()
+      return tTime >= rangeStart && tTime <= rangeEnd
+    })
+
     const monthlyRevenue: Record<number, number> = {}
-    proposals
-      .filter((p) => p.status === 'accepted' && p.created_at)
-      .forEach((p) => {
-        const m = new Date(p.created_at!).getMonth()
-        monthlyRevenue[m] = (monthlyRevenue[m] || 0) + (Number(p.proposal_value) || 0)
+    transactionsInRange.forEach((t) => {
+      const d = new Date(t.date!)
+      if (d.getFullYear() !== currentYear) return
+      const m = d.getMonth()
+      monthlyRevenue[m] = (monthlyRevenue[m] || 0) + (Number(t.amount) || 0)
+    })
+
+    const mmr = stats?.mmr ?? 0
+    const rangeStartDate = new Date(dateStart)
+    const rangeEndDate = new Date(dateEnd)
+    if (mmr > 0 && rangeStartDate.getMonth() <= currentMonth && rangeEndDate.getMonth() >= currentMonth && rangeStartDate.getFullYear() === currentYear && rangeEndDate.getFullYear() === currentYear) {
+      monthlyRevenue[currentMonth] = (monthlyRevenue[currentMonth] || 0) + mmr
+    }
+
+    const data: { name: string; value: number }[] = []
+    if (period === 'year') {
+      for (let i = 0; i <= currentMonth; i++) {
+        data.push({ name: months[i], value: Math.round((monthlyRevenue[i] || 0) * 100) / 100 })
+      }
+      return data.length ? data : months.slice(0, currentMonth + 1).map((m) => ({ name: m, value: 0 }))
+    }
+    if (period === 'month') {
+      const total = Math.round((monthlyRevenue[currentMonth] || 0) * 100) / 100
+      return [{ name: months[currentMonth], value: total }]
+    }
+    if (period === 'week' || period === 'day') {
+      const total = transactionsInRange.reduce((s, t) => s + (Number(t.amount) || 0), 0)
+      const label = period === 'day' ? 'Dia' : 'Semana'
+      return [{ name: label, value: Math.round(total * 100) / 100 }]
+    }
+    if (period === 'range') {
+      const byKey: Record<string, number> = {}
+      transactionsInRange.forEach((t) => {
+        const d = new Date(t.date!)
+        const key = `${d.getFullYear()}-${d.getMonth()}`
+        byKey[key] = (byKey[key] || 0) + (Number(t.amount) || 0)
       })
-    const data = []
-    for (let i = 0; i <= currentMonth; i++) {
-      data.push({
-        name: months[i],
-        value: monthlyRevenue[i] || 0,
+      const keys: string[] = []
+      for (let y = rangeStartDate.getFullYear(); y <= rangeEndDate.getFullYear(); y++) {
+        const startM = y === rangeStartDate.getFullYear() ? rangeStartDate.getMonth() : 0
+        const endM = y === rangeEndDate.getFullYear() ? rangeEndDate.getMonth() : 11
+        for (let m = startM; m <= endM; m++) keys.push(`${y}-${m}`)
+      }
+      if (mmr > 0) {
+        const k = `${currentYear}-${currentMonth}`
+        if (keys.includes(k)) byKey[k] = (byKey[k] || 0) + mmr
+      }
+      return keys.map((k) => {
+        const [y, m] = k.split('-').map(Number)
+        const label = `${months[m]} ${String(y).slice(2)}`
+        return { name: label, value: Math.round((byKey[k] || 0) * 100) / 100 }
       })
     }
-    return data.length ? data : months.slice(0, 10).map((m, i) => ({ name: m, value: 0 }))
-  }, [proposals])
+    return [{ name: months[currentMonth], value: 0 }]
+  }, [transactions, stats?.mmr, period, dateStart, dateEnd])
 
   const clientDistributionData = useMemo(() => {
-    const active = activeClients || 1
-    const inactive = inactiveClients || 0
-    const pending = pendingClients || 0
-    const total = active + inactive + pending || 1
+    const active = activeClients ?? 0
+    const inactive = inactiveClients ?? 0
+    const total = active + inactive || 1
     return [
       { name: 'Ativos', value: active, percentage: Math.round((active / total) * 100) },
       { name: 'Inativos', value: inactive, percentage: Math.round((inactive / total) * 100) },
-      { name: 'Pendentes', value: pending, percentage: Math.round((pending / total) * 100) },
-    ].filter((item) => item.value > 0)
-  }, [activeClients, inactiveClients, pendingClients])
+    ]
+  }, [activeClients, inactiveClients])
 
   const clientGrowthDataFull = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     const byMonth: Record<number, number> = {}
-    clients.forEach((c) => {
+    clientsInPeriod.forEach((c) => {
       if (c.created_at) {
-        const m = new Date(c.created_at).getMonth()
+        const m = new Date((c as { created_at: string }).created_at).getMonth()
         byMonth[m] = (byMonth[m] || 0) + 1
       }
     })
     return months.slice(0, new Date().getMonth() + 1).map((name, i) => ({ name, clientes: byMonth[i] || 0 }))
-  }, [clients])
+  }, [clientsInPeriod])
 
-  const totalPercentage = clientDistributionData.reduce((sum, item) => sum + item.percentage, 0)
+  const totalClientsPie = (activeClients ?? 0) + (inactiveClients ?? 0)
   const periodLabel =
     period === 'day'
       ? 'Hoje'
@@ -273,20 +338,22 @@ export default function DashboardPage() {
                   <div className="flex gap-2">
                     <input
                       type="date"
-                      value={dateStart}
-                      onChange={(e) => setDateStart(e.target.value)}
+                      value={pendingDateStart}
+                      onChange={(e) => setPendingDateStart(e.target.value)}
                       className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
                     />
                     <input
                       type="date"
-                      value={dateEnd}
-                      onChange={(e) => setDateEnd(e.target.value)}
+                      value={pendingDateEnd}
+                      onChange={(e) => setPendingDateEnd(e.target.value)}
                       className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => {
+                      setDateStart(pendingDateStart)
+                      setDateEnd(pendingDateEnd)
                       setPeriod('range')
                       setFilterOpen(false)
                     }}
@@ -422,8 +489,8 @@ export default function DashboardPage() {
               </ResponsiveContainer>
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="flex flex-col items-center justify-center gap-0 leading-none">
-                  <span className="text-xl font-semibold text-slate-900 font-light">{totalPercentage}%</span>
-                  <span className="text-xs text-slate-500 font-light">Total</span>
+                  <span className="text-xl font-semibold text-slate-900 font-light">{totalClientsPie}</span>
+                  <span className="text-xs text-slate-500 font-light">clientes</span>
                 </div>
               </div>
             </div>

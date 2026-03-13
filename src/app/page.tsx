@@ -43,7 +43,7 @@ const SIDEBAR_ITEMS = [
   { icon: Settings, label: 'Configurações' },
 ] as const
 
-const ACCENT = '#ea580c'
+const ACCENT = '#dc2626'
 
 const REVENUE_DATA = [
   { name: 'Jan', value: 3200 },
@@ -93,7 +93,7 @@ function DashboardPreview() {
   return (
     <div className="flex w-full min-w-0 bg-slate-100">
       {/* Sidebar - mais estreito em mobile */}
-      <aside className="w-[140px] sm:w-[180px] md:w-[220px] flex-shrink-0 flex flex-col rounded-l-2xl overflow-hidden" style={{ backgroundColor: '#101524' }}>
+      <aside className="w-[140px] sm:w-[180px] md:w-[220px] flex-shrink-0 flex flex-col rounded-l-2xl overflow-hidden" style={{ backgroundColor: '#121212' }}>
         <div className="px-2 sm:px-3 py-2 sm:py-3 flex items-center justify-between min-h-[44px] sm:min-h-[52px] border-b border-white/10">
           <Image src={LOGO_BRANCO} alt="Plify" width={100} height={28} className="h-5 sm:h-6 md:h-7 w-auto object-contain object-left" />
           <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-white/70" />
@@ -304,7 +304,7 @@ export default function LandingPage() {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100">
         {/* Linha laranja acima do conteúdo do header */}
-        <div className="h-1.5 w-full bg-orange-500" role="presentation" />
+        <div className="h-1.5 w-full" style={{ backgroundColor: ACCENT }} role="presentation" />
         <nav className="max-w-6xl mx-auto px-4 sm:px-6 min-h-14 sm:min-h-16 py-2 flex items-center justify-between gap-2">
           <Link href="/" className="flex items-center min-w-0 shrink">
             <Image src={LOGO_PRETO} alt="Plify" width={140} height={40} className="h-8 w-auto sm:h-10 object-contain object-left" priority />
@@ -343,18 +343,108 @@ export default function LandingPage() {
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black tracking-tight mb-6 leading-tight">
             Todas as soluções. Um único lugar. Zero complicação.
           </h1>
-          <p className="text-lg sm:text-xl text-black max-w-3xl mx-auto leading-relaxed">
-            Tudo que você precisa para operar e crescer:{' '}
-            <span className="text-black">
-              gestão de clientes, pipeline de vendas, propostas, contratos, projetos, agenda, relatórios, métricas e controle financeiro
-            </span>
-            <span className="text-red-500 font-medium"> reunidos em um só lugar.</span>
+          <p className="text-base sm:text-lg lg:text-xl text-black max-w-4xl mx-auto leading-relaxed">
+            Tudo que <span className="font-medium" style={{ color: ACCENT }}>você</span> precisa para <span className="font-medium" style={{ color: ACCENT }}>operar e crescer:</span>
+            <br />
+            gestão de clientes, pipeline de vendas, propostas, contratos, projetos, agenda,
+            <br />
+            relatórios, métricas e controle financeiro <span className="font-medium" style={{ color: ACCENT }}>reunidos em um só lugar.</span>
           </p>
         </div>
       </section>
 
       {/* Imagem do dashboard: degrade (inclinada + desfoque nas bordas); ao scroll fica reta */}
       <DashboardImageSection />
+
+      {/* Planos - estilo limpo branco */}
+      <section className="py-16 sm:py-24 px-4 bg-slate-50">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 text-center mb-2">Planos</h2>
+          <p className="text-slate-600 text-center mb-10 sm:mb-12">Escolha o plano ideal para o seu negócio</p>
+          <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
+            {/* Essential */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm flex flex-col">
+              <h3 className="text-xl font-bold text-slate-900">Plify Essential</h3>
+              <p className="text-slate-600 text-sm mt-2 mb-6">
+                Para quem está começando. Gestão de clientes, propostas, contratos e projetos em um só lugar.
+              </p>
+              <div className="mb-6">
+                <span className="text-3xl font-bold text-slate-900">R$ 49,90</span>
+                <span className="text-slate-500 text-sm">/mês</span>
+              </div>
+              <ul className="space-y-3 flex-1">
+                {[
+                  '1 usuário',
+                  'Até 20 clientes',
+                  '5 propostas e 5 contratos por mês',
+                  '1 template de proposta',
+                  'Dashboard completo',
+                  'Agenda básica',
+                  'Gestão de projetos e tarefas',
+                  'Controle financeiro e relatórios',
+                  'Até 5 mapas mentais',
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: ACCENT }} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href={user ? '/dashboard/planos' : '/cadastro'}
+                className="mt-8 w-full py-3 px-4 rounded-xl font-medium text-center text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: ACCENT }}
+              >
+                Assinar Essential
+              </Link>
+            </div>
+            {/* Pro */}
+            <div className="relative bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm flex flex-col">
+              <div className="absolute top-4 right-4">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-white bg-emerald-600">
+                  Mais Popular
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Plify Pro</h3>
+              <p className="text-slate-600 text-sm mt-2 mb-6">
+                Plano completo para crescer. Personalização, mais usuários e recursos avançados.
+              </p>
+              <div className="mb-6">
+                <span className="text-3xl font-bold text-slate-900">R$ 89,90</span>
+                <span className="text-slate-500 text-sm">/mês</span>
+              </div>
+              <ul className="space-y-3 flex-1">
+                {[
+                  'Até 5 usuários',
+                  'Clientes ilimitados',
+                  'Propostas e contratos ilimitados',
+                  '2 templates de proposta',
+                  'Dashboard + personalização',
+                  'Agenda com integrações',
+                  'Gestão de projetos e tarefas',
+                  'Indicadores de performance',
+                  'Gestão de Ads (tráfego)',
+                  'White Label e integrações avançadas',
+                  'Suporte prioritário',
+                  'Atualizações antecipadas',
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: ACCENT }} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href={user ? '/dashboard/planos' : '/cadastro'}
+                className="mt-8 w-full py-3 px-4 rounded-xl font-medium text-center text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: ACCENT }}
+              >
+                Assinar Pro
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer mínimo */}
       <footer className="py-6 sm:py-8 px-4 border-t border-slate-100">

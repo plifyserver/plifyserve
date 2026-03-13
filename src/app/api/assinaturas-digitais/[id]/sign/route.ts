@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 
+function getClientIp(request: NextRequest): string | null {
+  const forwarded = request.headers.get('x-forwarded-for')
+  if (forwarded) return forwarded.split(',')[0].trim()
+  return request.headers.get('x-real-ip') || null
+}
+
+function getClientUserAgent(request: NextRequest): string | null {
+  return request.headers.get('user-agent') || null
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,6 +29,8 @@ export async function POST(
   const signedClientAt = typeof body?.signed_client_at === 'string' ? body.signed_client_at : null
   const latitude = body?.signed_latitude != null ? Number(body.signed_latitude) : null
   const longitude = body?.signed_longitude != null ? Number(body.signed_longitude) : null
+  const signedIp = getClientIp(request)
+  const signedUserAgent = getClientUserAgent(request)
 
   const supabase = createServiceRoleClient()
   
@@ -44,6 +56,8 @@ export async function POST(
       signed_client_at: signedClientAt,
       signed_latitude: latitude,
       signed_longitude: longitude,
+      signed_ip: signedIp,
+      signed_user_agent: signedUserAgent,
       updated_at: new Date().toISOString(),
     })
     .eq('id', doc.id)

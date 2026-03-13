@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { Upload, Palette, Check, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-const DEFAULT_PRIMARY = '#ea580c'
+const DEFAULT_PRIMARY = '#dc2626'
 const DEFAULT_SECONDARY = '#000020'
 const presetColors = [DEFAULT_PRIMARY, '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#6366F1']
 

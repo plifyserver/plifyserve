@@ -25,6 +25,7 @@ interface Client {
   source?: string | null
   payment_type?: 'recorrente' | 'pontual'
   recurring_amount?: number | null
+  recurring_end_date?: string | null
 }
 
 export default function ClientesPage() {
@@ -36,6 +37,7 @@ export default function ClientesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selected, setSelected] = useState<Client | null>(null)
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -47,6 +49,7 @@ export default function ClientesPage() {
     responsible: '',
     payment_type: 'pontual' as 'recorrente' | 'pontual',
     recurring_amount: '' as string | number,
+    recurring_end_date: '' as string,
   })
 
   const fetchClients = async () => {
@@ -82,10 +85,11 @@ export default function ClientesPage() {
         responsible: client.responsible || '',
         payment_type: (client.payment_type === 'recorrente' ? 'recorrente' : 'pontual'),
         recurring_amount: client.recurring_amount != null ? client.recurring_amount : '',
+        recurring_end_date: client.recurring_end_date || '',
       })
     } else {
       setSelected(null)
-      setForm({ name: '', email: '', phone: '', company: '', status: 'lead', notes: '', source: '', responsible: '', payment_type: 'pontual', recurring_amount: '' })
+      setForm({ name: '', email: '', phone: '', company: '', status: 'lead', notes: '', source: '', responsible: '', payment_type: 'pontual', recurring_amount: '', recurring_end_date: '' })
     }
     setDialogOpen(true)
   }
@@ -117,6 +121,7 @@ export default function ClientesPage() {
           responsible: form.responsible || null,
           payment_type: form.payment_type,
           recurring_amount: form.payment_type === 'recorrente' && form.recurring_amount !== '' ? Number(form.recurring_amount) : null,
+          recurring_end_date: form.payment_type === 'recorrente' && form.recurring_end_date ? form.recurring_end_date : null,
         }),
       })
       if (res.ok) {
@@ -150,6 +155,26 @@ export default function ClientesPage() {
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  const toggleActiveInactive = async (client: Client) => {
+    if (client.status !== 'active' && client.status !== 'inactive') return
+    setTogglingId(client.id)
+    try {
+      const newStatus = client.status === 'active' ? 'inactive' : 'active'
+      const res = await fetch(`/api/clients/${client.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        await fetchClients()
+        if (selected?.id === client.id) setForm((f) => ({ ...f, status: newStatus }))
+      }
+    } finally {
+      setTogglingId(null)
     }
   }
 
@@ -216,7 +241,12 @@ export default function ClientesPage() {
                     <div>
                       <p className="font-medium text-slate-900">{client.name}</p>
                       {client.payment_type === 'recorrente' && client.recurring_amount != null && (
-                        <p className="text-sm text-slate-500">R$ {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês</p>
+                        <p className="text-sm text-slate-500">
+                          R$ {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês
+                          {client.recurring_end_date && (
+                            <> · Válido até {format(new Date(client.recurring_end_date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</>
+                          )}
+                        </p>
                       )}
                     </div>
                   </td>
@@ -228,9 +258,22 @@ export default function ClientesPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-1 rounded-lg text-sm font-medium ${statusConfig[client.status]?.color || 'bg-slate-100 text-slate-700'}`}>
-                      {statusConfig[client.status]?.label || client.status}
-                    </span>
+                    {(client.status === 'active' || client.status === 'inactive') ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleActiveInactive(client)}
+                        disabled={togglingId === client.id}
+                        title={client.status === 'active' ? 'Clique para marcar como Inativo' : 'Clique para marcar como Ativo'}
+                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60 ${statusConfig[client.status]?.color || 'bg-slate-100 text-slate-700'}`}
+                      >
+                        {togglingId === client.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                        {statusConfig[client.status]?.label || client.status}
+                      </button>
+                    ) : (
+                      <span className={`inline-flex px-2 py-1 rounded-lg text-sm font-medium ${statusConfig[client.status]?.color || 'bg-slate-100 text-slate-700'}`}>
+                        {statusConfig[client.status]?.label || client.status}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-600">{client.responsible || '—'}</td>
                   <td className="px-4 py-3 text-slate-500">
@@ -296,21 +339,33 @@ export default function ClientesPage() {
                   />
                 </div>
                 {form.payment_type === 'recorrente' && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor Recorrente (R$)</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      value={form.recurring_amount === '' ? '' : Number(form.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/\D/g, '')
-                        setForm((f) => ({ ...f, recurring_amount: v === '' ? '' : Number(v) / 100 }))
-                      }}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                    />
-                    <p className="text-xs text-slate-500 mt-0.5">Valor fixo que o cliente paga por mês</p>
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor Recorrente (R$)</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        value={form.recurring_amount === '' ? '' : Number(form.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, '')
+                          setForm((f) => ({ ...f, recurring_amount: v === '' ? '' : Number(v) / 100 }))
+                        }}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                      />
+                      <p className="text-xs text-slate-500 mt-0.5">Valor fixo que o cliente paga por mês</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Válido até</label>
+                      <input
+                        type="date"
+                        value={form.recurring_end_date}
+                        onChange={(e) => setForm((f) => ({ ...f, recurring_end_date: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                      />
+                      <p className="text-xs text-slate-500 mt-0.5">Até quando esse valor entra no MMR do dashboard (deixe vazio se não tem data fim)</p>
+                    </div>
+                  </>
                 )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>

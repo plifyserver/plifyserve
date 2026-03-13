@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
     paymentType === 'recorrente' && body.recurring_amount != null && !Number.isNaN(Number(body.recurring_amount))
       ? Number(body.recurring_amount)
       : null
+  const recurringEndDate =
+    body.recurring_end_date != null && body.recurring_end_date !== ''
+      ? String(body.recurring_end_date).slice(0, 10)
+      : null
 
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -64,6 +68,7 @@ export async function POST(request: NextRequest) {
       kanban_stage: body.kanban_stage ?? 'lead',
       payment_type: paymentType,
       recurring_amount: recurringAmount,
+      recurring_end_date: recurringEndDate,
     })
     .select()
     .single()

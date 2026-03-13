@@ -19,7 +19,9 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useAuth } from '@/contexts/AuthContext'
-import { Plus, Save, Loader2, FileDown, Trash2, Palette, Type } from 'lucide-react'
+import { Plus, Save, Loader2, FileDown, Trash2, Palette, Type, FileStack } from 'lucide-react'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 const NODE_COLORS = ['#568203', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#22c55e']
 const TEXT_COLORS = ['#ffffff', '#000000', '#568203', '#3b82f6', '#f59e0b', '#ef4444']
@@ -489,6 +491,8 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onCon
   )
 }
 
+type HistoryItem = { id: string; name: string; updated_at: string }
+
 function MindMapEditor() {
   const { user } = useAuth()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -497,8 +501,11 @@ function MindMapEditor() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
   const [currentMapId, setCurrentMapId] = useState<string | null>(null)
+  const [currentMapName, setCurrentMapName] = useState<string>('')
+  const [historyList, setHistoryList] = useState<HistoryItem[]>([])
   const [editingNode, setEditingNode] = useState<Node | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Node | null>(null)
+  const [mapToDelete, setMapToDelete] = useState<HistoryItem | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   const showToast = (msg: string) => {
@@ -583,20 +590,67 @@ function MindMapEditor() {
     showToast('Nó adicionado')
   }, [nodes, setNodes])
 
-  const loadMap = useCallback(async () => {
+  const fetchHistory = useCallback(async () => {
     if (!user) return
     try {
       const res = await fetch('/api/mind-maps', { credentials: 'include' })
       if (!res.ok) return
+      const list = await res.json()
+      setHistoryList(Array.isArray(list) ? list : [])
+    } catch {
+      setHistoryList([])
+    }
+  }, [user])
+
+  const loadMapById = useCallback(async (id: string) => {
+    if (!user) return
+    try {
+      const res = await fetch(`/api/mind-maps?id=${encodeURIComponent(id)}`, { credentials: 'include' })
+      if (!res.ok) return
       const data = await res.json()
       if (data?.id) {
         setCurrentMapId(data.id)
+        setCurrentMapName(data.name || 'Mapa sem título')
         const loadedNodes = (data.nodes as Node[])?.length ? (data.nodes as Node[]).map(toStyledNode) : initialNodes
         setNodes(loadedNodes)
         setEdges((data.edges as Edge[]) ?? [])
+        showToast('Mapa carregado')
+      }
+    } catch {
+      showToast('Erro ao carregar mapa')
+    }
+  }, [user, setNodes, setEdges])
+
+  const loadMap = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    try {
+      const res = await fetch('/api/mind-maps', { credentials: 'include' })
+      if (!res.ok) {
+        setLoading(false)
+        return
+      }
+      const list = await res.json()
+      const arr = Array.isArray(list) ? list : []
+      setHistoryList(arr)
+      if (arr.length > 0) {
+        const mostRecent = arr[0]
+        const resMap = await fetch(`/api/mind-maps?id=${encodeURIComponent(mostRecent.id)}`, { credentials: 'include' })
+        if (resMap.ok) {
+          const data = await resMap.json()
+          if (data?.id) {
+            setCurrentMapId(data.id)
+            setCurrentMapName(data.name || 'Mapa sem título')
+            const loadedNodes = (data.nodes as Node[])?.length ? (data.nodes as Node[]).map(toStyledNode) : initialNodes
+            setNodes(loadedNodes)
+            setEdges((data.edges as Edge[]) ?? [])
+          }
+        }
       }
     } catch {
       // ok
+    } finally {
+      setLoading(false)
     }
   }, [user, setNodes, setEdges])
 
@@ -615,7 +669,7 @@ function MindMapEditor() {
         signal: controller.signal,
         body: JSON.stringify({
           id: currentMapId || undefined,
-          name: 'Mapa principal',
+          name: currentMapName || 'Mapa sem título',
           nodes: nodesPayload,
           edges: edgesPayload,
         }),
@@ -626,7 +680,11 @@ function MindMapEditor() {
         throw new Error((data as { error?: string }).error || 'Falha ao salvar')
       }
       const id = (data as { id?: string }).id
-      if (id && !currentMapId) setCurrentMapId(id)
+      if (id && !currentMapId) {
+        setCurrentMapId(id)
+        setCurrentMapName(currentMapName || 'Mapa sem título')
+      }
+      await fetchHistory()
       showToast('Mapa salvo')
     } catch (err) {
       clearTimeout(timeoutId)
@@ -641,7 +699,33 @@ function MindMapEditor() {
     } finally {
       setSaving(false)
     }
-  }, [user, currentMapId, nodes, edges])
+  }, [user, currentMapId, currentMapName, nodes, edges, fetchHistory])
+
+  const startNewMap = useCallback(() => {
+    setCurrentMapId(null)
+    setCurrentMapName('')
+    setNodes(initialNodes)
+    setEdges([])
+    showToast('Novo mapa')
+  }, [setNodes, setEdges])
+
+  const deleteMap = useCallback(async (item: HistoryItem) => {
+    try {
+      const res = await fetch(`/api/mind-maps/${item.id}`, { method: 'DELETE', credentials: 'include' })
+      if (!res.ok) {
+        showToast('Erro ao excluir mapa')
+        return
+      }
+      setMapToDelete(null)
+      if (currentMapId === item.id) {
+        startNewMap()
+      }
+      await fetchHistory()
+      showToast('Mapa excluído')
+    } catch {
+      showToast('Erro ao excluir mapa')
+    }
+  }, [currentMapId, startNewMap, fetchHistory])
 
   const exportPdf = useCallback(async () => {
     if (!containerRef.current) return
@@ -713,7 +797,57 @@ function MindMapEditor() {
   }
 
   return (
-    <div ref={containerRef} className="h-[calc(100vh-8rem)] rounded-xl border border-gray-200 bg-gray-50 overflow-hidden relative">
+    <div className="flex gap-4 h-[calc(100vh-8rem)]">
+      <aside className="w-56 flex-shrink-0 flex flex-col rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="p-3 border-b border-gray-200 flex items-center gap-2">
+          <FileStack className="w-5 h-5 text-gray-600" />
+          <span className="font-medium text-gray-900">Histórico</span>
+        </div>
+        <div className="p-2">
+          <button
+            type="button"
+            onClick={startNewMap}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Novo mapa
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {historyList.length === 0 && !loading && (
+            <p className="text-sm text-gray-500 px-2 py-4">Nenhum mapa salvo. Salve o mapa para aparecer aqui.</p>
+          )}
+          {historyList.map((item) => (
+            <div
+              key={item.id}
+              className={`group flex items-start gap-1 rounded-lg text-sm transition-colors ${
+                currentMapId === item.id ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-100 text-gray-700'
+              }`}
+            >
+              <button
+                type="button"
+                onDoubleClick={() => loadMapById(item.id)}
+                className="flex-1 min-w-0 text-left px-3 py-2"
+                title="Duplo clique para abrir"
+              >
+                <p className="font-medium truncate">{item.name || 'Mapa sem título'}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {item.updated_at ? format(new Date(item.updated_at), "dd/MM/yyyy HH:mm", { locale: ptBR }) : ''}
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setMapToDelete(item) }}
+                className="p-1.5 rounded text-gray-400 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                title="Excluir mapa"
+                aria-label="Excluir mapa"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </aside>
+      <div ref={containerRef} className="flex-1 min-w-0 rounded-xl border border-gray-200 bg-gray-50 overflow-hidden relative">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -779,11 +913,20 @@ function MindMapEditor() {
         />
       )}
 
+      {mapToDelete && (
+        <ConfirmModal
+          message="Tem certeza que deseja excluir este mapa? Esta ação não pode ser desfeita."
+          onConfirm={() => deleteMap(mapToDelete)}
+          onCancel={() => setMapToDelete(null)}
+        />
+      )}
+
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-lg bg-white border border-gray-200 text-avocado shadow-lg">
           {toast}
         </div>
       )}
+    </div>
     </div>
   )
 }

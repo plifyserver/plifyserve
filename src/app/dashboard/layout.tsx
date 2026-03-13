@@ -77,7 +77,17 @@ export default function DashboardLayout({
   const [supportMessage, setSupportMessage] = useState('')
   const headerRef = useRef<HTMLDivElement>(null)
 
-  const handleSupportSubmit = useCallback(() => {
+  const handleSupportEmail = useCallback(() => {
+    const name = supportName.trim() || 'Contato'
+    const body = `Nome: ${supportName.trim() || 'Não informado'}\n\nDúvida/Sugestão:\n${supportMessage.trim() || '—'}`
+    const mailto = `mailto:plifyserver@gmail.com?subject=${encodeURIComponent(`Suporte Plify - ${name}`)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailto
+    setSupportOpen(false)
+    setSupportName('')
+    setSupportMessage('')
+  }, [supportName, supportMessage])
+
+  const handleSupportWhatsApp = useCallback(() => {
     const text = `*Suporte Plify*\n\nNome: ${supportName.trim() || 'Não informado'}\n\nDúvida/Sugestão:\n${supportMessage.trim() || '—'}`
     const url = `https://wa.me/5543996769373?text=${encodeURIComponent(text)}`
     window.open(url, '_blank', 'noopener,noreferrer')
@@ -123,7 +133,7 @@ export default function DashboardLayout({
   }, [fetchSettings])
 
   useEffect(() => {
-    const primary = settings?.primary_color || '#3B82F6'
+    const primary = settings?.primary_color || '#dc2626'
     const secondary = settings?.secondary_color || '#1E293B'
     document.documentElement.style.setProperty('--primary-color', primary)
     document.documentElement.style.setProperty('--secondary-color', secondary)
@@ -140,7 +150,7 @@ export default function DashboardLayout({
     window.location.href = '/api/auth/logout'
   }, [])
 
-  const accentColor = settings?.primary_color || '#ea580c'
+  const accentColor = settings?.primary_color || '#dc2626'
   const sidebarBg = settings?.secondary_color || '#121212'
   const appName = settings?.app_name || ''
   const logoBase = settings?.logo_url && settings.logo_url.trim() !== '' ? settings.logo_url.trim() : null
@@ -381,11 +391,12 @@ export default function DashboardLayout({
               <button
                 type="button"
                 onClick={() => setSupportOpen(true)}
-                className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: accentColor }}
                 title="Suporte"
                 aria-label="Abrir suporte"
               >
-                <Headphones className="w-5 h-5" />
+                Suporte
               </button>
               {/* Notificações */}
               {user?.id && (
@@ -483,13 +494,7 @@ export default function DashboardLayout({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleSupportSubmit()
-              }}
-              className="space-y-4"
-            >
+            <div className="space-y-4">
               <div>
                 <label htmlFor="support-name" className="mb-1 block text-sm font-medium text-slate-700">Nome completo</label>
                 <input
@@ -516,11 +521,36 @@ export default function DashboardLayout({
                 <button type="button" onClick={() => setSupportOpen(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                   Cancelar
                 </button>
-                <button type="submit" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
-                  Enviar
-                </button>
+                {isPro ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleSupportEmail}
+                      className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Enviar e-mail
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSupportWhatsApp}
+                      className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                      style={{ backgroundColor: accentColor }}
+                    >
+                      Enviar WhatsApp
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSupportEmail}
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: accentColor }}
+                  >
+                    Enviar e-mail
+                  </button>
+                )}
               </div>
-            </form>
+            </div>
           </div>
         </>
       )}

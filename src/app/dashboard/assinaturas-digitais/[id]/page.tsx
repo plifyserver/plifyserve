@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, FileText, CheckCircle, Clock, MapPin, Calendar } from 'lucide-react'
+import { ArrowLeft, FileText, CheckCircle, Clock, MapPin, Calendar, Globe, Monitor } from 'lucide-react'
 
 type Doc = {
   id: string
@@ -17,6 +17,8 @@ type Doc = {
   signed_client_at: string | null
   signed_latitude: number | null
   signed_longitude: number | null
+  signed_ip: string | null
+  signed_user_agent: string | null
   created_at: string
 }
 
@@ -116,7 +118,7 @@ export default function VerDocumentoAssinaturaPage() {
                     className="max-w-full max-h-[280px] object-contain"
                   />
                 </div>
-                {(doc.signed_client_at || doc.signed_at || (doc.signed_latitude != null && doc.signed_longitude != null)) && (
+                {(doc.signed_client_at || doc.signed_at || (doc.signed_latitude != null && doc.signed_longitude != null) || doc.signed_ip || doc.signed_user_agent) && (
                   <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
                     {doc.signed_client_at && (
                       <p className="text-sm text-gray-600 flex items-center gap-2">
@@ -141,6 +143,18 @@ export default function VerDocumentoAssinaturaPage() {
                         >
                           Ver local da assinatura no mapa
                         </a>
+                      </p>
+                    )}
+                    {doc.signed_ip && (
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-avocado" />
+                        IP: {doc.signed_ip}
+                      </p>
+                    )}
+                    {doc.signed_user_agent && (
+                      <p className="text-sm text-gray-600 flex items-center gap-2 break-words">
+                        <Monitor className="w-4 h-4 text-avocado flex-shrink-0" />
+                        <span>Navegador: {doc.signed_user_agent}</span>
                       </p>
                     )}
                   </div>

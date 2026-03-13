@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
   const [clientsRes, contractsRes, transactionsRes, proposalsRes] = await Promise.all([
-    supabase.from('clients').select('id, status, payment_type, recurring_amount').eq('user_id', userId),
+    supabase.from('clients').select('id, status, payment_type, recurring_amount, recurring_end_date').eq('user_id', userId),
     supabase.from('contracts').select('id, signatories').eq('user_id', userId),
     supabase
       .from('finance_transactions')
@@ -71,8 +71,13 @@ export async function GET(request: NextRequest) {
   const proposals = proposalsRes.data ?? []
 
   const totalClients = clients.length
+  const todayStr = new Date().toISOString().slice(0, 10)
   const mmr = clients
     .filter((c) => (c as { payment_type?: string }).payment_type === 'recorrente')
+    .filter((c) => {
+      const end = (c as { recurring_end_date?: string | null }).recurring_end_date
+      return end == null || end === '' || end >= todayStr
+    })
     .reduce((s, c) => s + Number((c as { recurring_amount?: number | null }).recurring_amount ?? 0), 0)
 
   const isContractFinalizado = (c: { signatories?: unknown[] }) => {

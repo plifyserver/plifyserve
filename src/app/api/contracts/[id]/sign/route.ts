@@ -18,6 +18,16 @@ export async function GET(_r: NextRequest, { params }: { params: Promise<{ id: s
   return NextResponse.json(data)
 }
 
+function getClientIp(request: NextRequest): string | null {
+  const forwarded = request.headers.get('x-forwarded-for')
+  if (forwarded) return forwarded.split(',')[0].trim()
+  return request.headers.get('x-real-ip') || null
+}
+
+function getClientUserAgent(request: NextRequest): string | null {
+  return request.headers.get('user-agent') || null
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await request.json()
@@ -52,6 +62,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'Documento já assinado por este signatário' }, { status: 400 })
   }
   
+  const ipAddress = getClientIp(request)
+  const userAgent = getClientUserAgent(request)
+  
   signatories[signatoryIndex] = {
     ...signatories[signatoryIndex],
     signed: true,
@@ -60,6 +73,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     cpf: signatureData.cpf,
     birth_date: signatureData.birthDate,
     location: signatureData.location,
+    ip_address: ipAddress ?? signatureData.ip_address ?? null,
+    user_agent: userAgent ?? signatureData.user_agent ?? null,
   }
   
   const allSigned = signatories.every((s: { signed: boolean }) => s.signed)

@@ -12,7 +12,7 @@ export async function GET() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('signature_documents')
-    .select('id, file_url, client_name, client_email, client_whatsapp, slug, status, signature_data_url, signed_at, signed_client_at, signed_latitude, signed_longitude, created_at')
+    .select('id, file_url, client_name, client_email, client_whatsapp, slug, status, signature_data_url, signed_at, signed_client_at, signed_latitude, signed_longitude, signed_ip, signed_user_agent, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 

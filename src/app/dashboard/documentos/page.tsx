@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle, Search, Mail, MessageCircle } from 'lucide-react'
+import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle, Search, Mail, MessageCircle, Globe, Monitor } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -41,6 +41,8 @@ interface Signatory {
     longitude: number | null
     address: string | null
   } | null
+  ip_address?: string | null
+  user_agent?: string | null
 }
 
 interface Contract {
@@ -991,6 +993,26 @@ export default function DocumentosPage() {
                           {selectedSignatory.location.latitude?.toFixed(6)}, {selectedSignatory.location.longitude?.toFixed(6)}
                         </p>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {selectedSignatory.ip_address && (
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                    <Globe className="w-5 h-5 text-indigo-600" />
+                    <div>
+                      <p className="text-xs text-slate-500">IP</p>
+                      <p className="font-medium text-slate-900 text-sm">{selectedSignatory.ip_address}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSignatory.user_agent && (
+                  <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl">
+                    <Monitor className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-slate-500">Navegador / dispositivo</p>
+                      <p className="font-medium text-slate-900 text-xs break-words">{selectedSignatory.user_agent}</p>
                     </div>
                   </div>
                 )}
