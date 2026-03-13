@@ -31,7 +31,7 @@ export function AuthSidePanel() {
   const frase = FRASES_CARROSSEL[indiceFrase]
 
   return (
-    <div className="hidden lg:flex flex-[1.35] min-h-screen items-stretch p-4">
+    <div className="hidden lg:flex flex-[1.35] min-h-screen items-stretch p-4 bg-slate-100">
       {/* Bloco com arredondamento nos 4 cantos */}
       <div className="flex flex-col w-full min-h-[calc(100vh-2rem)] rounded-2xl overflow-hidden relative bg-slate-900 shadow-xl">
         {/* Foto */}
