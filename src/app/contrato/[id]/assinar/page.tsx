@@ -104,14 +104,32 @@ export default function AssinarContratoPage() {
   const handleSignatureComplete = async (signatureData: SignatureData) => {
     const emailToUse = effectiveSignatoryEmail || contract?.signatories?.[signatoryIndex]?.email
     if (!contract || signatoryIndex < 0 || !emailToUse) return
-    
+
+    let clientIp: string | null = null
+    try {
+      const ipRes = await fetch('/api/my-ip', { cache: 'no-store' })
+      if (ipRes.ok) {
+        const data = await ipRes.json()
+        clientIp = data.ip ?? null
+      }
+    } catch {
+      // segue sem IP do cliente
+    }
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null
+
+    const payload = {
+      ...signatureData,
+      ip_address: clientIp,
+      user_agent: userAgent,
+    }
+
     try {
       const res = await fetch(`/api/contracts/${contract.id}/sign`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           signatoryEmail: emailToUse,
-          signatureData,
+          signatureData: payload,
         }),
       })
       

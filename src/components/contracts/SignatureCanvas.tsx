@@ -81,22 +81,26 @@ export default function SignatureCanvas({
 
   const captureUserLocation = useCallback(async () => {
     if (!captureLocation) return
-    
+    if (!navigator.geolocation) {
+      setLocationError('Geolocalização não disponível neste dispositivo.')
+      return
+    }
+
     setLocationLoading(true)
     setLocationError(null)
-    
+
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
+          timeout: 25000,
+          maximumAge: 60000,
         })
       })
-      
+
       const { latitude, longitude } = position.coords
       setLocation({ latitude, longitude, address: null })
-      
+
       try {
         const response = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
@@ -110,7 +114,7 @@ export default function SignatureCanvas({
         // Endereço não é obrigatório
       }
     } catch (err) {
-      setLocationError('Não foi possível obter sua localização. Verifique as permissões do navegador.')
+      setLocationError('Não foi possível obter sua localização. Ative o GPS e permita o acesso no navegador, depois tente novamente.')
       console.error('Geolocation error:', err)
     } finally {
       setLocationLoading(false)
@@ -274,13 +278,22 @@ export default function SignatureCanvas({
           </div>
         </div>
         <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-          <MapPin className="w-5 h-5 text-indigo-600" />
-          <div className="text-sm min-w-0">
+          <MapPin className="w-5 h-5 text-indigo-600 shrink-0" />
+          <div className="text-sm min-w-0 flex-1">
             <p className="text-slate-500">Localização</p>
             {locationLoading ? (
               <p className="font-medium text-slate-500">Obtendo...</p>
             ) : locationError ? (
-              <p className="font-medium text-amber-600 text-xs">Não disponível</p>
+              <div>
+                <p className="font-medium text-amber-600 text-xs">Não disponível</p>
+                <button
+                  type="button"
+                  onClick={captureUserLocation}
+                  className="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 underline"
+                >
+                  Tentar novamente
+                </button>
+              </div>
             ) : location.address ? (
               <p className="font-medium text-slate-900 truncate text-xs" title={location.address}>
                 {location.address.split(',').slice(0, 2).join(', ')}

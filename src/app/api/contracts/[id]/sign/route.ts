@@ -19,9 +19,15 @@ export async function GET(_r: NextRequest, { params }: { params: Promise<{ id: s
 }
 
 function getClientIp(request: NextRequest): string | null {
-  const forwarded = request.headers.get('x-forwarded-for')
+  const headers = request.headers
+  const forwarded = headers.get('x-forwarded-for') || headers.get('x-vercel-forwarded-for')
   if (forwarded) return forwarded.split(',')[0].trim()
-  return request.headers.get('x-real-ip') || null
+  return (
+    headers.get('cf-connecting-ip') ||
+    headers.get('x-real-ip') ||
+    headers.get('x-client-ip') ||
+    null
+  )
 }
 
 function getClientUserAgent(request: NextRequest): string | null {
