@@ -64,7 +64,7 @@ export default function LoginPage() {
   return (
     <div className="h-screen flex overflow-hidden">
       {/* Coluna esquerda - formulário em card sobre fundo cinza claro */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-slate-100">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-neutral-100">
         <div className="w-full max-w-md p-4 sm:p-0">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-8">Seja bem-vindo</h1>
@@ -125,7 +125,7 @@ export default function LoginPage() {
                   <div className="w-full border-t border-gray-200" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-slate-100 text-gray-500">OU</span>
+                  <span className="px-2 bg-neutral-100 text-gray-500">OU</span>
                 </div>
               </div>
 

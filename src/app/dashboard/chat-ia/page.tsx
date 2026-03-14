@@ -1,7 +1,15 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Send, MessageCircle, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Send, MessageCircle, Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
+
+/** Converte **texto** em negrito (evita asteriscos soltos na tela) */
+function renderMessageContent(content: string) {
+  const parts = content.split(/\*\*/)
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>,
+  )
+}
 
 interface ChatMessage {
   id: string
@@ -16,8 +24,39 @@ interface Conversation {
   createdAt: number
 }
 
+const STORAGE_KEY = 'plify-chat-ia-conversations'
+const MAX_CONVERSATIONS = 50
+const MAX_MESSAGES_PER_CONVERSATION = 500
+
+function loadConversationsFromStorage(): Conversation[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as Conversation[]
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function saveConversationsToStorage(conversations: Conversation[]) {
+  if (typeof window === 'undefined') return
+  try {
+    const toSave = conversations
+      .slice(0, MAX_CONVERSATIONS)
+      .map((c) => ({
+        ...c,
+        messages: c.messages.slice(-MAX_MESSAGES_PER_CONVERSATION),
+      }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave))
+  } catch {
+    // ignore quota or parse errors
+  }
+}
+
 export default function ChatIaPage() {
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [conversations, setConversations] = useState<Conversation[]>(loadConversationsFromStorage)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -36,9 +75,14 @@ export default function ChatIaPage() {
     }
   }, [activeConversation, conversations])
 
+  // Persistir histórico no localStorage ao sair da página ou ao alterar conversas
+  useEffect(() => {
+    saveConversationsToStorage(conversations)
+  }, [conversations])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [activeConversation?.messages.length])
+  }, [activeConversation?.messages.length, loading])
 
   const startNewConversation = () => {
     const id = crypto.randomUUID()
@@ -96,11 +140,12 @@ export default function ChatIaPage() {
         }),
       })
 
+      const data = (await res.json()) as { reply?: string; error?: string }
+
       if (!res.ok) {
-        throw new Error('Erro ao falar com a IA')
+        throw new Error(data.error || 'Erro ao falar com a IA')
       }
 
-      const data = await res.json()
       const assistantMessage: ChatMessage = {
         id: `${Date.now()}-assistant`,
         role: 'assistant',
@@ -115,11 +160,11 @@ export default function ChatIaPage() {
         ),
       )
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ocorreu um erro ao falar com a IA. Verifique a conexão e tente novamente.'
       const assistantMessage: ChatMessage = {
         id: `${Date.now()}-assistant-error`,
         role: 'assistant',
-        content:
-          'Ocorreu um erro ao falar com a IA. Verifique a conexão e tente novamente.',
+        content: message,
       }
       setConversations((prev) =>
         prev.map((c) =>
@@ -293,16 +338,26 @@ export default function ChatIaPage() {
                     }`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                      className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
                         m.role === 'user'
                           ? 'bg-slate-900 text-white rounded-br-sm'
                           : 'bg-slate-100 text-slate-800 rounded-bl-sm'
                       }`}
                     >
-                      {m.content}
+                      {m.role === 'assistant'
+                        ? renderMessageContent(m.content)
+                        : m.content}
                     </div>
                   </div>
                 ))}
+                {loading && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[80%] rounded-2xl rounded-bl-sm bg-slate-100 px-3 py-2.5 text-sm text-slate-600 flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>A IA está carregando sua resposta...</span>
+                    </div>
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </>
             )}
