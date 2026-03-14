@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const GEMINI_MODEL = 'gemini-2.5-flash'
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
 
@@ -28,7 +27,8 @@ function getErrorMessage(err: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
-  if (!GEMINI_API_KEY) {
+  const apiKey = (process.env.GEMINI_API_KEY ?? '').trim()
+  if (!apiKey) {
     return NextResponse.json({ reply: MSG_EM_CRIACAO })
   }
 
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       },
     }
 
-    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
