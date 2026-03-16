@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { toast } from 'sonner'
 
 interface Notification {
   id: string
@@ -45,7 +46,7 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
   useEffect(() => {
     fetchNotifications()
 
-    // Configurar realtime
+    // Realtime para novas notificações (instantâneo quando disponível)
     const supabase = createClient()
     const channel = supabase
       .channel('notifications')
@@ -63,45 +64,86 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
       )
       .subscribe()
 
+    // Fallback: polling a cada 15s para garantir atualização mesmo se realtime falhar
+    const pollInterval = setInterval(fetchNotifications, 15_000)
+
     return () => {
       supabase.removeChannel(channel)
+      clearInterval(pollInterval)
     }
   }, [userId, fetchNotifications])
 
   const markAsRead = async (id: string) => {
-    const supabase = createClient()
-    await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', id)
-
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    )
+    try {
+      const res = await fetch(`/api/notifications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ read: true }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        )
+      } else {
+        toast.error((data as { error?: string }).error || 'Erro ao marcar como lida')
+      }
+    } catch {
+      toast.error('Erro ao marcar como lida')
+    }
   }
 
   const markAllAsRead = async () => {
-    const supabase = createClient()
-    await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('user_id', userId)
-      .eq('read', false)
-
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    try {
+      const res = await fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+      } else {
+        toast.error((data as { error?: string }).error || 'Erro ao marcar todas como lidas')
+      }
+    } catch {
+      toast.error('Erro ao marcar todas como lidas')
+    }
   }
 
   const deleteNotification = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const supabase = createClient()
-    const { error } = await supabase.from('notifications').delete().eq('id', id).eq('user_id', userId)
-    if (!error) setNotifications((prev) => prev.filter((n) => n.id !== id))
+    try {
+      const res = await fetch(`/api/notifications/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setNotifications((prev) => prev.filter((n) => n.id !== id))
+      } else {
+        toast.error((data as { error?: string }).error || 'Erro ao excluir')
+      }
+    } catch {
+      toast.error('Erro ao excluir notificação')
+    }
   }
 
   const deleteAllNotifications = async () => {
-    const supabase = createClient()
-    await supabase.from('notifications').delete().eq('user_id', userId)
-    setNotifications([])
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setNotifications([])
+      } else {
+        toast.error((data as { error?: string }).error || 'Erro ao excluir todas')
+      }
+    } catch {
+      toast.error('Erro ao excluir notificações')
+    }
   }
 
   const getIcon = (type: Notification['type']) => {
@@ -136,7 +178,10 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
     <div className="relative">
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) fetchNotifications()
+          setIsOpen(!isOpen)
+        }}
         className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
       >
         <Bell className="w-5 h-5" />

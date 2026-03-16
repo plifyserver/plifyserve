@@ -71,8 +71,14 @@ export default function PublicProposalPage() {
   const [accepting, setAccepting] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [accepted, setAccepted] = useState(false)
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
 
   const proposalData = useMemo(() => proposal ? buildProposalData(proposal) : null, [proposal])
+
+  const hasPlans = Boolean(
+    proposalData?.paymentType === 'plans' && proposalData.plans?.length && proposalData.plans.length > 0
+  )
+  const canConfirm = !hasPlans || selectedPlanId != null
 
   const fetchProposal = useCallback(async () => {
     try {
@@ -163,11 +169,21 @@ export default function PublicProposalPage() {
 
         {/* Preview igual ao do editor: mesmo layout e cores */}
         <div className="rounded-2xl overflow-hidden shadow-xl">
-          <ProposalPreview data={proposalData} className="shadow-none" />
+          <ProposalPreview
+            data={proposalData}
+            className="shadow-none"
+            selectedPlanId={hasPlans ? selectedPlanId : undefined}
+            onSelectPlan={hasPlans ? setSelectedPlanId : undefined}
+          />
         </div>
 
-        {/* Botão aceitar */}
-        {!accepted && proposal.status !== 'accepted' && (
+        {/* Com planos: orientar a selecionar primeiro; depois mostrar botão confirmar */}
+        {!accepted && proposal.status !== 'accepted' && hasPlans && !selectedPlanId && (
+          <p className="mt-6 text-center text-slate-500 text-sm">
+            Selecione um plano acima para habilitar o botão de confirmar proposta.
+          </p>
+        )}
+        {!accepted && proposal.status !== 'accepted' && canConfirm && (
           <div className="mt-8 sticky bottom-4 z-10">
             <Button
               onClick={() => setShowConfirmDialog(true)}
@@ -175,7 +191,7 @@ export default function PublicProposalPage() {
               className="w-full max-w-md mx-auto flex h-14 text-lg rounded-xl bg-emerald-600 hover:bg-emerald-700 shadow-lg"
             >
               <CheckCircle className="w-5 h-5 mr-2" />
-              {proposal.confirm_button_text || 'Aceitar proposta'}
+              {proposal.confirm_button_text || 'Confirmar proposta'}
             </Button>
           </div>
         )}

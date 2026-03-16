@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 
 export const metadata = {
   title: 'Termos de Uso | Plify',
@@ -12,7 +11,7 @@ export default function TermosUsoPage() {
       <header className="border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/plify.png" alt="Plify" width={44} height={44} className="rounded-xl logo-avocado" />
+            <img src="/logopreto.png" alt="Plify" className="h-8 w-auto object-contain" />
           </Link>
           <Link href="/" className="text-gray-500 hover:text-gray-900 text-sm">Voltar</Link>
         </div>

@@ -449,8 +449,8 @@ export default function LandingPage() {
       {/* Footer mínimo */}
       <footer className="py-6 sm:py-8 px-4 border-t border-slate-100">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <Link href="/" className="flex items-center">
-            <Image src={LOGO_PRETO} alt="Plify" width={120} height={34} className="h-6 sm:h-8 w-auto object-contain" />
+          <Link href="/" className="flex items-center shrink-0 min-h-[2rem]">
+            <img src="/logopreto.png" alt="Plify" className="h-6 sm:h-8 w-auto object-contain" />
           </Link>
           <div className="flex gap-6 text-sm text-slate-500">
             <Link href="/termos-privacidade" className="hover:text-black">Termos de Privacidade</Link>

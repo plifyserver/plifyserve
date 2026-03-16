@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Copy, Edit, Trash2, Files, CheckCircle, XCircle, Plus, Search, Eye, Send, BarChart3, ExternalLink } from 'lucide-react'
+import { Copy, Edit, Trash2, Files, CheckCircle, XCircle, Plus, Search, Eye, Send, BarChart3, ExternalLink, Loader2 } from 'lucide-react'
 import type { Proposal } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +31,7 @@ export default function PropostasPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [deleteProposalId, setDeleteProposalId] = useState<string | null>(null)
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
 
   const handleTemplateSelect = (template: TemplateType) => {
     setShowTemplateSelector(false)
@@ -86,27 +87,32 @@ export default function PropostasPage() {
   }
 
   const duplicateProposal = async (proposal: Proposal, switchToAll = false) => {
-    const res = await fetch('/api/proposals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        title: `${proposal.title || 'Proposta'} (cópia)`,
-        client_name: proposal.client_name ?? null,
-        client_email: proposal.client_email ?? null,
-        content: proposal.content ?? {},
-        status: 'draft',
-      }),
-    })
-    const data = await res.json().catch(() => null)
-    if (res.ok && data) {
-      setProposals((prev) => [data as Proposal, ...prev])
-      if (switchToAll) setActiveTab('all')
-      toast.success(switchToAll ? 'Proposta replicada. Ela está em Todas para você editar.' : 'Proposta duplicada.')
-      return data as Proposal
+    setDuplicatingId(proposal.id)
+    try {
+      const res = await fetch('/api/proposals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: `${proposal.title || 'Proposta'} (cópia)`,
+          client_name: proposal.client_name ?? null,
+          client_email: proposal.client_email ?? null,
+          content: proposal.content ?? {},
+          status: 'draft',
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data) {
+        setProposals((prev) => [data as Proposal, ...prev])
+        if (switchToAll) setActiveTab('all')
+        toast.success(switchToAll ? 'Proposta replicada. Ela está em Todas para você editar.' : 'Proposta duplicada.')
+        return data as Proposal
+      }
+      toast.error((data as { error?: string })?.error || 'Erro ao duplicar proposta')
+      return null
+    } finally {
+      setDuplicatingId(null)
     }
-    toast.error((data as { error?: string })?.error || 'Erro ao duplicar proposta')
-    return null
   }
 
   const deleteProposal = async (id: string) => {
@@ -333,8 +339,13 @@ export default function PropostasPage() {
                         className="h-9 w-9 rounded-lg"
                         onClick={() => duplicateProposal(proposal)}
                         title="Duplicar"
+                        disabled={duplicatingId === proposal.id}
                       >
-                        <Files className="w-4 h-4 text-slate-500" />
+                        {duplicatingId === proposal.id ? (
+                          <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+                        ) : (
+                          <Files className="w-4 h-4 text-slate-500" />
+                        )}
                       </Button>
                       {(proposal.status === 'open' || proposal.status === 'sent' || proposal.status === 'viewed') && (
                         <Button
@@ -417,8 +428,13 @@ export default function PropostasPage() {
                         size="sm"
                         className="rounded-lg border-slate-200 gap-1.5"
                         onClick={() => duplicateProposal(proposal, true)}
+                        disabled={duplicatingId === proposal.id}
                       >
-                        <Copy className="w-4 h-4" />
+                        {duplicatingId === proposal.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                         Replicar
                       </Button>
                       <Button
