@@ -171,8 +171,10 @@ export default function DashboardPage() {
     const t = new Date(created).getTime()
     return t >= rangeStart && t <= rangeEnd
   })
-  const activeClients = clientsInPeriod.filter((c) => (c as { status?: string }).status === 'active').length
-  const inactiveClients = clientsInPeriod.filter((c) => (c as { status?: string }).status === 'inactive').length
+  // Distribuição atual de clientes (ativos/inativos) considerando TODOS os clientes,
+  // independente do período selecionado. O filtro de período é usado apenas para o gráfico de crescimento.
+  const activeClients = clients.filter((c) => (c as { status?: string }).status === 'active').length
+  const inactiveClients = clients.filter((c) => (c as { status?: string }).status === 'inactive').length
 
   const revenueData = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -208,8 +210,37 @@ export default function DashboardPage() {
       return data.length ? data : months.slice(0, currentMonth + 1).map((m) => ({ name: m, value: 0 }))
     }
     if (period === 'month') {
-      const total = Math.round((monthlyRevenue[currentMonth] || 0) * 100) / 100
-      return [{ name: months[currentMonth], value: total }]
+      // Gráfico diário acumulado no mês atual para formar uma linha em vez de um único ponto
+      const today = new Date()
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+      const lastDay = today.getMonth() === currentMonth && today.getFullYear() === currentYear ? today.getDate() : daysInMonth
+
+      // Totais diários a partir das transações dentro do intervalo
+      const dailyTotals: Record<number, number> = {}
+      transactionsInRange.forEach((t) => {
+        if (!t.date) return
+        const d = new Date(t.date)
+        if (d.getFullYear() !== currentYear || d.getMonth() !== currentMonth) return
+        const day = d.getDate()
+        dailyTotals[day] = (dailyTotals[day] || 0) + (Number(t.amount) || 0)
+      })
+
+      // Adiciona o MMR apenas no primeiro dia do mês (equivalente à receita recorrente mensal)
+      if (mmr > 0) {
+        dailyTotals[1] = (dailyTotals[1] || 0) + mmr
+      }
+
+      // Gera valores acumulados para cada dia, criando uma linha suave no gráfico
+      const dataMonth: { name: string; value: number }[] = []
+      let running = 0
+      for (let day = 1; day <= lastDay; day++) {
+        running += dailyTotals[day] || 0
+        dataMonth.push({
+          name: String(day).padStart(2, '0'),
+          value: Math.round(running * 100) / 100,
+        })
+      }
+      return dataMonth.length ? dataMonth : [{ name: months[currentMonth], value: 0 }]
     }
     if (period === 'week' || period === 'day') {
       const total = transactionsInRange.reduce((s, t) => s + (Number(t.amount) || 0), 0)
