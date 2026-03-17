@@ -303,6 +303,30 @@ export function ProposalPreview({ data, className, selectedPlanId, onSelectPlan 
           </section>
         )}
 
+        {/* Single price */}
+        {data.paymentType === 'single' && data.singlePrice > 0 && (
+          <section className="text-center">
+            <h2
+              className="text-xl font-semibold mb-4"
+              style={{ color: palette.secondary }}
+            >
+              Valor do projeto
+            </h2>
+            <div
+              className={cn(
+                'inline-flex flex-col items-center justify-center rounded-2xl border-2 px-8 py-6 bg-white',
+                styles.cardShadow
+              )}
+              style={{ borderColor: `${palette.primary}40` }}
+            >
+              <span className="text-sm text-slate-500 mb-1">Valor único</span>
+              <span className="text-4xl font-bold" style={{ color: palette.secondary }}>
+                R$ {data.singlePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          </section>
+        )}
+
         {/* Delivery */}
         <section className="flex items-center justify-center gap-3 py-6 border-t border-slate-100">
           <Calendar className="w-5 h-5" style={{ color: palette.primary }} />
