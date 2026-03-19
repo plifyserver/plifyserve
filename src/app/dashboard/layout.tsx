@@ -25,11 +25,9 @@ import {
   Bell,
   ChevronDown,
   User,
-  Sparkles,
   CreditCard,
   Headphones,
 } from 'lucide-react'
-import { UpgradeModal } from '@/components/UpgradeModal'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
 import { LOGO_PRETO, LOGO_BRANCO } from '@/lib/logo'
 
@@ -71,7 +69,6 @@ export default function DashboardLayout({
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [logoCacheBust, setLogoCacheBust] = useState(() => Date.now())
   const [profileOpen, setProfileOpen] = useState(false)
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [supportOpen, setSupportOpen] = useState(false)
   const [supportName, setSupportName] = useState('')
   const [supportMessage, setSupportMessage] = useState('')
@@ -165,16 +162,6 @@ export default function DashboardLayout({
           --primary-color: ${accentColor};
           --secondary-color: ${sidebarBg};
         }
-        @keyframes upgradeGlow {
-          0%, 100% { box-shadow: 0 1px 3px ${accentColor}40; opacity: 1; }
-          50% { box-shadow: 0 0 14px ${accentColor}60, 0 1px 3px ${accentColor}40; opacity: 0.95; }
-        }
-        .btn-upgrade-animated {
-          animation: upgradeGlow 2.5s ease-in-out infinite;
-        }
-        .btn-upgrade-animated:hover {
-          animation: upgradeGlow 1.2s ease-in-out infinite;
-        }
       `}</style>
 
       {/* Sidebar - azul escuro: redondo à esquerda (pra fora), quadrado à direita */}
@@ -236,35 +223,6 @@ export default function DashboardLayout({
           ))}
         </nav>
         <div className="p-2 border-t border-white/10 flex flex-col gap-0.5">
-          {/* Upgrade Pro button */}
-          {!sidebarCollapsed && !isPro && (
-            <button
-              type="button"
-              onClick={() => setShowUpgradeModal(true)}
-              className="btn-upgrade-animated flex items-center gap-3 w-full px-3 py-2.5 mb-1 rounded-lg text-white font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
-              style={{
-                background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
-                boxShadow: `0 1px 3px ${accentColor}40`,
-              }}
-            >
-              <Sparkles className="w-5 h-5 flex-shrink-0 animate-pulse" />
-              <span>Upgrade Pro</span>
-            </button>
-          )}
-          {sidebarCollapsed && !isPro && (
-            <button
-              type="button"
-              onClick={() => setShowUpgradeModal(true)}
-              className="btn-upgrade-animated flex items-center justify-center w-full p-2.5 rounded-lg text-white transition-all hover:scale-105 active:scale-95"
-              title="Upgrade Pro"
-              style={{
-                background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
-                boxShadow: `0 1px 3px ${accentColor}40`,
-              }}
-            >
-              <Sparkles className="w-5 h-5 text-white animate-pulse" />
-            </button>
-          )}
           {!sidebarCollapsed ? (
             <button
               type="button"
@@ -344,23 +302,6 @@ export default function DashboardLayout({
           ))}
         </nav>
         <div className="p-2 space-y-1">
-          {!isPro && (
-            <button
-              type="button"
-              onClick={() => {
-                setSidebarOpen(false)
-                setShowUpgradeModal(true)
-              }}
-              className="btn-upgrade-animated flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-white font-medium hover:scale-[1.02] active:scale-[0.98]"
-              style={{
-                background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
-                boxShadow: `0 1px 3px ${accentColor}40`,
-              }}
-            >
-              <Sparkles className="w-5 h-5 animate-pulse" />
-              Upgrade Pro
-            </button>
-          )}
           <button
             type="button"
             onClick={(e) => handleSignOut(e)}
@@ -475,13 +416,6 @@ export default function DashboardLayout({
         </header>
         <main className="p-4 lg:p-6 bg-slate-100 min-w-0 overflow-x-auto">{children}</main>
       </div>
-
-      {/* Upgrade Modal */}
-      <UpgradeModal 
-        open={showUpgradeModal} 
-        onClose={() => setShowUpgradeModal(false)} 
-        type="plan" 
-      />
 
       {/* Suporte - popup */}
       {supportOpen && (

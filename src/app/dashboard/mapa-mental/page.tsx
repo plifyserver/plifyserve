@@ -500,6 +500,7 @@ function MindMapEditor() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [switchingMapId, setSwitchingMapId] = useState<string | null>(null)
   const [currentMapId, setCurrentMapId] = useState<string | null>(null)
   const [currentMapName, setCurrentMapName] = useState<string>('')
   const [historyList, setHistoryList] = useState<HistoryItem[]>([])
@@ -507,6 +508,9 @@ function MindMapEditor() {
   const [confirmDelete, setConfirmDelete] = useState<Node | null>(null)
   const [mapToDelete, setMapToDelete] = useState<HistoryItem | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const mapCacheRef = useRef<Map<string, { id: string; name: string; nodes: Node[]; edges: Edge[]; updatedAt?: string }>>(
+    new Map()
+  )
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -602,24 +606,68 @@ function MindMapEditor() {
     }
   }, [user])
 
-  const loadMapById = useCallback(async (id: string) => {
+  const applyLoadedMap = useCallback((data: { id: string; name?: string; nodes?: Node[]; edges?: Edge[] }) => {
+    setCurrentMapId(data.id)
+    setCurrentMapName(data.name || 'Mapa sem título')
+    const loadedNodes = (data.nodes as Node[])?.length ? (data.nodes as Node[]).map(toStyledNode) : initialNodes
+    setNodes(loadedNodes)
+    setEdges((data.edges as Edge[]) ?? [])
+  }, [setNodes, setEdges])
+
+  const prefetchMapById = useCallback(async (id: string) => {
     if (!user) return
+    if (mapCacheRef.current.has(id)) return
     try {
       const res = await fetch(`/api/mind-maps?id=${encodeURIComponent(id)}`, { credentials: 'include' })
       if (!res.ok) return
       const data = await res.json()
       if (data?.id) {
-        setCurrentMapId(data.id)
-        setCurrentMapName(data.name || 'Mapa sem título')
-        const loadedNodes = (data.nodes as Node[])?.length ? (data.nodes as Node[]).map(toStyledNode) : initialNodes
-        setNodes(loadedNodes)
-        setEdges((data.edges as Edge[]) ?? [])
+        mapCacheRef.current.set(String(data.id), {
+          id: String(data.id),
+          name: String(data.name || 'Mapa sem título'),
+          nodes: Array.isArray(data.nodes) ? (data.nodes as Node[]) : [],
+          edges: Array.isArray(data.edges) ? (data.edges as Edge[]) : [],
+          updatedAt: typeof data.updated_at === 'string' ? data.updated_at : undefined,
+        })
+      }
+    } catch {
+      // ok: prefetch é "best effort"
+    }
+  }, [user])
+
+  const loadMapById = useCallback(async (id: string) => {
+    if (!user) return
+    if (currentMapId === id) return
+    const cached = mapCacheRef.current.get(id)
+    if (cached) {
+      setSwitchingMapId(id)
+      applyLoadedMap({ id: cached.id, name: cached.name, nodes: cached.nodes, edges: cached.edges })
+      setSwitchingMapId(null)
+      showToast('Mapa carregado')
+      return
+    }
+    setSwitchingMapId(id)
+    try {
+      const res = await fetch(`/api/mind-maps?id=${encodeURIComponent(id)}`, { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      if (data?.id) {
+        mapCacheRef.current.set(String(data.id), {
+          id: String(data.id),
+          name: String(data.name || 'Mapa sem título'),
+          nodes: Array.isArray(data.nodes) ? (data.nodes as Node[]) : [],
+          edges: Array.isArray(data.edges) ? (data.edges as Edge[]) : [],
+          updatedAt: typeof data.updated_at === 'string' ? data.updated_at : undefined,
+        })
+        applyLoadedMap(data)
         showToast('Mapa carregado')
       }
     } catch {
       showToast('Erro ao carregar mapa')
+    } finally {
+      setSwitchingMapId(null)
     }
-  }, [user, setNodes, setEdges])
+  }, [user, currentMapId, applyLoadedMap])
 
   const loadMap = useCallback(async () => {
     if (!user) return
@@ -635,24 +683,14 @@ function MindMapEditor() {
       setHistoryList(arr)
       if (arr.length > 0) {
         const mostRecent = arr[0]
-        const resMap = await fetch(`/api/mind-maps?id=${encodeURIComponent(mostRecent.id)}`, { credentials: 'include' })
-        if (resMap.ok) {
-          const data = await resMap.json()
-          if (data?.id) {
-            setCurrentMapId(data.id)
-            setCurrentMapName(data.name || 'Mapa sem título')
-            const loadedNodes = (data.nodes as Node[])?.length ? (data.nodes as Node[]).map(toStyledNode) : initialNodes
-            setNodes(loadedNodes)
-            setEdges((data.edges as Edge[]) ?? [])
-          }
-        }
+        await loadMapById(mostRecent.id)
       }
     } catch {
       // ok
     } finally {
       setLoading(false)
     }
-  }, [user, setNodes, setEdges])
+  }, [user, loadMapById])
 
   const saveMap = useCallback(async () => {
     if (!user) return
@@ -683,6 +721,21 @@ function MindMapEditor() {
       if (id && !currentMapId) {
         setCurrentMapId(id)
         setCurrentMapName(currentMapName || 'Mapa sem título')
+      }
+      if (id) {
+        mapCacheRef.current.set(String(id), {
+          id: String(id),
+          name: currentMapName || 'Mapa sem título',
+          nodes,
+          edges,
+        })
+      } else if (currentMapId) {
+        mapCacheRef.current.set(String(currentMapId), {
+          id: String(currentMapId),
+          name: currentMapName || 'Mapa sem título',
+          nodes,
+          edges,
+        })
       }
       await fetchHistory()
       showToast('Mapa salvo')
@@ -788,6 +841,19 @@ function MindMapEditor() {
     if (user) loadMap()
   }, [user, loadMap])
 
+  useEffect(() => {
+    if (!user) return
+    if (!historyList.length) return
+    const idsToPrefetch = historyList.slice(0, 6).map((h) => h.id).filter((id) => id && id !== currentMapId)
+    if (!idsToPrefetch.length) return
+    const t = window.setTimeout(() => {
+      idsToPrefetch.forEach((id) => {
+        void prefetchMapById(id)
+      })
+    }, 50)
+    return () => window.clearTimeout(t)
+  }, [user, historyList, currentMapId, prefetchMapById])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
@@ -826,6 +892,7 @@ function MindMapEditor() {
               <button
                 type="button"
                 onDoubleClick={() => loadMapById(item.id)}
+                onMouseEnter={() => { void prefetchMapById(item.id) }}
                 className="flex-1 min-w-0 text-left px-3 py-2"
                 title="Duplo clique para abrir"
               >

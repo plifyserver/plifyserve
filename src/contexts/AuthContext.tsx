@@ -68,15 +68,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { user: u } } = await supabase.auth.getUser()
-      setUser(u)
-      if (u) {
-        const p = await fetchProfile(u.id)
-        setProfile(p)
-      } else {
+      try {
+        const { data } = await supabase.auth.getUser()
+        const u = data?.user ?? null
+        setUser(u)
+        if (u) {
+          const p = await fetchProfile(u.id)
+          setProfile(p)
+        } else {
+          setProfile(null)
+        }
+      } catch (err) {
+        // Em dev com HMR, o Supabase pode abortar locks/fetches e isso não deve quebrar a UI
+        if (!(err instanceof Error && err.name === 'AbortError')) {
+          console.error('Erro ao inicializar auth:', err)
+        }
+        setUser(null)
         setProfile(null)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     init()

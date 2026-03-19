@@ -23,7 +23,15 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  let user: { id: string } | null = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = (data?.user as { id: string } | null) ?? null
+  } catch {
+    // Em dev/edge, falhas de rede/abort podem acontecer (ex.: refresh token inválido, fetch abortado).
+    // Para não derrubar a navegação, tratamos como "não autenticado" e seguimos.
+    user = null
+  }
 
   const pathname = request.nextUrl.pathname
 
@@ -51,11 +59,18 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && isProtectedPage) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('account_type, banned')
-      .eq('id', user.id)
-      .single()
+    type ProfileGate = { account_type?: string | null; banned?: boolean | null }
+    let profile: ProfileGate | null = null
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('account_type, banned')
+        .eq('id', user.id)
+        .single()
+      profile = (data as ProfileGate | null) ?? null
+    } catch {
+      profile = null
+    }
 
     if (profile?.banned) {
       const url = request.nextUrl.clone()

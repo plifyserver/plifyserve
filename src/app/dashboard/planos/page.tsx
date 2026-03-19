@@ -73,93 +73,189 @@ export default function PlanosPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Planos</h1>
-        <p className="text-slate-500">Compare os planos Essential e Pro</p>
-      </div>
+    <div className="max-w-5xl mx-auto">
+      <div className="rounded-3xl bg-slate-950 border border-white/10 p-4 sm:p-6 lg:p-8 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.75)]">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold text-white">Planos</h1>
+          <p className="text-white/70">Escolha o plano ideal e compare recursos</p>
+        </div>
 
-      {/* Seu plano atual + CTA upgrade */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white rounded-xl border border-slate-200">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-slate-600">Seu plano atual:</span>
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium ${
-            currentPlanType === 'pro' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
-          }`}>
-            {currentPlanType === 'pro' && <Star className="w-4 h-4 text-amber-400" />}
-            {currentPlanType === 'essential' ? 'Essential' : 'Pro'}
-          </span>
-          {usage?.planStatus === 'active' && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Ativo</span>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-white/70">Seu plano atual:</span>
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium ${
+                currentPlanType === 'pro' ? 'bg-white text-slate-950' : 'bg-white/10 text-white'
+              }`}
+            >
+              {currentPlanType === 'pro' && <Star className="w-4 h-4 text-amber-400" />}
+              {currentPlanType === 'essential' ? 'Essential' : 'Pro'}
+            </span>
+            {usage?.planStatus === 'active' && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-400/15 text-emerald-300 border border-emerald-400/20">
+                Ativo
+              </span>
+            )}
+          </div>
+          {canUpgrade && (
+            <button
+              onClick={handleUpgrade}
+              disabled={!!upgrading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-slate-950 text-sm font-semibold hover:bg-white/90 disabled:opacity-50 transition-colors"
+            >
+              {upgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Fazer upgrade para Pro
+            </button>
           )}
         </div>
-        {canUpgrade && (
-          <button
-            onClick={handleUpgrade}
-            disabled={!!upgrading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors"
-          >
-            {upgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Fazer upgrade para Pro
-          </button>
-        )}
-      </div>
 
-      {/* Tabela comparativa corporativa */}
-      <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-900">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-slate-700">
-              <th className="p-4 text-sm font-semibold text-slate-300 bg-slate-800/80 w-[40%]">
-                Recurso
-              </th>
-              <th className="p-4 text-sm font-semibold text-slate-300 bg-slate-800/80 text-center">
-                Essential
-              </th>
-              <th className="p-4 text-sm font-semibold text-white bg-slate-800 text-center">
-                <span className="inline-flex items-center gap-1.5">
-                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  Pro
+        {/* Cards separados (estilo mais “arejado”, mantendo fundo preto) */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+          {/* Essential */}
+          <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wider text-white/60">Plify Essential</p>
+                <h2 className="text-xl font-semibold text-white mt-1">Essencial para começar</h2>
+              </div>
+              {currentPlanType === 'essential' && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-white/10 text-white border border-white/10">
+                  Seu plano
                 </span>
-                <span className="block text-xs font-normal text-amber-400 mt-0.5">Mais escolhido</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700">
-            {COMPARISON_ROWS.map((row, idx) => (
-              <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
-                <td className="p-4 text-sm text-slate-300">{row.feature}</td>
-                <td className="p-4 text-sm text-center">
-                  <div className="flex items-center justify-center gap-2 min-h-[24px]">
-                    <CellContent value={row.essential} />
-                  </div>
-                </td>
-                <td className="p-4 text-sm text-center bg-slate-800/30">
-                  <div className="flex items-center justify-center gap-2 min-h-[24px]">
-                    <CellContent value={row.pro} />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* FAQ */}
-      <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
-        <h3 className="font-semibold text-slate-900 mb-4">Perguntas frequentes</h3>
-        <div className="space-y-4 text-sm">
-          <div>
-            <p className="font-medium text-slate-700">Posso mudar de plano a qualquer momento?</p>
-            <p className="text-slate-500 mt-1">
-              Sim, você pode fazer upgrade ou downgrade do seu plano a qualquer momento. As alterações entram em vigor imediatamente.
-            </p>
+              )}
+            </div>
+            <div className="mt-5 flex items-end gap-2">
+              <span className="text-3xl font-bold text-white">R$ 49,90</span>
+              <span className="text-sm text-white/60 mb-1">/mês</span>
+            </div>
+            <div className="mt-5 space-y-3">
+              {[
+                '1 usuário',
+                'Até 20 clientes',
+                '5 propostas por mês',
+                '1 template de proposta',
+                'Até 5 mapas mentais',
+                'Dashboard completo',
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-2 text-sm text-white/80">
+                  <Check className="w-4 h-4 text-emerald-300 mt-0.5 flex-shrink-0" />
+                  <span className="min-w-0">{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div>
-            <p className="font-medium text-slate-700">Como funciona o pagamento?</p>
-            <p className="text-slate-500 mt-1">
-              Em breve teremos integração com Stripe para pagamentos automáticos. Por enquanto, entre em contato para ativar seu plano.
-            </p>
+
+          {/* Pro */}
+          <div className="relative rounded-3xl border border-amber-400/25 bg-slate-900/50 p-5 sm:p-6 shadow-[0_0_0_1px_rgba(251,191,36,0.10),0_20px_60px_-40px_rgba(251,191,36,0.45)]">
+            <div className="absolute -top-3 right-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400 text-slate-950">
+                <Star className="w-3.5 h-3.5 fill-slate-950" />
+                Mais escolhido
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wider text-white/60">Plify Pro</p>
+                <h2 className="text-xl font-semibold text-white mt-1">Completo para crescer</h2>
+              </div>
+              {currentPlanType === 'pro' && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-white text-slate-950 border border-white/10">
+                  Seu plano
+                </span>
+              )}
+            </div>
+            <div className="mt-5 flex items-end gap-2">
+              <span className="text-3xl font-bold text-white">R$ 89,90</span>
+              <span className="text-sm text-white/60 mb-1">/mês</span>
+            </div>
+            <div className="mt-5 space-y-3">
+              {[
+                'Até 5 usuários',
+                'Clientes ilimitados',
+                'Propostas ilimitadas',
+                'White Label',
+                'Integrações avançadas',
+                'Mapas mentais ilimitados',
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-2 text-sm text-white/80">
+                  <Check className="w-4 h-4 text-emerald-300 mt-0.5 flex-shrink-0" />
+                  <span className="min-w-0">{item}</span>
+                </div>
+              ))}
+            </div>
+            {canUpgrade && (
+              <button
+                onClick={handleUpgrade}
+                disabled={!!upgrading}
+                className="mt-6 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-amber-400 text-slate-950 text-sm font-bold hover:bg-amber-300 disabled:opacity-50 transition-colors"
+              >
+                {upgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Fazer upgrade para Pro
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Comparativo detalhado (mantido), com mais respiro */}
+        <div className="mt-6 rounded-2xl border border-white/10 overflow-hidden bg-slate-900/30">
+          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-white">Comparativo detalhado</p>
+            <p className="text-xs text-white/60">Essential vs Pro</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left min-w-[720px]">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="p-4 text-sm font-semibold text-white/75 bg-white/5 w-[44%]">
+                    Recurso
+                  </th>
+                  <th className="p-4 text-sm font-semibold text-white/75 bg-white/5 text-center">
+                    Essential
+                  </th>
+                  <th className="p-4 text-sm font-semibold text-white bg-white/5 text-center">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                      Pro
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {COMPARISON_ROWS.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-white/5 transition-colors">
+                    <td className="p-4 text-sm text-white/75">{row.feature}</td>
+                    <td className="p-4 text-sm text-center">
+                      <div className="flex items-center justify-center gap-2 min-h-[24px]">
+                        <CellContent value={row.essential} />
+                      </div>
+                    </td>
+                    <td className="p-4 text-sm text-center">
+                      <div className="flex items-center justify-center gap-2 min-h-[24px]">
+                        <CellContent value={row.pro} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
+          <h3 className="font-semibold text-white mb-4">Perguntas frequentes</h3>
+          <div className="space-y-4 text-sm">
+            <div>
+              <p className="font-medium text-white/90">Posso mudar de plano a qualquer momento?</p>
+              <p className="text-white/70 mt-1">
+                Sim. Você pode fazer upgrade ou downgrade a qualquer momento. As alterações entram em vigor imediatamente.
+              </p>
+            </div>
+            <div>
+              <p className="font-medium text-white/90">Como funciona o pagamento?</p>
+              <p className="text-white/70 mt-1">
+                Em breve teremos integração com Stripe para pagamentos automáticos. Por enquanto, entre em contato para ativar seu plano.
+              </p>
+            </div>
           </div>
         </div>
       </div>
