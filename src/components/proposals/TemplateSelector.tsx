@@ -1,9 +1,47 @@
 'use client'
 
-import { X, Landmark } from 'lucide-react'
+import { X, Landmark, Sparkles, LayoutGrid, Briefcase } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export type TemplateType = 'modern' | 'executive' | 'simple' | 'empresarial'
+
+const OPTIONS: {
+  id: TemplateType
+  label: string
+  description: string
+  icon: typeof Landmark
+  enabled: boolean
+}[] = [
+  {
+    id: 'empresarial',
+    label: 'Empresarial',
+    description: 'Hero, trabalhos, planos, depoimentos, sobre nós e contato — landing completa.',
+    icon: Landmark,
+    enabled: true,
+  },
+  {
+    id: 'simple',
+    label: 'Clean',
+    description: 'Visual minimalista, foco no essencial e leitura rápida.',
+    icon: Sparkles,
+    enabled: false,
+  },
+  {
+    id: 'modern',
+    label: 'Moderno',
+    description: 'Blocos flexíveis e estilo contemporâneo.',
+    icon: LayoutGrid,
+    enabled: false,
+  },
+  {
+    id: 'executive',
+    label: 'Executivo',
+    description: 'Tom formal, ideal para B2B e contratos de maior valor.',
+    icon: Briefcase,
+    enabled: false,
+  },
+]
 
 interface TemplateSelectorProps {
   open: boolean
@@ -11,7 +49,6 @@ interface TemplateSelectorProps {
   onSelect: (template: TemplateType) => void
 }
 
-/** Único fluxo ativo: proposta no formato empresarial (landing completa). */
 export function TemplateSelector({ open, onClose, onSelect }: TemplateSelectorProps) {
   if (!open) return null
 
@@ -21,35 +58,65 @@ export function TemplateSelector({ open, onClose, onSelect }: TemplateSelectorPr
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl"
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 sm:p-8 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Nova proposta</h2>
-            <p className="mt-1 text-slate-500">Modelo empresarial — landing com hero, planos e contato</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Escolha o modelo. Só o formato empresarial está disponível no momento; os outros chegam em breve.
+            </p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-xl p-2 transition-colors hover:bg-slate-100">
+          <button type="button" onClick={onClose} className="shrink-0 rounded-xl p-2 transition-colors hover:bg-slate-100">
             <X className="h-5 w-5 text-slate-400" />
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onSelect('empresarial')}
-          className={cn(
-            'w-full rounded-2xl border-2 border-slate-200 bg-white p-6 text-left transition-all',
-            'cursor-pointer hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10'
-          )}
-        >
-          <div className={cn('mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-800 text-white')}>
-            <Landmark className="h-6 w-6" />
-          </div>
-          <h3 className="mb-2 text-lg font-semibold text-slate-900">Empresarial</h3>
-          <p className="text-sm leading-relaxed text-slate-500">
-            Hero, trabalhos, planos, depoimentos, sobre nós e contato — tudo em uma página contínua.
-          </p>
-        </button>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {OPTIONS.map((opt) => {
+            const Icon = opt.icon
+            const disabled = !opt.enabled
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => {
+                  if (disabled) {
+                    toast.info('Este modelo estará disponível em breve.')
+                    return
+                  }
+                  onSelect(opt.id)
+                  onClose()
+                }}
+                className={cn(
+                  'rounded-2xl border-2 p-5 text-left transition-all',
+                  disabled
+                    ? 'cursor-not-allowed border-slate-100 bg-slate-50/80 opacity-75'
+                    : 'cursor-pointer border-slate-200 bg-white hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10'
+                )}
+              >
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div
+                    className={cn(
+                      'flex h-12 w-12 items-center justify-center rounded-xl text-white',
+                      disabled ? 'bg-slate-400' : 'bg-zinc-800'
+                    )}
+                  >
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  {disabled && (
+                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                      Em breve
+                    </span>
+                  )}
+                </div>
+                <h3 className="mb-1.5 text-base font-semibold text-slate-900">{opt.label}</h3>
+                <p className="text-sm leading-relaxed text-slate-500">{opt.description}</p>
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

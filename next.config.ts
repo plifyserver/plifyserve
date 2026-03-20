@@ -1,6 +1,17 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
+/** Evita o Next inferir a raiz errada quando existe outro package-lock na pasta pai. */
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: projectRoot,
+  },
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**", pathname: "/**" },
