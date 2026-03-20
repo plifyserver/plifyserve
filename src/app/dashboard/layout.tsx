@@ -117,10 +117,6 @@ export default function DashboardLayout({
   }, [fetchSettings])
 
   useEffect(() => {
-    navItems.slice(0, 6).forEach((item) => router.prefetch(item.href))
-  }, [router])
-
-  useEffect(() => {
     const onSettingsUpdated = () => {
       fetchSettings()
       setLogoCacheBust(Date.now())
@@ -288,7 +284,7 @@ export default function DashboardLayout({
             <Link
               key={item.href}
               href={item.href}
-              prefetch
+              prefetch={false}
               onMouseEnter={() => router.prefetch(item.href)}
               onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${

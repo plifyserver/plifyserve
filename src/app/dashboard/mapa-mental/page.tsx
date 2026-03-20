@@ -19,7 +19,7 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useAuth } from '@/contexts/AuthContext'
-import { Plus, Save, Loader2, FileDown, Trash2, Palette, Type, FileStack } from 'lucide-react'
+import { Plus, Save, Loader2, FileDown, Trash2, Palette, Type, FileStack, Pencil, Check, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -507,6 +507,9 @@ function MindMapEditor() {
   const [editingNode, setEditingNode] = useState<Node | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Node | null>(null)
   const [mapToDelete, setMapToDelete] = useState<HistoryItem | null>(null)
+  const [historyRenameId, setHistoryRenameId] = useState<string | null>(null)
+  const [historyRenameValue, setHistoryRenameValue] = useState('')
+  const [renamingMap, setRenamingMap] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const mapCacheRef = useRef<Map<string, { id: string; name: string; nodes: Node[]; edges: Edge[]; updatedAt?: string }>>(
     new Map()
@@ -669,6 +672,11 @@ function MindMapEditor() {
     }
   }, [user, currentMapId, applyLoadedMap])
 
+  // Ref evita que `loadMap` mude quando `currentMapId` muda; senão o useEffect inicial
+  // voltava a correr e carregava sempre o 1.º do histórico, anulando a troca de mapa.
+  const loadMapByIdRef = useRef(loadMapById)
+  loadMapByIdRef.current = loadMapById
+
   const loadMap = useCallback(async () => {
     if (!user) return
     setLoading(true)
@@ -683,14 +691,14 @@ function MindMapEditor() {
       setHistoryList(arr)
       if (arr.length > 0) {
         const mostRecent = arr[0]
-        await loadMapById(mostRecent.id)
+        await loadMapByIdRef.current(mostRecent.id)
       }
     } catch {
       // ok
     } finally {
       setLoading(false)
     }
-  }, [user, loadMapById])
+  }, [user])
 
   const saveMap = useCallback(async () => {
     if (!user) return
@@ -761,6 +769,58 @@ function MindMapEditor() {
     setEdges([])
     showToast('Novo mapa')
   }, [setNodes, setEdges])
+
+  const cancelHistoryRename = useCallback(() => {
+    setHistoryRenameId(null)
+    setHistoryRenameValue('')
+  }, [])
+
+  const startHistoryRename = useCallback((item: HistoryItem) => {
+    setHistoryRenameId(item.id)
+    setHistoryRenameValue(item.name || 'Mapa sem título')
+  }, [])
+
+  const commitHistoryRename = useCallback(async () => {
+    if (!historyRenameId || !user || renamingMap) return
+    const name = historyRenameValue.trim() || 'Mapa sem título'
+    setRenamingMap(true)
+    try {
+      const res = await fetch(`/api/mind-maps/${historyRenameId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        showToast((data as { error?: string }).error || 'Erro ao renomear')
+        return
+      }
+      const row = data as { name?: string; updated_at?: string }
+      if (currentMapId === historyRenameId) {
+        setCurrentMapName(row.name ?? name)
+      }
+      const cached = mapCacheRef.current.get(historyRenameId)
+      if (cached) {
+        mapCacheRef.current.set(historyRenameId, { ...cached, name: row.name ?? name })
+      }
+      await fetchHistory()
+      cancelHistoryRename()
+      showToast('Nome atualizado')
+    } catch {
+      showToast('Erro ao renomear')
+    } finally {
+      setRenamingMap(false)
+    }
+  }, [
+    historyRenameId,
+    historyRenameValue,
+    user,
+    renamingMap,
+    currentMapId,
+    fetchHistory,
+    cancelHistoryRename,
+  ])
 
   const deleteMap = useCallback(async (item: HistoryItem) => {
     try {
@@ -889,27 +949,87 @@ function MindMapEditor() {
                 currentMapId === item.id ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-100 text-gray-700'
               }`}
             >
-              <button
-                type="button"
-                onDoubleClick={() => loadMapById(item.id)}
-                onMouseEnter={() => { void prefetchMapById(item.id) }}
-                className="flex-1 min-w-0 text-left px-3 py-2"
-                title="Duplo clique para abrir"
-              >
-                <p className="font-medium truncate">{item.name || 'Mapa sem título'}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {item.updated_at ? format(new Date(item.updated_at), "dd/MM/yyyy HH:mm", { locale: ptBR }) : ''}
-                </p>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setMapToDelete(item) }}
-                className="p-1.5 rounded text-gray-400 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                title="Excluir mapa"
-                aria-label="Excluir mapa"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {historyRenameId === item.id ? (
+                <div className="flex-1 min-w-0 px-2 py-1.5 space-y-1.5">
+                  <input
+                    type="text"
+                    value={historyRenameValue}
+                    onChange={(e) => setHistoryRenameValue(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                    maxLength={200}
+                    autoFocus
+                    disabled={renamingMap}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void commitHistoryRename()
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        cancelHistoryRename()
+                      }
+                    }}
+                  />
+                  <div className="flex gap-1 justify-end">
+                    <button
+                      type="button"
+                      onClick={cancelHistoryRename}
+                      disabled={renamingMap}
+                      className="p-1.5 rounded text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+                      title="Cancelar"
+                      aria-label="Cancelar renomear"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void commitHistoryRename()}
+                      disabled={renamingMap}
+                      className="p-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                      title="Salvar nome"
+                      aria-label="Salvar nome"
+                    >
+                      {renamingMap ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void loadMapById(item.id)}
+                    onMouseEnter={() => { void prefetchMapById(item.id) }}
+                    className="flex-1 min-w-0 text-left px-3 py-2"
+                    title="Clique para abrir"
+                  >
+                    <p className="font-medium truncate">{item.name || 'Mapa sem título'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {item.updated_at ? format(new Date(item.updated_at), "dd/MM/yyyy HH:mm", { locale: ptBR }) : ''}
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      startHistoryRename(item)
+                    }}
+                    className="p-1.5 rounded text-gray-400 hover:bg-emerald-100 hover:text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                    title="Renomear mapa"
+                    aria-label="Renomear mapa"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setMapToDelete(item) }}
+                    className="p-1.5 rounded text-gray-400 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                    title="Excluir mapa"
+                    aria-label="Excluir mapa"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -1003,7 +1123,7 @@ export default function MapaMentalPage() {
     <div>
       <h1 className="text-2xl font-bold mb-4">Mapa Mental</h1>
       <p className="text-gray-500 mb-6">
-        Duplo clique = editar. Clique e arraste = mover. Arraste o cantinho verde = redimensionar. Pontos verdes = ligar nós.
+        Duplo clique no nó = editar. Clique e arraste = mover. Arraste o cantinho verde = redimensionar. Pontos verdes = ligar nós. No histórico, um clique abre o mapa; lápis renomeia (Enter salva, Esc cancela).
       </p>
       <ReactFlowProvider>
         <MindMapEditor />
