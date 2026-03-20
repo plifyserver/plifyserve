@@ -38,6 +38,7 @@ import { generateProposalSlug } from '@/lib/generateProposalSlug'
 import {
   isValidLivePreviewSid,
   proposalLivePreviewChannelName,
+  writeProposalLivePreviewBootstrap,
 } from '@/lib/proposalLivePreview'
 import type { TemplateType } from '@/components/proposals/TemplateSelector'
 import {
@@ -387,22 +388,18 @@ export function NovaPropostaEditor({
   }, [proposalData, effectiveLivePreviewSid])
 
   const openClientLivePreview = useCallback(() => {
-    if (effectiveLivePreviewSid) {
-      window.open(
-        `/proposta/live-preview?sid=${encodeURIComponent(effectiveLivePreviewSid)}`,
-        '_blank',
-        'noopener,noreferrer'
-      )
-      return
+    const sid = effectiveLivePreviewSid ?? crypto.randomUUID()
+    // Snapshot síncrono: BroadcastChannel não fila — a nova aba pode subscrever depois do 1.º postMessage.
+    writeProposalLivePreviewBootstrap(sid, proposalData)
+    if (!effectiveLivePreviewSid) {
+      setLivePreviewSidExtra(sid)
     }
-    const sid = crypto.randomUUID()
-    setLivePreviewSidExtra(sid)
     window.open(
       `/proposta/live-preview?sid=${encodeURIComponent(sid)}`,
       '_blank',
       'noopener,noreferrer'
     )
-  }, [effectiveLivePreviewSid])
+  }, [effectiveLivePreviewSid, proposalData])
 
   // Carregar proposta existente para edição (incluindo cópias)
   useEffect(() => {

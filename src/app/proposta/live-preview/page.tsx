@@ -7,6 +7,7 @@ import { ProposalPreview, type ProposalData } from '@/components/proposals/Propo
 import {
   isValidLivePreviewSid,
   proposalLivePreviewChannelName,
+  readProposalLivePreviewBootstrap,
   type ProposalLivePreviewMessage,
 } from '@/lib/proposalLivePreview'
 
@@ -16,6 +17,14 @@ function LivePreviewContent() {
   const [data, setData] = useState<ProposalData | null>(null)
 
   const validSid = isValidLivePreviewSid(sid)
+
+  useEffect(() => {
+    if (!validSid || !sid) return
+    const boot = readProposalLivePreviewBootstrap(sid)
+    if (boot != null) {
+      setData(boot as ProposalData)
+    }
+  }, [sid, validSid])
 
   useEffect(() => {
     if (!validSid || typeof BroadcastChannel === 'undefined') return
