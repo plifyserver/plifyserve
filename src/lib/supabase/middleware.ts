@@ -2,6 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // Landing pública: não há redirects de auth aqui; pular o Supabase no edge acelera o primeiro carregamento (especialmente em dev).
+  if (pathname === '/') {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -33,12 +40,11 @@ export async function updateSession(request: NextRequest) {
     user = null
   }
 
-  const pathname = request.nextUrl.pathname
-
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/cadastro')
   const isAdminPage = pathname.startsWith('/admin')
   const isProtectedPage =
     pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/proposta') ||
     pathname.startsWith('/propostas') ||
     pathname.startsWith('/templates') ||
     pathname.startsWith('/faturamento') ||

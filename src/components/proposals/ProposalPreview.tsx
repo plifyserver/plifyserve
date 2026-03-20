@@ -3,9 +3,19 @@
 import { Check, Calendar, MapPin, Mail, Phone, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Plan } from './PlanCard'
+import { planBillingSuffix } from './PlanCard'
+import type {
+  EmpresarialPage1,
+  EmpresarialPage2,
+  EmpresarialPage3,
+  EmpresarialPage31,
+  EmpresarialPage4,
+  EmpresarialPage5,
+} from '@/types/empresarialProposal'
+import { ProposalEmpresarialLayout } from '@/components/proposals/ProposalEmpresarialLayout'
 
 export interface ProposalData {
-  template: 'modern' | 'executive' | 'simple'
+  template: 'modern' | 'executive' | 'simple' | 'empresarial'
   clientName: string
   company: {
     name: string
@@ -23,6 +33,14 @@ export interface ProposalData {
   description: string
   blocks: ContentBlock[]
   colorPalette: ColorPalette
+  /** Template empresarial — página 1 (hero) e faixa inferior */
+  empresarialPage1?: EmpresarialPage1
+  /** Template empresarial — página 2 (trabalhos / cards) */
+  empresarialPage2?: EmpresarialPage2
+  empresarialPage3?: EmpresarialPage3
+  empresarialPage31?: EmpresarialPage31
+  empresarialPage4?: EmpresarialPage4
+  empresarialPage5?: EmpresarialPage5
 }
 
 export interface ContentBlock {
@@ -53,11 +71,31 @@ interface ProposalPreviewProps {
   /** Quando definido, o cliente pode selecionar um plano (página pública); botão Confirmar só aparece após seleção */
   selectedPlanId?: string | null
   onSelectPlan?: (planId: string) => void
+  /** Página pública: abre fluxo com comentário + aceitar (não usa clique no card inteiro) */
+  onOpenPlanAccept?: (planId: string) => void
 }
 
-export function ProposalPreview({ data, className, selectedPlanId, onSelectPlan }: ProposalPreviewProps) {
+export function ProposalPreview({
+  data,
+  className,
+  selectedPlanId,
+  onSelectPlan,
+  onOpenPlanAccept,
+}: ProposalPreviewProps) {
   const palette = { ...defaultPalette, ...data.colorPalette }
   const { template } = data
+
+  if (template === 'empresarial') {
+    return (
+      <ProposalEmpresarialLayout
+        data={data}
+        className={cn(!className?.includes('rounded-none') && 'rounded-2xl', className)}
+        selectedPlanId={selectedPlanId}
+        onSelectPlan={onSelectPlan}
+        onOpenPlanAccept={onOpenPlanAccept}
+      />
+    )
+  }
 
   const getTemplateStyles = () => {
     switch (template) {
@@ -89,7 +127,11 @@ export function ProposalPreview({ data, className, selectedPlanId, onSelectPlan 
 
   return (
     <div 
-      className={cn('rounded-2xl overflow-hidden bg-white', className)}
+      className={cn(
+        'overflow-hidden bg-white',
+        !className?.includes('rounded-none') && 'rounded-2xl',
+        className
+      )}
       style={{ color: palette.text }}
     >
       {/* Header */}
@@ -217,21 +259,23 @@ export function ProposalPreview({ data, className, selectedPlanId, onSelectPlan 
               data.plans.length >= 3 && 'grid grid-cols-1 md:grid-cols-3',
             )}>
               {data.plans.map((plan) => {
-                const isSelectable = Boolean(onSelectPlan)
+                const isPublicPlanFlow = Boolean(onOpenPlanAccept)
+                const isSelectableLegacy = Boolean(onSelectPlan) && !isPublicPlanFlow
                 const isSelected = selectedPlanId === plan.id
-                const PlanWrapper = isSelectable ? 'button' : 'div'
+                const PlanWrapper = isSelectableLegacy ? 'button' : 'div'
+                const billingSuffix = planBillingSuffix(plan.priceType)
                 return (
                   <PlanWrapper
                     key={plan.id}
-                    type={isSelectable ? 'button' : undefined}
-                    onClick={isSelectable ? () => onSelectPlan?.(plan.id) : undefined}
+                    type={isSelectableLegacy ? 'button' : undefined}
+                    onClick={isSelectableLegacy ? () => onSelectPlan?.(plan.id) : undefined}
                     className={cn(
                       'relative rounded-2xl border-2 p-6 transition-all bg-white text-left w-full',
                       styles.cardShadow,
                       plan.highlighted && !isSelected
                         ? 'border-current scale-105 z-10'
                         : 'border-slate-200',
-                      isSelectable && 'cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-2',
+                      isSelectableLegacy && 'cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-2',
                       isSelected && 'ring-2 ring-offset-2',
                     )}
                     style={{
@@ -263,9 +307,9 @@ export function ProposalPreview({ data, className, selectedPlanId, onSelectPlan 
                       <span className="text-4xl font-bold" style={{ color: palette.secondary }}>
                         R$ {plan.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
-                      {plan.priceType === 'monthly' && (
-                        <span className="text-slate-500 text-sm">/mês</span>
-                      )}
+                      {billingSuffix ? (
+                        <span className="text-slate-500 text-sm">{billingSuffix}</span>
+                      ) : null}
                     </div>
                     <ul className="space-y-3">
                       {plan.benefits.filter(b => b.trim()).map((benefit, i) => (
@@ -280,7 +324,23 @@ export function ProposalPreview({ data, className, selectedPlanId, onSelectPlan 
                         </li>
                       ))}
                     </ul>
-                    {isSelectable && (
+                    {isPublicPlanFlow && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenPlanAccept?.(plan.id)}
+                        className="inline-block w-full mt-6 py-3 rounded-xl font-semibold text-white text-center transition-opacity hover:opacity-90"
+                        style={{
+                          backgroundColor: isSelected
+                            ? palette.primary
+                            : plan.highlighted
+                              ? palette.primary
+                              : palette.secondary,
+                        }}
+                      >
+                        {isSelected ? 'Plano escolhido — aceitar abaixo' : 'Selecionar plano'}
+                      </button>
+                    )}
+                    {isSelectableLegacy && (
                       <span
                         className="inline-block w-full mt-6 py-3 rounded-xl font-semibold text-white text-center transition-opacity hover:opacity-90 pointer-events-none"
                         style={{ backgroundColor: isSelected ? palette.primary : (plan.highlighted ? palette.primary : palette.secondary) }}
@@ -288,7 +348,7 @@ export function ProposalPreview({ data, className, selectedPlanId, onSelectPlan 
                         {isSelected ? 'Plano selecionado' : 'Selecionar'}
                       </span>
                     )}
-                    {!isSelectable && (
+                    {!isPublicPlanFlow && !isSelectableLegacy && (
                       <div
                         className="w-full mt-6 py-3 rounded-xl font-semibold text-white text-center"
                         style={{ backgroundColor: plan.highlighted ? palette.primary : palette.secondary }}

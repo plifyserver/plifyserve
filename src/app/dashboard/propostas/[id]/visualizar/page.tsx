@@ -3,8 +3,17 @@
 import { useParams } from 'next/navigation'
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader2, AlertCircle, MessageSquareQuote } from 'lucide-react'
+import { getAcceptanceClientComment } from '@/lib/proposalAcceptanceComment'
 import { ProposalPreview, type ProposalData, type ColorPalette } from '@/components/proposals/ProposalPreview'
+import {
+  mergeEmpresarialPage1,
+  mergeEmpresarialPage2,
+  mergeEmpresarialPage3,
+  mergeEmpresarialPage31,
+  mergeEmpresarialPage4,
+  mergeEmpresarialPage5,
+} from '@/types/empresarialProposal'
 import type { Proposal } from '@/types'
 
 const defaultPalette: ColorPalette = {
@@ -41,6 +50,30 @@ function buildProposalData(proposal: Proposal): ProposalData {
       c.colorPalette && typeof c.colorPalette === 'object'
         ? (c.colorPalette as ColorPalette)
         : defaultPalette,
+    empresarialPage1:
+      c.template === 'empresarial'
+        ? mergeEmpresarialPage1((c as { empresarialPage1?: unknown }).empresarialPage1)
+        : undefined,
+    empresarialPage2:
+      c.template === 'empresarial'
+        ? mergeEmpresarialPage2((c as { empresarialPage2?: unknown }).empresarialPage2)
+        : undefined,
+    empresarialPage3:
+      c.template === 'empresarial'
+        ? mergeEmpresarialPage3((c as { empresarialPage3?: unknown }).empresarialPage3)
+        : undefined,
+    empresarialPage31:
+      c.template === 'empresarial'
+        ? mergeEmpresarialPage31((c as { empresarialPage31?: unknown }).empresarialPage31)
+        : undefined,
+    empresarialPage4:
+      c.template === 'empresarial'
+        ? mergeEmpresarialPage4((c as { empresarialPage4?: unknown }).empresarialPage4)
+        : undefined,
+    empresarialPage5:
+      c.template === 'empresarial'
+        ? mergeEmpresarialPage5((c as { empresarialPage5?: unknown }).empresarialPage5)
+        : undefined,
   }
 }
 
@@ -52,6 +85,10 @@ export default function VisualizarProposalPage() {
   const [error, setError] = useState<string | null>(null)
 
   const proposalData = useMemo(() => (proposal ? buildProposalData(proposal) : null), [proposal])
+  const acceptanceComment = useMemo(
+    () => (proposal ? getAcceptanceClientComment(proposal.content) : null),
+    [proposal]
+  )
 
   useEffect(() => {
     const fetchProposal = async () => {
@@ -112,6 +149,24 @@ export default function VisualizarProposalPage() {
           Visualização em modo leitura — como o cliente vê a proposta
         </span>
       </div>
+
+      {proposal.status === 'accepted' && acceptanceComment ? (
+        <div className="max-w-4xl mx-auto rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5 shadow-sm">
+          <div className="flex gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <MessageSquareQuote className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                Comentário do cliente ao aceitar
+              </p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+                {acceptanceComment}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="max-w-4xl mx-auto">
         <div className="rounded-2xl overflow-hidden shadow-lg border border-slate-200">

@@ -1,5 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Allura&display=swap');
 @import "tailwindcss";
+
+/** Rótulo “Sobre nós” na página 4 do template empresarial (estilo referência editorial) */
+.empresarial-p4-eyebrow {
+  font-family: 'Allura', cursive;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: 0.04em;
+}
 
 :root {
   --background: 0 0% 100%;
@@ -73,6 +82,37 @@ strong, b { font-weight: 500; }
 /* Utilitários */
 .outline-ring\/50:focus {
   outline-color: hsl(var(--ring) / 0.5);
+}
+
+@keyframes empresarial-marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.empresarial-marquee-track {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
+  width: max-content;
+  min-height: 1.25em;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  animation: empresarial-marquee var(--marquee-sec, 45s) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empresarial-marquee-track {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
 }
 
 /* Scrollbar */

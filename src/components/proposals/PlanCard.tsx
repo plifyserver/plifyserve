@@ -4,6 +4,9 @@ import { X, Plus, GripVertical, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ImageUploader } from '@/components/proposals/ImageUploader'
+
+export type PlanPriceType = 'unique' | 'monthly' | 'annual'
 
 export interface Plan {
   id: string
@@ -11,8 +14,16 @@ export interface Plan {
   description: string
   benefits: string[]
   price: number
-  priceType: 'unique' | 'monthly'
+  priceType: PlanPriceType
   highlighted?: boolean
+  /** Imagem opcional (ex.: vitrine na página 3 empresarial) */
+  image?: string | null
+}
+
+export function planBillingSuffix(priceType: string | undefined): string {
+  if (priceType === 'monthly') return '/mês'
+  if (priceType === 'annual') return '/ano'
+  return ''
 }
 
 interface PlanCardProps {
@@ -50,6 +61,7 @@ export function PlanCard({
   }
 
   if (!isEditing) {
+    const billingSuffix = planBillingSuffix(plan.priceType)
     return (
       <div 
         className={cn(
@@ -74,9 +86,9 @@ export function PlanCard({
           <span className="text-3xl font-bold text-slate-900">
             R$ {plan.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </span>
-          {plan.priceType === 'monthly' && (
-            <span className="text-slate-500 text-sm">/mês</span>
-          )}
+          {billingSuffix ? (
+            <span className="text-slate-500 text-sm">{billingSuffix}</span>
+          ) : null}
         </div>
         <ul className="space-y-2">
           {plan.benefits.filter(b => b.trim()).map((benefit, i) => (
@@ -110,6 +122,17 @@ export function PlanCard({
       </div>
 
       <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1.5">Imagem do plano (opcional)</label>
+          <p className="text-xs text-slate-400 mb-2">Usada na vitrine escura (pág. 3) do template empresarial.</p>
+          <ImageUploader
+            label=""
+            value={plan.image || undefined}
+            onChange={(url) => updateField('image', url)}
+            aspectRatio="video"
+          />
+        </div>
+
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1.5">Descrição</label>
           <Input
@@ -171,11 +194,12 @@ export function PlanCard({
             <label className="block text-xs font-medium text-slate-500 mb-1.5">Tipo</label>
             <select
               value={plan.priceType}
-              onChange={(e) => updateField('priceType', e.target.value as 'unique' | 'monthly')}
+              onChange={(e) => updateField('priceType', e.target.value as PlanPriceType)}
               className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
             >
-              <option value="unique">Valor único</option>
-              <option value="monthly">Por mês</option>
+              <option value="unique">Pagamento único</option>
+              <option value="monthly">Mensal</option>
+              <option value="annual">Anual</option>
             </select>
           </div>
         </div>
@@ -212,6 +236,7 @@ export function PlanList({ plans, onChange, accentColor }: PlanListProps) {
       benefits: [''],
       price: 0,
       priceType: 'unique',
+      image: null,
     }
     onChange([...plans, newPlan])
   }

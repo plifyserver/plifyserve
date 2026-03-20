@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { TemplateSelector, type TemplateType } from '@/components/proposals/TemplateSelector'
+import { getAcceptanceClientComment } from '@/lib/proposalAcceptanceComment'
 import { toast } from 'sonner'
 
 function getAcceptedValue(proposal: Proposal): number {
@@ -30,12 +30,17 @@ export default function PropostasPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [deleteProposalId, setDeleteProposalId] = useState<string | null>(null)
-  const [showTemplateSelector, setShowTemplateSelector] = useState(false)
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
 
-  const handleTemplateSelect = (template: TemplateType) => {
-    setShowTemplateSelector(false)
-    router.push(`/dashboard/propostas/nova?template=${template}`)
+  const openNovaPropostaEmpresarial = () => {
+    const sid = crypto.randomUUID()
+    const qs = new URLSearchParams({ template: 'empresarial', livePreview: sid })
+    router.push(`/dashboard/propostas/nova?${qs.toString()}`)
+    window.open(
+      `/proposta/live-preview?sid=${encodeURIComponent(sid)}`,
+      '_blank',
+      'noopener,noreferrer'
+    )
   }
 
   useEffect(() => {
@@ -174,7 +179,7 @@ export default function PropostasPage() {
           <Button 
             size="default" 
             className="h-9 rounded-lg gap-1.5 bg-indigo-600 hover:bg-indigo-700"
-            onClick={() => setShowTemplateSelector(true)}
+            onClick={openNovaPropostaEmpresarial}
           >
             <Plus className="w-4 h-4" />
             Nova proposta
@@ -230,7 +235,7 @@ export default function PropostasPage() {
                   <Button 
                     variant="default" 
                     className="rounded-lg gap-2 bg-indigo-600 hover:bg-indigo-700"
-                    onClick={() => setShowTemplateSelector(true)}
+                    onClick={openNovaPropostaEmpresarial}
                   >
                     <Plus className="w-4 h-4" />
                     Criar primeira proposta
@@ -298,7 +303,7 @@ export default function PropostasPage() {
                         variant="outline"
                         size="sm"
                         className="h-8 rounded-lg gap-1.5 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                        title="Editar proposta (mesma tela de criação)"
+                        title="Editar proposta"
                         onClick={() => router.push(`/dashboard/propostas/nova?id=${proposal.id}`)}
                       >
                         <Edit className="w-4 h-4 text-slate-600" />
@@ -391,7 +396,9 @@ export default function PropostasPage() {
               </CardContent>
             </Card>
           ) : (
-            filteredAccepted.map((proposal) => (
+            filteredAccepted.map((proposal) => {
+              const clientComment = getAcceptanceClientComment(proposal.content)
+              return (
               <Card key={proposal.id} className="rounded-2xl border-0 shadow-sm border-emerald-200/60 bg-emerald-50/30 overflow-hidden">
                 <CardContent className="p-4 sm:p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -399,7 +406,7 @@ export default function PropostasPage() {
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                         <CheckCircle className="w-5 h-5" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <h3 className="font-semibold text-slate-900">{proposal.title}</h3>
                         <p className="text-sm text-slate-500 mt-0.5">
                           Aceita em{' '}
@@ -411,6 +418,16 @@ export default function PropostasPage() {
                               })
                             : '—'}
                         </p>
+                        {clientComment ? (
+                          <div className="mt-3 rounded-lg border border-emerald-200/80 bg-white/70 px-3 py-2.5">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                              Comentário do cliente
+                            </p>
+                            <p className="mt-1 text-sm text-slate-700 line-clamp-4 whitespace-pre-wrap">
+                              {clientComment}
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -450,7 +467,8 @@ export default function PropostasPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))
+              )
+            })
           )}
         </div>
       )}
@@ -479,12 +497,6 @@ export default function PropostasPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de seleção de template */}
-      <TemplateSelector
-        open={showTemplateSelector}
-        onClose={() => setShowTemplateSelector(false)}
-        onSelect={handleTemplateSelect}
-      />
     </div>
   )
 }

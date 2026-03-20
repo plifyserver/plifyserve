@@ -1,49 +1,9 @@
 'use client'
 
-import { X, Sparkles, Briefcase, FileText } from 'lucide-react'
+import { X, Landmark } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type TemplateType = 'modern' | 'executive' | 'simple'
-
-interface Template {
-  id: TemplateType
-  name: string
-  description: string
-  icon: React.ReactNode
-  iconBg: string
-  iconColor: string
-  locked?: boolean
-}
-
-const templates: Template[] = [
-  {
-    id: 'modern',
-    name: 'Moderno e Clean',
-    description: 'Design minimalista com foco em clareza e profissionalismo.',
-    icon: <Sparkles className="w-6 h-6" />,
-    iconBg: 'bg-blue-100',
-    iconColor: 'text-blue-600',
-    locked: false,
-  },
-  {
-    id: 'executive',
-    name: 'Executivo Premium',
-    description: 'Layout sofisticado para propostas de alto valor.',
-    icon: <Briefcase className="w-6 h-6" />,
-    iconBg: 'bg-purple-100',
-    iconColor: 'text-purple-600',
-    locked: true,
-  },
-  {
-    id: 'simple',
-    name: 'Simples e Direto',
-    description: 'Estrutura objetiva e fácil de entender.',
-    icon: <FileText className="w-6 h-6" />,
-    iconBg: 'bg-emerald-100',
-    iconColor: 'text-emerald-600',
-    locked: true,
-  },
-]
+export type TemplateType = 'modern' | 'executive' | 'simple' | 'empresarial'
 
 interface TemplateSelectorProps {
   open: boolean
@@ -51,92 +11,45 @@ interface TemplateSelectorProps {
   onSelect: (template: TemplateType) => void
 }
 
+/** Único fluxo ativo: proposta no formato empresarial (landing completa). */
 export function TemplateSelector({ open, onClose, onSelect }: TemplateSelectorProps) {
   if (!open) return null
 
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div 
-        className="w-full max-w-3xl rounded-2xl bg-white p-8 shadow-2xl"
+      <div
+        className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-8">
+        <div className="mb-8 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Escolha um template</h2>
-            <p className="text-slate-500 mt-1">Selecione o estilo da sua proposta</p>
+            <h2 className="text-2xl font-bold text-slate-900">Nova proposta</h2>
+            <p className="mt-1 text-slate-500">Modelo empresarial — landing com hero, planos e contato</p>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
-          >
-            <X className="w-5 h-5 text-slate-400" />
+          <button type="button" onClick={onClose} className="rounded-xl p-2 transition-colors hover:bg-slate-100">
+            <X className="h-5 w-5 text-slate-400" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {templates.map((template) => (
-            <div
-              key={template.id}
-              className={cn(
-                'group relative p-6 rounded-2xl border-2 border-slate-200 bg-white',
-                template.locked
-                  ? 'opacity-75 cursor-not-allowed'
-                  : 'cursor-pointer hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10'
-              )}
-            >
-              {template.locked ? (
-                <>
-                  <div className={cn(
-                    'w-14 h-14 rounded-xl flex items-center justify-center mb-4',
-                    template.iconBg, template.iconColor
-                  )}>
-                    {template.icon}
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    {template.name}
-                  </h3>
-                  <p className="text-sm text-slate-500 leading-relaxed mb-3">
-                    {template.description}
-                  </p>
-                  <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-                    Ainda estamos criando esse modelo.
-                  </div>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onSelect(template.id)}
-                  className="w-full text-left"
-                >
-                  <div className={cn(
-                    'w-14 h-14 rounded-xl flex items-center justify-center mb-4',
-                    'transition-transform group-hover:scale-110',
-                    template.iconBg, template.iconColor
-                  )}>
-                    {template.icon}
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    {template.name}
-                  </h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">
-                    {template.description}
-                  </p>
-                  <div className={cn(
-                    'absolute inset-0 rounded-2xl border-2 border-indigo-500 opacity-0',
-                    'group-hover:opacity-100 transition-opacity pointer-events-none'
-                  )} />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <p className="text-center text-sm text-slate-400 mt-6">
-          Você poderá personalizar cores e conteúdo depois
-        </p>
+        <button
+          type="button"
+          onClick={() => onSelect('empresarial')}
+          className={cn(
+            'w-full rounded-2xl border-2 border-slate-200 bg-white p-6 text-left transition-all',
+            'cursor-pointer hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10'
+          )}
+        >
+          <div className={cn('mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-800 text-white')}>
+            <Landmark className="h-6 w-6" />
+          </div>
+          <h3 className="mb-2 text-lg font-semibold text-slate-900">Empresarial</h3>
+          <p className="text-sm leading-relaxed text-slate-500">
+            Hero, trabalhos, planos, depoimentos, sobre nós e contato — tudo em uma página contínua.
+          </p>
+        </button>
       </div>
     </div>
   )
