@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, AlertCircle, MessageSquareQuote } from 'lucide-react'
 import { getAcceptanceClientComment } from '@/lib/proposalAcceptanceComment'
+import { AcceptedPlanCallout } from '@/components/proposals/AcceptedPlanCallout'
 import { ProposalPreview, type ProposalData, type ColorPalette } from '@/components/proposals/ProposalPreview'
 import {
   mergeEmpresarialPage1,
@@ -150,21 +151,26 @@ export default function VisualizarProposalPage() {
         </span>
       </div>
 
-      {proposal.status === 'accepted' && acceptanceComment ? (
-        <div className="max-w-4xl mx-auto rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5 shadow-sm">
-          <div className="flex gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-              <MessageSquareQuote className="h-5 w-5" />
+      {proposal.status === 'accepted' ? (
+        <div className="max-w-4xl mx-auto space-y-4">
+          <AcceptedPlanCallout content={proposal.content} />
+          {acceptanceComment ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5 shadow-sm">
+              <div className="flex gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                  <MessageSquareQuote className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                    Comentário do cliente ao aceitar
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+                    {acceptanceComment}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
-                Comentário do cliente ao aceitar
-              </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-                {acceptanceComment}
-              </p>
-            </div>
-          </div>
+          ) : null}
         </div>
       ) : null}
 
