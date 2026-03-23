@@ -23,9 +23,11 @@ import {
   MessageSquareQuote,
   Phone,
   ExternalLink,
+  MessageCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -68,6 +70,30 @@ import {
   type EmpresarialStatBlock,
   type EmpresarialTestimonial,
 } from '@/types/empresarialProposal'
+import {
+  DEFAULT_CLEAN_PAGE1,
+  DEFAULT_CLEAN_PAGE2,
+  DEFAULT_CLEAN_PAGE3,
+  DEFAULT_CLEAN_PAGE4,
+  DEFAULT_CLEAN_PAGE5,
+  DEFAULT_CLEAN_PROMOTION_CTA,
+  cleanCarouselFromSix,
+  cleanCarouselToSix,
+  mergeCleanPage1,
+  mergeCleanPage2,
+  mergeCleanPage3,
+  mergeCleanPage4,
+  mergeCleanPage5,
+  mergeCleanPromotionCta,
+  type CleanPage1,
+  type CleanPage2,
+  type CleanPage3,
+  type CleanPage4,
+  type CleanPage4Column,
+  type CleanPage5,
+  type CleanPage5SocialLink,
+  type CleanPromotionCta,
+} from '@/types/cleanProposal'
 
 type EmpresarialIconPickTarget = { kind: 'page1'; index: number } | { kind: 'page4'; index: number }
 type ProposalStatus = 'draft' | 'published' | 'accepted'
@@ -210,17 +236,20 @@ const getDefaultProposalData = (template: TemplateType): ProposalData => ({
     phone: '',
   },
   paymentType: 'plans',
-  plans: [
-    {
-      id: 'plan-1',
-      name: 'Básico',
-      description: 'Ideal para começar',
-      benefits: ['Benefício 1', 'Benefício 2'],
-      price: 997,
-      priceType: 'unique',
-      image: null,
-    },
-  ],
+  plans:
+    template === 'simple'
+      ? []
+      : [
+          {
+            id: 'plan-1',
+            name: 'Básico',
+            description: 'Ideal para começar',
+            benefits: ['Benefício 1', 'Benefício 2'],
+            price: 997,
+            priceType: 'unique',
+            image: null,
+          },
+        ],
   singlePrice: 0,
   deliveryType: 'immediate',
   deliveryDate: '',
@@ -259,6 +288,38 @@ const getDefaultProposalData = (template: TemplateType): ProposalData => ({
         }
       : undefined,
   empresarialPage5: template === 'empresarial' ? { ...DEFAULT_EMPRESARIAL_PAGE5, socialLinks: [] } : undefined,
+  cleanPage1:
+    template === 'simple'
+      ? {
+          ...DEFAULT_CLEAN_PAGE1,
+          meta: DEFAULT_CLEAN_PAGE1.meta.map((m) => ({ ...m })),
+        }
+      : undefined,
+  cleanPage2: template === 'simple' ? { ...DEFAULT_CLEAN_PAGE2 } : undefined,
+  cleanPage3:
+    template === 'simple'
+      ? {
+          ...DEFAULT_CLEAN_PAGE3,
+          keywords: [...DEFAULT_CLEAN_PAGE3.keywords] as [string, string, string],
+          carouselImages: [],
+        }
+      : undefined,
+  cleanPage4:
+    template === 'simple'
+      ? {
+          ...DEFAULT_CLEAN_PAGE4,
+          columns: DEFAULT_CLEAN_PAGE4.columns.map((c) => ({ ...c })) as [
+            CleanPage4Column,
+            CleanPage4Column,
+            CleanPage4Column,
+          ],
+        }
+      : undefined,
+  cleanPage5:
+    template === 'simple'
+      ? { ...DEFAULT_CLEAN_PAGE5, socialLinks: [] }
+      : undefined,
+  cleanPromotionCta: template === 'simple' ? { ...DEFAULT_CLEAN_PROMOTION_CTA } : undefined,
 })
 
 export function NovaPropostaEditor({
@@ -305,6 +366,41 @@ export function NovaPropostaEditor({
         ...PROPOSTA_BASE_SECTIONS.slice(3),
       ]
     }
+    if (proposalData.template === 'simple') {
+      return [
+        ...PROPOSTA_BASE_SECTIONS.slice(0, 2),
+        {
+          id: 'clean1' as const,
+          label: 'Capa · logo, título e destaques',
+          icon: LayoutTemplate,
+        },
+        {
+          id: 'clean2' as const,
+          label: 'Imagem de impacto · tela cheia',
+          icon: Layers,
+        },
+        {
+          id: 'clean3' as const,
+          label: 'Apresentação · texto e carrossel',
+          icon: Megaphone,
+        },
+        {
+          id: 'clean4' as const,
+          label: 'Conteúdo · blocos com imagens',
+          icon: Building2,
+        },
+        {
+          id: 'clean5' as const,
+          label: 'Rodapé · contato e redes',
+          icon: Phone,
+        },
+        {
+          id: 'cleanCta' as const,
+          label: 'Botão flutuante · WhatsApp',
+          icon: MessageCircle,
+        },
+      ]
+    }
     return [...PROPOSTA_BASE_SECTIONS]
   }, [proposalData.template])
 
@@ -347,6 +443,65 @@ export function NovaPropostaEditor({
     setProposalData((prev) => {
       const cur = mergeEmpresarialPage5(prev.empresarialPage5)
       return { ...prev, empresarialPage5: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchCleanPage1 = useCallback((patch: Partial<CleanPage1>) => {
+    setProposalData((prev) => {
+      const cur = mergeCleanPage1(prev.cleanPage1)
+      return { ...prev, cleanPage1: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchCleanMeta = useCallback((index: number, field: 'label' | 'value', value: string) => {
+    setProposalData((prev) => {
+      const cur = mergeCleanPage1(prev.cleanPage1)
+      const meta = cur.meta.map((m, i) => (i === index ? { ...m, [field]: value } : m))
+      return { ...prev, cleanPage1: { ...cur, meta } }
+    })
+  }, [])
+
+  const patchCleanPage2 = useCallback((patch: Partial<CleanPage2>) => {
+    setProposalData((prev) => {
+      const cur = mergeCleanPage2(prev.cleanPage2)
+      return { ...prev, cleanPage2: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchCleanPage3 = useCallback((patch: Partial<CleanPage3>) => {
+    setProposalData((prev) => {
+      const cur = mergeCleanPage3(prev.cleanPage3)
+      return { ...prev, cleanPage3: mergeCleanPage3({ ...cur, ...patch }) }
+    })
+  }, [])
+
+  const patchCleanPage4 = useCallback((patch: Partial<CleanPage4>) => {
+    setProposalData((prev) => {
+      const cur = mergeCleanPage4(prev.cleanPage4)
+      return { ...prev, cleanPage4: mergeCleanPage4({ ...cur, ...patch }) }
+    })
+  }, [])
+
+  const patchCleanPage4Column = useCallback((index: 0 | 1 | 2, patch: Partial<CleanPage4Column>) => {
+    setProposalData((prev) => {
+      const cur = mergeCleanPage4(prev.cleanPage4)
+      const cols = [...cur.columns] as [CleanPage4Column, CleanPage4Column, CleanPage4Column]
+      cols[index] = { ...cols[index], ...patch }
+      return { ...prev, cleanPage4: mergeCleanPage4({ ...cur, columns: cols }) }
+    })
+  }, [])
+
+  const patchCleanPage5 = useCallback((patch: Partial<CleanPage5>) => {
+    setProposalData((prev) => {
+      const cur = mergeCleanPage5(prev.cleanPage5)
+      return { ...prev, cleanPage5: mergeCleanPage5({ ...cur, ...patch }) }
+    })
+  }, [])
+
+  const patchCleanPromotionCta = useCallback((patch: Partial<CleanPromotionCta>) => {
+    setProposalData((prev) => {
+      const cur = mergeCleanPromotionCta(prev.cleanPromotionCta)
+      return { ...prev, cleanPromotionCta: mergeCleanPromotionCta({ ...cur, ...patch }) }
     })
   }, [])
 
@@ -430,6 +585,12 @@ export function NovaPropostaEditor({
             empresarialPage31?: unknown
             empresarialPage4?: unknown
             empresarialPage5?: unknown
+            cleanPage1?: unknown
+            cleanPage2?: unknown
+            cleanPage3?: unknown
+            cleanPage4?: unknown
+            cleanPage5?: unknown
+            cleanPromotionCta?: unknown
             paymentType?: ProposalData['paymentType']
             singlePrice?: number
           }
@@ -504,6 +665,12 @@ export function NovaPropostaEditor({
             c.template === 'empresarial' ? mergeEmpresarialPage4(c.empresarialPage4) : undefined,
           empresarialPage5:
             c.template === 'empresarial' ? mergeEmpresarialPage5(c.empresarialPage5) : undefined,
+          cleanPage1: c.template === 'simple' ? mergeCleanPage1(c.cleanPage1) : undefined,
+          cleanPage2: c.template === 'simple' ? mergeCleanPage2(c.cleanPage2) : undefined,
+          cleanPage3: c.template === 'simple' ? mergeCleanPage3(c.cleanPage3) : undefined,
+          cleanPage4: c.template === 'simple' ? mergeCleanPage4(c.cleanPage4) : undefined,
+          cleanPage5: c.template === 'simple' ? mergeCleanPage5(c.cleanPage5) : undefined,
+          cleanPromotionCta: c.template === 'simple' ? mergeCleanPromotionCta(c.cleanPromotionCta) : undefined,
         })
       } finally {
         if (!cancelled) setLoadingEdit(false)
@@ -525,20 +692,55 @@ export function NovaPropostaEditor({
     ) {
       setActiveSection('client')
     }
+    if (
+      proposalData.template !== 'simple' &&
+      (activeSection === 'clean1' ||
+        activeSection === 'clean2' ||
+        activeSection === 'clean3' ||
+        activeSection === 'clean4' ||
+        activeSection === 'clean5' ||
+        activeSection === 'cleanCta')
+    ) {
+      setActiveSection('client')
+    }
     if (proposalData.template === 'empresarial' && activeSection === 'company') {
       setActiveSection('empresarial')
     }
     if (activeSection === 'style') {
-      setActiveSection(proposalData.template === 'empresarial' ? 'empresarial' : 'planos')
+      setActiveSection(
+        proposalData.template === 'empresarial'
+          ? 'empresarial'
+          : proposalData.template === 'simple'
+            ? 'clean1'
+            : 'planos'
+      )
     }
     if (activeSection === 'delivery' || activeSection === 'content') {
-      setActiveSection(proposalData.template === 'empresarial' ? 'empresarial' : 'planos')
+      setActiveSection(
+        proposalData.template === 'empresarial'
+          ? 'empresarial'
+          : proposalData.template === 'simple'
+            ? 'clean1'
+            : 'planos'
+      )
     }
     if (activeSection === 'payment') {
-      setActiveSection(proposalData.template === 'empresarial' ? 'empresarial3' : 'planos')
+      setActiveSection(
+        proposalData.template === 'empresarial'
+          ? 'empresarial3'
+          : proposalData.template === 'simple'
+            ? 'cleanCta'
+            : 'planos'
+      )
     }
     if (activeSection === 'blocks') {
-      setActiveSection(proposalData.template === 'empresarial' ? 'empresarial' : 'planos')
+      setActiveSection(
+        proposalData.template === 'empresarial'
+          ? 'empresarial'
+          : proposalData.template === 'simple'
+            ? 'clean1'
+            : 'planos'
+      )
     }
   }, [proposalData.template, activeSection])
 
@@ -587,6 +789,24 @@ export function NovaPropostaEditor({
         : {}),
       ...(proposalData.template === 'empresarial' && proposalData.empresarialPage5
         ? { empresarialPage5: proposalData.empresarialPage5 }
+        : {}),
+      ...(proposalData.template === 'simple' && proposalData.cleanPage1
+        ? { cleanPage1: proposalData.cleanPage1 }
+        : {}),
+      ...(proposalData.template === 'simple' && proposalData.cleanPage2
+        ? { cleanPage2: proposalData.cleanPage2 }
+        : {}),
+      ...(proposalData.template === 'simple' && proposalData.cleanPage3
+        ? { cleanPage3: proposalData.cleanPage3 }
+        : {}),
+      ...(proposalData.template === 'simple' && proposalData.cleanPage4
+        ? { cleanPage4: proposalData.cleanPage4 }
+        : {}),
+      ...(proposalData.template === 'simple' && proposalData.cleanPage5
+        ? { cleanPage5: proposalData.cleanPage5 }
+        : {}),
+      ...(proposalData.template === 'simple' && proposalData.cleanPromotionCta
+        ? { cleanPromotionCta: mergeCleanPromotionCta(proposalData.cleanPromotionCta) }
         : {}),
     },
   })
@@ -642,6 +862,14 @@ export function NovaPropostaEditor({
       toast.error('Por favor, preencha o nome da empresa.')
       setActiveSection(proposalData.template === 'empresarial' ? 'empresarial' : 'company')
       return
+    }
+    if (proposalData.template === 'simple') {
+      const c3 = mergeCleanPage3(proposalData.cleanPage3)
+      if (c3.carouselImages.length < 3) {
+        toast.error('Na página 3 (Clean), adicione pelo menos 3 imagens no carrossel.')
+        setActiveSection('clean3')
+        return
+      }
     }
 
     setIsSaving(true)
@@ -816,6 +1044,436 @@ export function NovaPropostaEditor({
             </div>
           </div>
         )
+
+      case 'clean1': {
+        const c1 = mergeCleanPage1(proposalData.cleanPage1)
+        return (
+          <div className="space-y-8">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Capa · logo, título e destaques</h3>
+              <p className="text-sm text-slate-500">
+                Inspirado no portfolio Agntix: logo, palavras-chave, nome em destaque e quatro campos de metadados. Sem
+                menu central; o botão à direita leva à secção de contato.
+              </p>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <h4 className="text-sm font-semibold text-slate-800">Logo no topo</h4>
+              <p className="text-xs text-slate-500">
+                Se não enviar logo aqui, usamos o logo da secção Empresa (quando existir).
+              </p>
+              <ImageUploader
+                label="Logo da capa (opcional)"
+                value={c1.logoUrl || undefined}
+                onChange={(url) => patchCleanPage1({ logoUrl: url || null })}
+                aspectRatio="video"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Palavra-chave 1</label>
+                <Input
+                  value={c1.keyword1}
+                  onChange={(e) => patchCleanPage1({ keyword1: e.target.value })}
+                  placeholder="Website"
+                  className="rounded-xl border-slate-200"
+                />
+                <p className="mt-1 text-xs text-slate-500">Exibido como etiqueta com ponto vermelho (* automático).</p>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Palavra-chave 2</label>
+                <Input
+                  value={c1.keyword2}
+                  onChange={(e) => patchCleanPage1({ keyword2: e.target.value })}
+                  placeholder="Services"
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Nome em destaque (capa)</label>
+              <Input
+                value={c1.headline}
+                onChange={(e) => patchCleanPage1({ headline: e.target.value })}
+                placeholder="Nome da empresa ou projeto"
+                className="rounded-xl border-slate-200"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Se ficar vazio, usamos o nome da empresa da secção Empresa.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Texto do botão (canto direito)</label>
+              <Input
+                value={c1.contactButtonLabel}
+                onChange={(e) => patchCleanPage1({ contactButtonLabel: e.target.value })}
+                placeholder="CONTATO"
+                className="max-w-xs rounded-xl border-slate-200"
+              />
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-slate-800">Quatro campos (rótulo + valor)</h4>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {c1.meta.map((m, i) => (
+                  <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+                    <p className="text-xs font-medium text-slate-500">Campo {i + 1}</p>
+                    <Input
+                      value={m.label}
+                      onChange={(e) => patchCleanMeta(i, 'label', e.target.value)}
+                      placeholder="Rótulo"
+                      className="rounded-lg border-slate-200 text-sm"
+                    />
+                    <Input
+                      value={m.value}
+                      onChange={(e) => patchCleanMeta(i, 'value', e.target.value)}
+                      placeholder="Valor"
+                      className="rounded-lg border-slate-200 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case 'clean2': {
+        const c2 = mergeCleanPage2(proposalData.cleanPage2)
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Imagem de impacto (tela cheia)</h3>
+              <p className="text-sm text-slate-500">
+                A imagem encaixa no ecrã sem ser esticada: ficheiros grandes reduzem com nitidez; imagens pequenas
+                mantêm o tamanho natural (sem ampliação forçada). Parallax suave e desfoque leve ao fazer scroll.
+              </p>
+            </div>
+            <ImageUploader
+              label="Imagem da página 2"
+              value={c2.imageUrl || undefined}
+              onChange={(url) => patchCleanPage2({ imageUrl: url || null })}
+              aspectRatio="video"
+            />
+          </div>
+        )
+      }
+
+      case 'clean3': {
+        const c3 = mergeCleanPage3(proposalData.cleanPage3)
+        const six = cleanCarouselToSix(c3.carouselImages)
+        const setCarouselSlot = (index: number, url: string | undefined) => {
+          const nextSix = [...six]
+          nextSix[index] = url
+          patchCleanPage3({ carouselImages: cleanCarouselFromSix(nextSix) })
+        }
+        const patchKeyword = (index: 0 | 1 | 2, value: string) => {
+          const next: [string, string, string] = [...c3.keywords]
+          next[index] = value
+          patchCleanPage3({ keywords: next })
+        }
+        return (
+          <div className="space-y-8">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Apresentação · texto e carrossel</h3>
+              <p className="text-sm text-slate-500">
+                Título ao estilo &quot;Brand overview&quot; (ex.: Nossos Serviços), resumo dos serviços, três
+                palavras-chave e carrossel de 3 a 6 fotos (troca automática a cada 4 segundos).
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título da secção</label>
+              <Input
+                value={c3.sectionTitle}
+                onChange={(e) => patchCleanPage3({ sectionTitle: e.target.value })}
+                placeholder="Ex.: Nossos Serviços"
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Resumo</label>
+              <Textarea
+                value={c3.summary}
+                onChange={(e) => patchCleanPage3({ summary: e.target.value })}
+                rows={8}
+                className="rounded-xl border-slate-200"
+                placeholder="Breve texto sobre os serviços ou produtos..."
+              />
+            </div>
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-slate-800">Três palavras-chave</h4>
+              <p className="text-xs text-slate-500">Aparecem como etiquetas com ponto vermelho (sem asterisco).</p>
+              {([0, 1, 2] as const).map((i) => (
+                <Input
+                  key={i}
+                  value={c3.keywords[i]}
+                  onChange={(e) => patchKeyword(i, e.target.value)}
+                  placeholder={`Palavra-chave ${i + 1}`}
+                  className="rounded-xl border-slate-200"
+                />
+              ))}
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-slate-800">Carrossel</h4>
+              <p className="text-xs text-slate-500">
+                Preencha pelo menos as 3 primeiras imagens para publicar. Até 6 imagens no total; na proposta mostram-se 3
+                de cada vez, em rotação.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {six.map((url, i) => (
+                  <ImageUploader
+                    key={i}
+                    label={`Imagem ${i + 1}${i < 3 ? ' *' : ''}`}
+                    value={url}
+                    onChange={(u) => setCarouselSlot(i, u || undefined)}
+                    aspectRatio="video"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case 'clean4': {
+        const c4 = mergeCleanPage4(proposalData.cleanPage4)
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Conteúdo · blocos com imagens</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Título introdutório, três passos (número, título e texto) e galeria: uma imagem larga e duas quadradas
+                abaixo, com animação ao scroll na pré-visualização.
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título / frase principal</label>
+              <Textarea
+                value={c4.introHeadline}
+                onChange={(e) => patchCleanPage4({ introHeadline: e.target.value })}
+                rows={4}
+                className="rounded-xl border-slate-200"
+                placeholder="Resumo breve de como o produto ou serviço funciona..."
+              />
+            </div>
+            <div className="space-y-6">
+              <h4 className="text-sm font-semibold text-slate-800">Três colunas (passos)</h4>
+              {([0, 1, 2] as const).map((i) => (
+                <div key={i} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                  <p className="text-xs font-medium text-slate-600">Coluna {i + 1}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">Número / prefixo</label>
+                      <Input
+                        value={c4.columns[i].prefix}
+                        onChange={(e) => patchCleanPage4Column(i, { prefix: e.target.value })}
+                        placeholder="01"
+                        className="rounded-xl border-slate-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">Título</label>
+                      <Input
+                        value={c4.columns[i].title}
+                        onChange={(e) => patchCleanPage4Column(i, { title: e.target.value })}
+                        className="rounded-xl border-slate-200"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Descrição</label>
+                    <Textarea
+                      value={c4.columns[i].description}
+                      onChange={(e) => patchCleanPage4Column(i, { description: e.target.value })}
+                      rows={3}
+                      className="rounded-xl border-slate-200"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-slate-800">Imagens</h4>
+              <ImageUploader
+                label="Imagem grande (topo)"
+                value={c4.largeImageUrl ?? undefined}
+                onChange={(u) => patchCleanPage4({ largeImageUrl: u })}
+                aspectRatio="video"
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <ImageUploader
+                  label="Imagem pequena (esquerda)"
+                  value={c4.bottomLeftImageUrl ?? undefined}
+                  onChange={(u) => patchCleanPage4({ bottomLeftImageUrl: u })}
+                  aspectRatio="square"
+                />
+                <ImageUploader
+                  label="Imagem pequena (direita)"
+                  value={c4.bottomRightImageUrl ?? undefined}
+                  onChange={(u) => patchCleanPage4({ bottomRightImageUrl: u })}
+                  aspectRatio="square"
+                />
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case 'clean5': {
+        const c5 = mergeCleanPage5(proposalData.cleanPage5)
+        const setClean5Social = (socialLinks: CleanPage5SocialLink[]) =>
+          patchCleanPage5({ socialLinks: socialLinks.slice(0, 12) })
+
+        const clean5PlatformLabels: Record<EmpresarialPage5Platform, string> = {
+          instagram: 'Instagram',
+          x: 'X (Twitter)',
+          facebook: 'Facebook',
+          linkedin: 'LinkedIn',
+          youtube: 'YouTube',
+          tiktok: 'TikTok',
+          github: 'GitHub',
+          behance: 'Behance',
+          dribbble: 'Dribbble',
+          website: 'Site / outro link',
+        }
+
+        return (
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Rodapé · contato e redes</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Frase forte à esquerda, ícones de redes (opcional) e bloco <strong>Contato</strong> com e-mail, telefone e
+                morada da secção <strong>Empresa</strong>. O nome gigante no fundo é o nome da empresa, automaticamente.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Frase / headline</label>
+              <Textarea
+                value={c5.headline}
+                onChange={(e) => patchCleanPage5({ headline: e.target.value })}
+                rows={5}
+                className="rounded-xl border-slate-200"
+                placeholder="Ex.: Ajudamos o seu negócio a crescer..."
+              />
+              <p className="mt-1 text-xs text-slate-500">Use Enter para quebrar linhas no rodapé.</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h4 className="text-sm font-semibold text-slate-800">Redes sociais (máx. 12)</h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={c5.socialLinks.length >= 12}
+                  onClick={() =>
+                    setClean5Social([
+                      ...c5.socialLinks,
+                      {
+                        id: `clean-soc-${Date.now()}`,
+                        platform: 'instagram',
+                        url: '',
+                      },
+                    ])
+                  }
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Adicionar rede
+                </Button>
+              </div>
+              {c5.socialLinks.map((link, index) => (
+                <div
+                  key={link.id}
+                  className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 sm:flex-row sm:items-end"
+                >
+                  <div className="min-w-0 flex-1">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Rede</label>
+                    <select
+                      value={link.platform}
+                      onChange={(e) => {
+                        const next = [...c5.socialLinks]
+                        next[index] = { ...next[index], platform: e.target.value as EmpresarialPage5Platform }
+                        setClean5Social(next)
+                      }}
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                    >
+                      {EMPRESARIAL_PAGE5_PLATFORMS.map((key) => (
+                        <option key={key} value={key}>
+                          {clean5PlatformLabels[key]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="min-w-0 flex-[2]">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">URL</label>
+                    <Input
+                      value={link.url}
+                      onChange={(e) => {
+                        const next = [...c5.socialLinks]
+                        next[index] = { ...next[index], url: e.target.value }
+                        setClean5Social(next)
+                      }}
+                      placeholder="https://instagram.com/suaempresa"
+                      className="rounded-lg border-slate-200"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 text-red-600"
+                    onClick={() => setClean5Social(c5.socialLinks.filter((l) => l.id !== link.id))}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+
+      case 'cleanCta': {
+        const cta = mergeCleanPromotionCta(proposalData.cleanPromotionCta)
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Botão flutuante · WhatsApp</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Este modelo não tem planos nem confirmação no link: o visitante usa o botão fixo para abrir o{' '}
+                <strong>WhatsApp</strong> e falar consigo. O link público pode ser partilhado à vontade.
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Texto do botão</label>
+              <Input
+                value={cta.buttonLabel}
+                onChange={(e) => patchCleanPromotionCta({ buttonLabel: e.target.value })}
+                className="rounded-xl border-slate-200"
+                placeholder="SAIBA MAIS"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">WhatsApp</label>
+              <Input
+                value={cta.whatsappTarget}
+                onChange={(e) => patchCleanPromotionCta({ whatsappTarget: e.target.value })}
+                className="rounded-xl border-slate-200"
+                placeholder="5511999998888 ou https://wa.me/5511999998888"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Indique o número com DDI e DDD (só dígitos) ou uma URL completa do WhatsApp. Se ficar vazio, o botão não
+                aparece na proposta.
+              </p>
+            </div>
+          </div>
+        )
+      }
 
       case 'empresarial': {
         const p1 = mergeEmpresarialPage1(proposalData.empresarialPage1)

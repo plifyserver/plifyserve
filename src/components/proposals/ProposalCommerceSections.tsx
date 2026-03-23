@@ -1,0 +1,274 @@
+'use client'
+
+import { Check, Calendar, MapPin, Mail, Phone, Building2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { planBillingSuffix } from './PlanCard'
+import type { ProposalData, ColorPalette } from './ProposalPreview'
+
+const defaultPalette: ColorPalette = {
+  primary: '#6366F1',
+  secondary: '#1E293B',
+  accent: '#F59E0B',
+  background: '#FFFFFF',
+  text: '#334155',
+}
+
+export type CommerceSectionStyles = {
+  sectionRadius: string
+  cardShadow: string
+}
+
+interface ProposalCommerceSectionsProps {
+  data: ProposalData
+  palette?: Partial<ColorPalette>
+  styles: CommerceSectionStyles
+  selectedPlanId?: string | null
+  onSelectPlan?: (planId: string) => void
+  onOpenPlanAccept?: (planId: string) => void
+  className?: string
+}
+
+/** Bloco claro: descrição, blocos, planos, entrega e rodapé — reutilizado no modelo Clean após as páginas escuras. */
+export function ProposalCommerceSections({
+  data,
+  palette: palettePartial,
+  styles,
+  selectedPlanId,
+  onSelectPlan,
+  onOpenPlanAccept,
+  className,
+}: ProposalCommerceSectionsProps) {
+  const palette = { ...defaultPalette, ...data.colorPalette, ...palettePartial }
+
+  return (
+    <div className={cn('bg-white p-8 md:p-12 space-y-10', className)} style={{ color: palette.text }}>
+      {data.description && (
+        <section>
+          <h2 className="text-xl font-semibold mb-4" style={{ color: palette.secondary }}>
+            Sobre o Projeto
+          </h2>
+          <div className="prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: data.description }} />
+        </section>
+      )}
+
+      {data.blocks.length > 0 && (
+        <section className="space-y-6">
+          {data.blocks.map((block) => {
+            if (block.type === 'heading') {
+              return (
+                <h3 key={block.id} className="text-2xl font-bold" style={{ color: palette.secondary }}>
+                  {block.content}
+                </h3>
+              )
+            }
+            if (block.type === 'image' && block.content) {
+              return (
+                <img key={block.id} src={block.content} alt="" className="rounded-xl w-full max-w-2xl mx-auto" />
+              )
+            }
+            if (block.type === 'divider') {
+              return <hr key={block.id} className="border-slate-200" />
+            }
+            return (
+              <div
+                key={block.id}
+                className="prose prose-slate max-w-none"
+                dangerouslySetInnerHTML={{ __html: block.content }}
+              />
+            )
+          })}
+        </section>
+      )}
+
+      {data.paymentType === 'plans' && data.plans.length > 0 && (
+        <section>
+          <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: palette.secondary }}>
+            Planos Disponíveis
+          </h2>
+          <div
+            className={cn(
+              'gap-6',
+              data.plans.length === 1 && 'flex justify-center',
+              data.plans.length === 2 && 'grid grid-cols-1 md:grid-cols-2 max-w-3xl mx-auto',
+              data.plans.length >= 3 && 'grid grid-cols-1 md:grid-cols-3'
+            )}
+          >
+            {data.plans.map((plan) => {
+              const isPublicPlanFlow = Boolean(onOpenPlanAccept)
+              const isSelectableLegacy = Boolean(onSelectPlan) && !isPublicPlanFlow
+              const isSelected = selectedPlanId === plan.id
+              const PlanWrapper = isSelectableLegacy ? 'button' : 'div'
+              const billingSuffix = planBillingSuffix(plan.priceType)
+              return (
+                <PlanWrapper
+                  key={plan.id}
+                  type={isSelectableLegacy ? 'button' : undefined}
+                  onClick={isSelectableLegacy ? () => onSelectPlan?.(plan.id) : undefined}
+                  className={cn(
+                    'relative rounded-2xl border-2 p-6 transition-all bg-white text-left w-full',
+                    styles.cardShadow,
+                    plan.highlighted && !isSelected
+                      ? 'border-current scale-105 z-10'
+                      : 'border-slate-200',
+                    isSelectableLegacy && 'cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-2',
+                    isSelected && 'ring-2 ring-offset-2'
+                  )}
+                  style={{
+                    ...(plan.highlighted && !isSelected ? { borderColor: palette.primary } : undefined),
+                    ...(isSelected ? { borderColor: palette.primary, boxShadow: `0 0 0 2px ${palette.primary}` } : undefined),
+                    borderRadius: styles.sectionRadius,
+                  }}
+                >
+                  {plan.highlighted && !isSelected && (
+                    <div
+                      className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-semibold text-white whitespace-nowrap"
+                      style={{ backgroundColor: palette.primary }}
+                    >
+                      Recomendado
+                    </div>
+                  )}
+                  {isSelected && (
+                    <div
+                      className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: palette.primary }}
+                    >
+                      <Check className="w-4 h-4 text-white" />
+                    </div>
+                  )}
+                  <h3 className="text-xl font-bold mb-2" style={{ color: palette.secondary }}>
+                    {plan.name || 'Plano'}
+                  </h3>
+                  <p className="text-slate-500 text-sm mb-4">{plan.description}</p>
+                  <div className="mb-5">
+                    <span className="text-4xl font-bold" style={{ color: palette.secondary }}>
+                      R$ {plan.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                    {billingSuffix ? <span className="text-slate-500 text-sm">{billingSuffix}</span> : null}
+                  </div>
+                  <ul className="space-y-3">
+                    {plan.benefits
+                      .filter((b) => b.trim())
+                      .map((benefit, i) => (
+                        <li key={i} className="flex items-start gap-3 text-sm">
+                          <div
+                            className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                            style={{ backgroundColor: `${palette.primary}20` }}
+                          >
+                            <Check className="w-3 h-3" style={{ color: palette.primary }} />
+                          </div>
+                          <span style={{ color: palette.text }}>{benefit}</span>
+                        </li>
+                      ))}
+                  </ul>
+                  {isPublicPlanFlow && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenPlanAccept?.(plan.id)}
+                      className="inline-block w-full mt-6 py-3 rounded-xl font-semibold text-white text-center transition-opacity hover:opacity-90"
+                      style={{
+                        backgroundColor: isSelected
+                          ? palette.primary
+                          : plan.highlighted
+                            ? palette.primary
+                            : palette.secondary,
+                      }}
+                    >
+                      {isSelected ? 'Plano escolhido — aceitar abaixo' : 'Selecionar plano'}
+                    </button>
+                  )}
+                  {isSelectableLegacy && (
+                    <span
+                      className="inline-block w-full mt-6 py-3 rounded-xl font-semibold text-white text-center transition-opacity hover:opacity-90 pointer-events-none"
+                      style={{
+                        backgroundColor: isSelected ? palette.primary : plan.highlighted ? palette.primary : palette.secondary,
+                      }}
+                    >
+                      {isSelected ? 'Plano selecionado' : 'Selecionar'}
+                    </span>
+                  )}
+                  {!isPublicPlanFlow && !isSelectableLegacy && (
+                    <div
+                      className="w-full mt-6 py-3 rounded-xl font-semibold text-white text-center"
+                      style={{ backgroundColor: plan.highlighted ? palette.primary : palette.secondary }}
+                    >
+                      Selecionar
+                    </div>
+                  )}
+                </PlanWrapper>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {data.paymentType === 'single' && data.singlePrice > 0 && (
+        <section className="text-center">
+          <h2 className="text-xl font-semibold mb-4" style={{ color: palette.secondary }}>
+            Valor do projeto
+          </h2>
+          <div
+            className={cn('inline-flex flex-col items-center justify-center rounded-2xl border-2 px-8 py-6 bg-white', styles.cardShadow)}
+            style={{ borderColor: `${palette.primary}40`, borderRadius: styles.sectionRadius }}
+          >
+            <span className="text-sm text-slate-500 mb-1">Valor único</span>
+            <span className="text-4xl font-bold" style={{ color: palette.secondary }}>
+              R$ {data.singlePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+        </section>
+      )}
+
+      <section className="flex items-center justify-center gap-3 py-6 border-t border-slate-100">
+        <Calendar className="w-5 h-5" style={{ color: palette.primary }} />
+        <span className="text-slate-600">
+          {data.deliveryType === 'immediate'
+            ? 'Entrega imediata após confirmação'
+            : `Entrega prevista: ${
+                data.deliveryDate
+                  ? new Date(data.deliveryDate).toLocaleDateString('pt-BR', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : 'A definir'
+              }`}
+        </span>
+      </section>
+
+      <footer className="pt-8 border-t border-slate-100 text-center">
+        <div className="flex items-center justify-center gap-2 text-slate-500 text-sm flex-wrap">
+          <Building2 className="w-4 h-4" />
+          <span>{data.company.name}</span>
+          {data.company.document && (
+            <>
+              <span className="mx-2">•</span>
+              <span>{data.company.document}</span>
+            </>
+          )}
+        </div>
+        {(data.company.email || data.company.phone || data.company.address) && (
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-sm text-slate-500">
+            {data.company.email && (
+              <span className="flex items-center gap-1.5">
+                <Mail className="w-4 h-4 shrink-0" />
+                {data.company.email}
+              </span>
+            )}
+            {data.company.phone && (
+              <span className="flex items-center gap-1.5">
+                <Phone className="w-4 h-4 shrink-0" />
+                {data.company.phone}
+              </span>
+            )}
+            {data.company.address && (
+              <span className="flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 shrink-0" />
+                {data.company.address}
+              </span>
+            )}
+          </div>
+        )}
+      </footer>
+    </div>
+  )
+}

@@ -23,9 +23,10 @@ const OPTIONS: {
   {
     id: 'simple',
     label: 'Clean',
-    description: 'Visual minimalista, foco no essencial e leitura rápida.',
+    description:
+      'Divulgação: páginas escuras estilo portfolio, sem planos no link — botão flutuante para WhatsApp (partilhável).',
     icon: Sparkles,
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'modern',
@@ -65,7 +66,7 @@ export function TemplateSelector({ open, onClose, onSelect }: TemplateSelectorPr
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Nova proposta</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Escolha o modelo. Só o formato empresarial está disponível no momento; os outros chegam em breve.
+              Empresarial (landing completa) ou Clean (portfolio escuro). Moderno e Executivo em breve.
             </p>
           </div>
           <button type="button" onClick={onClose} className="shrink-0 rounded-xl p-2 transition-colors hover:bg-slate-100">

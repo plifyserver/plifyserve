@@ -61,6 +61,17 @@ export async function POST(
       : null
 
   const content = (proposal.content || {}) as Record<string, unknown>
+
+  if (content.template === 'simple') {
+    return NextResponse.json(
+      {
+        error:
+          'Este modelo é só para divulgação. Use o botão na página para falar no WhatsApp — não há confirmação por aqui.',
+      },
+      { status: 400 }
+    )
+  }
+
   const paymentType = content.paymentType === 'single' ? 'single' : 'plans'
   const plans = Array.isArray(content.plans) ? (content.plans as PlanRow[]) : []
   const singlePrice = typeof content.singlePrice === 'number' ? content.singlePrice : 0

@@ -22,6 +22,14 @@ export async function POST(
     return NextResponse.json({ error: 'Proposta já foi processada' }, { status: 400 })
   }
 
+  const content = (proposal.content || {}) as Record<string, unknown>
+  if (content.template === 'simple') {
+    return NextResponse.json(
+      { error: 'O modelo Clean é só divulgação; não há fluxo de aceite nesta proposta.' },
+      { status: 400 }
+    )
+  }
+
   let updatePayload: Record<string, unknown> = {
     status: 'accepted',
     accepted_at: new Date().toISOString(),

@@ -180,7 +180,12 @@ export function EmpresarialPage2Section({
                   >
                     {card.image ? (
                       <>
-                        <img src={card.image} alt="" className="h-full w-full object-cover" />
+                        <img
+                          src={card.image}
+                          alt=""
+                          className="h-full w-full object-contain"
+                          decoding="async"
+                        />
                         <CardStepBadge index={index} accentColor={accentColor} />
                       </>
                     ) : (

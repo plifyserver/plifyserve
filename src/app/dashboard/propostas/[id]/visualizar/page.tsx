@@ -15,6 +15,14 @@ import {
   mergeEmpresarialPage4,
   mergeEmpresarialPage5,
 } from '@/types/empresarialProposal'
+import {
+  mergeCleanPage1,
+  mergeCleanPage2,
+  mergeCleanPage3,
+  mergeCleanPage4,
+  mergeCleanPage5,
+  mergeCleanPromotionCta,
+} from '@/types/cleanProposal'
 import type { Proposal } from '@/types'
 
 const defaultPalette: ColorPalette = {
@@ -75,6 +83,12 @@ function buildProposalData(proposal: Proposal): ProposalData {
       c.template === 'empresarial'
         ? mergeEmpresarialPage5((c as { empresarialPage5?: unknown }).empresarialPage5)
         : undefined,
+    cleanPage1: c.template === 'simple' ? mergeCleanPage1(c.cleanPage1) : undefined,
+    cleanPage2: c.template === 'simple' ? mergeCleanPage2(c.cleanPage2) : undefined,
+    cleanPage3: c.template === 'simple' ? mergeCleanPage3(c.cleanPage3) : undefined,
+    cleanPage4: c.template === 'simple' ? mergeCleanPage4(c.cleanPage4) : undefined,
+    cleanPage5: c.template === 'simple' ? mergeCleanPage5(c.cleanPage5) : undefined,
+    cleanPromotionCta: c.template === 'simple' ? mergeCleanPromotionCta(c.cleanPromotionCta) : undefined,
   }
 }
 
@@ -86,6 +100,8 @@ export default function VisualizarProposalPage() {
   const [error, setError] = useState<string | null>(null)
 
   const proposalData = useMemo(() => (proposal ? buildProposalData(proposal) : null), [proposal])
+  const previewFullBleed =
+    proposalData?.template === 'empresarial' || proposalData?.template === 'simple'
   const acceptanceComment = useMemo(
     () => (proposal ? getAcceptanceClientComment(proposal.content) : null),
     [proposal]
@@ -151,8 +167,8 @@ export default function VisualizarProposalPage() {
         </span>
       </div>
 
-      {proposal.status === 'accepted' ? (
-        <div className="max-w-4xl mx-auto space-y-4">
+      {proposal.status === 'accepted' && proposalData.template !== 'simple' ? (
+        <div className={previewFullBleed ? 'w-full max-w-6xl mx-auto space-y-4' : 'max-w-4xl mx-auto space-y-4'}>
           <AcceptedPlanCallout content={proposal.content} />
           {acceptanceComment ? (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5 shadow-sm">
@@ -174,9 +190,18 @@ export default function VisualizarProposalPage() {
         </div>
       ) : null}
 
-      <div className="max-w-4xl mx-auto">
-        <div className="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
-          <ProposalPreview data={proposalData} className="shadow-none" />
+      <div className={previewFullBleed ? 'w-full' : 'max-w-4xl mx-auto'}>
+        <div
+          className={
+            previewFullBleed
+              ? 'overflow-hidden border-0 shadow-none'
+              : 'rounded-2xl overflow-hidden shadow-lg border border-slate-200'
+          }
+        >
+          <ProposalPreview
+            data={proposalData}
+            className={previewFullBleed ? 'rounded-none shadow-none' : 'shadow-none'}
+          />
         </div>
       </div>
     </div>

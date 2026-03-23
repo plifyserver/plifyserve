@@ -1,9 +1,8 @@
 'use client'
 
-import { Check, Calendar, MapPin, Mail, Phone, Building2 } from 'lucide-react'
+import { Mail, Phone, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Plan } from './PlanCard'
-import { planBillingSuffix } from './PlanCard'
 import type {
   EmpresarialPage1,
   EmpresarialPage2,
@@ -12,7 +11,17 @@ import type {
   EmpresarialPage4,
   EmpresarialPage5,
 } from '@/types/empresarialProposal'
+import type {
+  CleanPage1,
+  CleanPage2,
+  CleanPage3,
+  CleanPage4,
+  CleanPage5,
+  CleanPromotionCta,
+} from '@/types/cleanProposal'
 import { ProposalEmpresarialLayout } from '@/components/proposals/ProposalEmpresarialLayout'
+import { ProposalCleanLayout } from '@/components/proposals/ProposalCleanLayout'
+import { ProposalCommerceSections } from '@/components/proposals/ProposalCommerceSections'
 
 export interface ProposalData {
   template: 'modern' | 'executive' | 'simple' | 'empresarial'
@@ -41,6 +50,14 @@ export interface ProposalData {
   empresarialPage31?: EmpresarialPage31
   empresarialPage4?: EmpresarialPage4
   empresarialPage5?: EmpresarialPage5
+  /** Template Clean (`simple`) */
+  cleanPage1?: CleanPage1
+  cleanPage2?: CleanPage2
+  cleanPage3?: CleanPage3
+  cleanPage4?: CleanPage4
+  cleanPage5?: CleanPage5
+  /** Modelo Clean (divulgação): texto do botão + WhatsApp */
+  cleanPromotionCta?: CleanPromotionCta
 }
 
 export interface ContentBlock {
@@ -97,6 +114,18 @@ export function ProposalPreview({
     )
   }
 
+  if (template === 'simple') {
+    return (
+      <ProposalCleanLayout
+        data={data}
+        className={cn(!className?.includes('rounded-none') && 'rounded-2xl', className)}
+        selectedPlanId={selectedPlanId}
+        onSelectPlan={onSelectPlan}
+        onOpenPlanAccept={onOpenPlanAccept}
+      />
+    )
+  }
+
   const getTemplateStyles = () => {
     switch (template) {
       case 'executive':
@@ -105,13 +134,6 @@ export function ProposalPreview({
           headerText: '#FFFFFF',
           sectionRadius: '0.5rem',
           cardShadow: 'shadow-lg',
-        }
-      case 'simple':
-        return {
-          headerBg: palette.background,
-          headerText: palette.text,
-          sectionRadius: '0.25rem',
-          cardShadow: 'shadow-sm',
         }
       default:
         return {
@@ -126,7 +148,7 @@ export function ProposalPreview({
   const styles = getTemplateStyles()
 
   return (
-    <div 
+    <div
       className={cn(
         'overflow-hidden bg-white',
         !className?.includes('rounded-none') && 'rounded-2xl',
@@ -134,10 +156,9 @@ export function ProposalPreview({
       )}
       style={{ color: palette.text }}
     >
-      {/* Header */}
-      <div 
+      <div
         className="p-8 md:p-12"
-        style={{ 
+        style={{
           background: styles.headerBg,
           color: styles.headerText,
         }}
@@ -145,18 +166,10 @@ export function ProposalPreview({
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <div>
             {data.company.logo && (
-              <img 
-                src={data.company.logo} 
-                alt={data.company.name}
-                className="h-36 w-auto object-contain mb-4"
-              />
+              <img src={data.company.logo} alt={data.company.name} className="h-36 w-auto object-contain mb-4" />
             )}
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">
-              {data.company.name || 'Sua Empresa'}
-            </h1>
-            <p className="opacity-80 text-lg">
-              Proposta para {data.clientName || 'Cliente'}
-            </p>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">{data.company.name || 'Sua Empresa'}</h1>
+            <p className="opacity-80 text-lg">Proposta para {data.clientName || 'Cliente'}</p>
           </div>
           <div className="text-center text-sm opacity-80 space-y-1 flex flex-col items-center">
             {data.company.email && (
@@ -181,237 +194,13 @@ export function ProposalPreview({
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-8 md:p-12 space-y-10">
-        {/* Description */}
-        {data.description && (
-          <section>
-            <h2 
-              className="text-xl font-semibold mb-4"
-              style={{ color: palette.secondary }}
-            >
-              Sobre o Projeto
-            </h2>
-            <div 
-              className="prose prose-slate max-w-none"
-              dangerouslySetInnerHTML={{ __html: data.description }}
-            />
-          </section>
-        )}
-
-        {/* Custom Blocks */}
-        {data.blocks.length > 0 && (
-          <section className="space-y-6">
-            {data.blocks.map((block) => {
-              if (block.type === 'heading') {
-                return (
-                  <h3 
-                    key={block.id}
-                    className="text-2xl font-bold"
-                    style={{ color: palette.secondary }}
-                  >
-                    {block.content}
-                  </h3>
-                )
-              }
-              if (block.type === 'image' && block.content) {
-                return (
-                  <img 
-                    key={block.id}
-                    src={block.content}
-                    alt=""
-                    className="rounded-xl w-full max-w-2xl mx-auto"
-                  />
-                )
-              }
-              if (block.type === 'divider') {
-                return (
-                  <hr 
-                    key={block.id}
-                    className="border-slate-200"
-                  />
-                )
-              }
-              return (
-                <div 
-                  key={block.id}
-                  className="prose prose-slate max-w-none"
-                  dangerouslySetInnerHTML={{ __html: block.content }}
-                />
-              )
-            })}
-          </section>
-        )}
-
-        {/* Plans */}
-        {data.paymentType === 'plans' && data.plans.length > 0 && (
-          <section>
-            <h2 
-              className="text-xl font-semibold mb-6 text-center"
-              style={{ color: palette.secondary }}
-            >
-              Planos Disponíveis
-            </h2>
-            <div className={cn(
-              'gap-6',
-              data.plans.length === 1 && 'flex justify-center',
-              data.plans.length === 2 && 'grid grid-cols-1 md:grid-cols-2 max-w-3xl mx-auto',
-              data.plans.length >= 3 && 'grid grid-cols-1 md:grid-cols-3',
-            )}>
-              {data.plans.map((plan) => {
-                const isPublicPlanFlow = Boolean(onOpenPlanAccept)
-                const isSelectableLegacy = Boolean(onSelectPlan) && !isPublicPlanFlow
-                const isSelected = selectedPlanId === plan.id
-                const PlanWrapper = isSelectableLegacy ? 'button' : 'div'
-                const billingSuffix = planBillingSuffix(plan.priceType)
-                return (
-                  <PlanWrapper
-                    key={plan.id}
-                    type={isSelectableLegacy ? 'button' : undefined}
-                    onClick={isSelectableLegacy ? () => onSelectPlan?.(plan.id) : undefined}
-                    className={cn(
-                      'relative rounded-2xl border-2 p-6 transition-all bg-white text-left w-full',
-                      styles.cardShadow,
-                      plan.highlighted && !isSelected
-                        ? 'border-current scale-105 z-10'
-                        : 'border-slate-200',
-                      isSelectableLegacy && 'cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-2',
-                      isSelected && 'ring-2 ring-offset-2',
-                    )}
-                    style={{
-                      ...(plan.highlighted && !isSelected ? { borderColor: palette.primary } : undefined),
-                      ...(isSelected ? { borderColor: palette.primary, boxShadow: `0 0 0 2px ${palette.primary}` } : undefined),
-                    }}
-                  >
-                    {plan.highlighted && !isSelected && (
-                      <div 
-                        className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-semibold text-white whitespace-nowrap"
-                        style={{ backgroundColor: palette.primary }}
-                      >
-                        Recomendado
-                      </div>
-                    )}
-                    {isSelected && (
-                      <div 
-                        className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: palette.primary }}
-                      >
-                        <Check className="w-4 h-4 text-white" />
-                      </div>
-                    )}
-                    <h3 className="text-xl font-bold mb-2" style={{ color: palette.secondary }}>
-                      {plan.name || 'Plano'}
-                    </h3>
-                    <p className="text-slate-500 text-sm mb-4">{plan.description}</p>
-                    <div className="mb-5">
-                      <span className="text-4xl font-bold" style={{ color: palette.secondary }}>
-                        R$ {plan.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
-                      {billingSuffix ? (
-                        <span className="text-slate-500 text-sm">{billingSuffix}</span>
-                      ) : null}
-                    </div>
-                    <ul className="space-y-3">
-                      {plan.benefits.filter(b => b.trim()).map((benefit, i) => (
-                        <li key={i} className="flex items-start gap-3 text-sm">
-                          <div 
-                            className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                            style={{ backgroundColor: `${palette.primary}20` }}
-                          >
-                            <Check className="w-3 h-3" style={{ color: palette.primary }} />
-                          </div>
-                          <span style={{ color: palette.text }}>{benefit}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    {isPublicPlanFlow && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenPlanAccept?.(plan.id)}
-                        className="inline-block w-full mt-6 py-3 rounded-xl font-semibold text-white text-center transition-opacity hover:opacity-90"
-                        style={{
-                          backgroundColor: isSelected
-                            ? palette.primary
-                            : plan.highlighted
-                              ? palette.primary
-                              : palette.secondary,
-                        }}
-                      >
-                        {isSelected ? 'Plano escolhido — aceitar abaixo' : 'Selecionar plano'}
-                      </button>
-                    )}
-                    {isSelectableLegacy && (
-                      <span
-                        className="inline-block w-full mt-6 py-3 rounded-xl font-semibold text-white text-center transition-opacity hover:opacity-90 pointer-events-none"
-                        style={{ backgroundColor: isSelected ? palette.primary : (plan.highlighted ? palette.primary : palette.secondary) }}
-                      >
-                        {isSelected ? 'Plano selecionado' : 'Selecionar'}
-                      </span>
-                    )}
-                    {!isPublicPlanFlow && !isSelectableLegacy && (
-                      <div
-                        className="w-full mt-6 py-3 rounded-xl font-semibold text-white text-center"
-                        style={{ backgroundColor: plan.highlighted ? palette.primary : palette.secondary }}
-                      >
-                        Selecionar
-                      </div>
-                    )}
-                  </PlanWrapper>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Single price */}
-        {data.paymentType === 'single' && data.singlePrice > 0 && (
-          <section className="text-center">
-            <h2
-              className="text-xl font-semibold mb-4"
-              style={{ color: palette.secondary }}
-            >
-              Valor do projeto
-            </h2>
-            <div
-              className={cn(
-                'inline-flex flex-col items-center justify-center rounded-2xl border-2 px-8 py-6 bg-white',
-                styles.cardShadow
-              )}
-              style={{ borderColor: `${palette.primary}40` }}
-            >
-              <span className="text-sm text-slate-500 mb-1">Valor único</span>
-              <span className="text-4xl font-bold" style={{ color: palette.secondary }}>
-                R$ {data.singlePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-          </section>
-        )}
-
-        {/* Delivery */}
-        <section className="flex items-center justify-center gap-3 py-6 border-t border-slate-100">
-          <Calendar className="w-5 h-5" style={{ color: palette.primary }} />
-          <span className="text-slate-600">
-            {data.deliveryType === 'immediate' 
-              ? 'Entrega imediata após confirmação'
-              : `Entrega prevista: ${data.deliveryDate ? new Date(data.deliveryDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : 'A definir'}`
-            }
-          </span>
-        </section>
-
-        {/* Company Info Footer */}
-        <footer className="pt-8 border-t border-slate-100 text-center">
-          <div className="flex items-center justify-center gap-2 text-slate-500 text-sm">
-            <Building2 className="w-4 h-4" />
-            <span>{data.company.name}</span>
-            {data.company.document && (
-              <>
-                <span className="mx-2">•</span>
-                <span>{data.company.document}</span>
-              </>
-            )}
-          </div>
-        </footer>
-      </div>
+      <ProposalCommerceSections
+        data={data}
+        styles={{ sectionRadius: styles.sectionRadius, cardShadow: styles.cardShadow }}
+        selectedPlanId={selectedPlanId}
+        onSelectPlan={onSelectPlan}
+        onOpenPlanAccept={onOpenPlanAccept}
+      />
     </div>
   )
 }

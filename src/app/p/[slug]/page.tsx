@@ -16,6 +16,14 @@ import {
   mergeEmpresarialPage4,
   mergeEmpresarialPage5,
 } from '@/types/empresarialProposal'
+import {
+  mergeCleanPage1,
+  mergeCleanPage2,
+  mergeCleanPage3,
+  mergeCleanPage4,
+  mergeCleanPage5,
+  mergeCleanPromotionCta,
+} from '@/types/cleanProposal'
 import { planBillingSuffix } from '@/components/proposals/PlanCard'
 import { fireProposalConfetti } from '@/lib/proposalConfetti'
 import { toast } from 'sonner'
@@ -47,6 +55,12 @@ interface Proposal {
     empresarialPage31?: unknown
     empresarialPage4?: unknown
     empresarialPage5?: unknown
+    cleanPage1?: unknown
+    cleanPage2?: unknown
+    cleanPage3?: unknown
+    cleanPage4?: unknown
+    cleanPage5?: unknown
+    cleanPromotionCta?: unknown
     paymentType?: ProposalData['paymentType']
     singlePrice?: number
     acceptedPlanId?: string | null
@@ -97,6 +111,12 @@ function buildProposalData(proposal: Proposal): ProposalData {
       c.template === 'empresarial' ? mergeEmpresarialPage4(c.empresarialPage4) : undefined,
     empresarialPage5:
       c.template === 'empresarial' ? mergeEmpresarialPage5(c.empresarialPage5) : undefined,
+    cleanPage1: c.template === 'simple' ? mergeCleanPage1(c.cleanPage1) : undefined,
+    cleanPage2: c.template === 'simple' ? mergeCleanPage2(c.cleanPage2) : undefined,
+    cleanPage3: c.template === 'simple' ? mergeCleanPage3(c.cleanPage3) : undefined,
+    cleanPage4: c.template === 'simple' ? mergeCleanPage4(c.cleanPage4) : undefined,
+    cleanPage5: c.template === 'simple' ? mergeCleanPage5(c.cleanPage5) : undefined,
+    cleanPromotionCta: c.template === 'simple' ? mergeCleanPromotionCta(c.cleanPromotionCta) : undefined,
   }
 }
 
@@ -118,6 +138,7 @@ export default function PublicProposalPage() {
 
   const proposalData = useMemo(() => (proposal ? buildProposalData(proposal) : null), [proposal])
   const isEmpresarial = proposalData?.template === 'empresarial'
+  const isClean = proposalData?.template === 'simple'
 
   const planCount = proposalData?.plans?.length ?? 0
   /** Inclui propostas com planos no JSON mesmo se paymentType vier vazio (default no build é 'plans'). */
@@ -234,9 +255,9 @@ export default function PublicProposalPage() {
   const billingExample = planModalMeta ? planBillingSuffix(planModalMeta.priceType) : ''
 
   return (
-    <div className={`min-h-screen bg-slate-100 ${isEmpresarial ? 'py-0' : 'py-6 md:py-10'}`}>
-      <div className={isEmpresarial ? 'w-full px-0' : 'max-w-4xl mx-auto px-4'}>
-        {accepted && (
+    <div className={`min-h-screen bg-slate-100 ${isEmpresarial || isClean ? 'py-0' : 'py-6 md:py-10'}`}>
+      <div className={isEmpresarial || isClean ? 'w-full px-0' : 'max-w-4xl mx-auto px-4'}>
+        {accepted && !isClean && (
           <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center">
             <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
               <PartyPopper className="w-7 h-7 text-emerald-600" />
@@ -247,11 +268,11 @@ export default function PublicProposalPage() {
         )}
 
         <div
-          className={isEmpresarial ? '' : 'rounded-2xl overflow-hidden shadow-xl'}
+          className={isEmpresarial || isClean ? '' : 'rounded-2xl overflow-hidden shadow-xl'}
         >
           <ProposalPreview
             data={proposalData}
-            className={`shadow-none ${isEmpresarial ? 'rounded-none' : ''}`}
+            className={`shadow-none ${isEmpresarial || isClean ? 'rounded-none' : ''}`}
             selectedPlanId={hasPlans ? selectedPlanId : undefined}
             onOpenPlanAccept={hasPlans && !accepted && proposal.status !== 'accepted' ? openPlanAcceptModal : undefined}
           />
@@ -264,7 +285,7 @@ export default function PublicProposalPage() {
           </p>
         )}
 
-        {!accepted && proposal.status !== 'accepted' && !hasPlans && (
+        {!accepted && proposal.status !== 'accepted' && !hasPlans && !isClean && (
           <div className="mt-8 sticky bottom-4 z-10">
             <Button
               onClick={() => {
