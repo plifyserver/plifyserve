@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Globe, LayoutDashboard, Users, FileText, FileSignature, Briefcase, Calendar, Network, BarChart3, DollarSign, Columns3, Palette, CreditCard, Settings, Menu, TrendingUp, Repeat, MoreHorizontal } from 'lucide-react'
@@ -237,34 +237,14 @@ function DashboardPreview() {
 }
 
 function DashboardImageSection() {
-  const sectionRef = useRef<HTMLDivElement>(null)
-  const [tiltX, setTiltX] = useState(15)
-
-  useEffect(() => {
-    const el = sectionRef.current
-    if (!el) return
-    const onScroll = () => {
-      const rect = el.getBoundingClientRect()
-      const centerY = rect.top + rect.height / 2
-      const viewportMid = typeof window !== 'undefined' ? window.innerHeight / 2 : 400
-      const distance = centerY - viewportMid
-      const maxDist = 550
-      const t = Math.min(1, Math.max(0, 1 - Math.abs(distance) / maxDist))
-      setTiltX(15 - 15 * t)
-    }
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
+  /* Sem perspective/rotateX: em Firefox (e alguns GPUs) isso estoura o layout e “inclina” o card inteiro. */
   return (
-    <section ref={sectionRef} className={cn('pb-16 sm:pb-24 pt-4 overflow-hidden', SITE_GUTTER_X)}>
-      <div className="max-w-6xl mx-auto flex justify-center items-center">
+    <section className={cn('pb-16 sm:pb-24 pt-4 overflow-hidden', SITE_GUTTER_X)}>
+      <div className="max-w-6xl mx-auto flex justify-center items-center px-0">
         <div
-          className="w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden transition-transform duration-500 ease-out bg-white origin-center"
+          className="w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden bg-white ring-1 ring-slate-200/80"
           style={{
-            transform: `perspective(1200px) rotateX(${tiltX}deg)`,
-            boxShadow: '0 50px 80px -20px rgba(0,0,0,0.25), 0 30px 50px -30px rgba(0,0,0,0.3)',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.18), 0 12px 24px -8px rgba(0,0,0,0.12)',
           }}
         >
           <DashboardPreview />
@@ -302,16 +282,28 @@ export default function LandingPage() {
   }, [statsTick])
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="public-marketing-page min-h-screen overflow-x-hidden bg-white text-slate-900 [color-scheme:light]">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100">
         {/* Linha laranja acima do conteúdo do header */}
         <div className="h-1.5 w-full" style={{ backgroundColor: ACCENT }} role="presentation" />
-        <nav className={cn('max-w-6xl mx-auto min-h-14 sm:min-h-16 py-2 flex items-center justify-between gap-2', SITE_GUTTER_X)}>
-          <Link href="/" className="flex items-center min-w-0 shrink">
-            <Image src={LOGO_PRETO} alt="Plify" width={140} height={40} className="h-8 w-auto sm:h-10 object-contain object-left" priority />
+        <nav
+          className={cn(
+            'relative max-w-6xl mx-auto min-h-14 sm:min-h-16 py-2 flex items-center justify-between gap-2',
+            SITE_GUTTER_X
+          )}
+        >
+          <Link href="/" className="flex items-center min-w-0 shrink max-w-[min(100%,200px)]">
+            <Image
+              src={LOGO_PRETO}
+              alt="Plify"
+              width={140}
+              height={40}
+              className="h-8 w-[140px] max-w-full sm:h-10 object-contain object-left"
+              priority
+            />
           </Link>
-          <div className="absolute left-1/2 -translate-x-1/2 hidden sm:block">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:block">
             <span className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium">
               Smart Business System
             </span>

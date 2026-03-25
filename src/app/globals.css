@@ -174,3 +174,32 @@ html.dark .dashboard-app .lg\:hidden.fixed.top-0 {
   background-color: rgb(15 23 42 / 0.95) !important;
   border-color: rgb(51 65 85) !important;
 }
+
+/* Landing pública (/) — tema escuro vindo do dashboard não deve “quebrar” o marketing */
+html.dark .public-marketing-page {
+  color-scheme: light;
+  background-color: #ffffff !important;
+  color: #0f172a;
+}
+html.dark .public-marketing-page .bg-white {
+  background-color: #ffffff !important;
+}
+html.dark .public-marketing-page .bg-slate-50 {
+  background-color: #f8fafc !important;
+}
+html.dark .public-marketing-page .bg-slate-100 {
+  background-color: #f1f5f9 !important;
+}
+html.dark .public-marketing-page .border-slate-100 {
+  border-color: #f1f5f9 !important;
+}
+html.dark .public-marketing-page .text-slate-900,
+html.dark .public-marketing-page .text-black {
+  color: #0f172a !important;
+}
+html.dark .public-marketing-page .text-slate-600 {
+  color: #475569 !important;
+}
+html.dark .public-marketing-page .text-slate-500 {
+  color: #64748b !important;
+}
