@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Globe, LayoutDashboard, Users, FileText, FileSignature, Briefcase, Calendar, Network, BarChart3, DollarSign, Columns3, Palette, CreditCard, Settings, Menu, TrendingUp, Repeat, MoreHorizontal } from 'lucide-react'
@@ -236,18 +236,91 @@ function DashboardPreview() {
   )
 }
 
+/** Inclinação máxima (graus) antes de endireitar com o scroll. */
+const DASHBOARD_PREVIEW_MAX_TILT_DEG = 36
+
 function DashboardImageSection() {
-  /* Sem perspective/rotateX: em Firefox (e alguns GPUs) isso estoura o layout e “inclina” o card inteiro. */
+  const blockRef = useRef<HTMLDivElement>(null)
+  const smoothAngleRef = useRef(DASHBOARD_PREVIEW_MAX_TILT_DEG)
+  const rafRef = useRef<number | null>(null)
+  const [rotateXDeg, setRotateXDeg] = useState(DASHBOARD_PREVIEW_MAX_TILT_DEG)
+
+  useEffect(() => {
+    const getTargetAngle = (): number => {
+      if (window.matchMedia('(max-width: 639px)').matches) return 0
+      const vh = window.innerHeight
+      const scrollY =
+        window.scrollY ?? document.documentElement.scrollTop ?? document.body.scrollTop ?? 0
+      /*
+        No topo (scroll 0): inclinação máxima (~36°). Antes usávamos só rect.top — se o bloco
+        já aparecia “alto” na tela, o ângulo nunca chegava em 36° ao abrir o site.
+        Aqui o gesto é: página no alto = deitado; conforme desce o scroll, endireita até ~0°.
+      */
+      const scrollUntilFlat = vh * 1.35
+      const t = Math.min(1, Math.max(0, scrollY / scrollUntilFlat))
+      const eased = easeOutCubic(t)
+      return DASHBOARD_PREVIEW_MAX_TILT_DEG * (1 - eased)
+    }
+
+    const tick = () => {
+      const target = getTargetAngle()
+      const prev = smoothAngleRef.current
+      const lerp = 0.28
+      const next = prev + (target - prev) * lerp
+      smoothAngleRef.current = next
+      setRotateXDeg(next)
+      if (Math.abs(next - target) > 0.04) {
+        rafRef.current = requestAnimationFrame(tick)
+      } else {
+        smoothAngleRef.current = target
+        setRotateXDeg(target)
+        rafRef.current = null
+      }
+    }
+
+    const schedule = () => {
+      if (rafRef.current == null) rafRef.current = requestAnimationFrame(tick)
+    }
+
+    const initial = getTargetAngle()
+    smoothAngleRef.current = initial
+    setRotateXDeg(initial)
+
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule, { passive: true })
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+      window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+    }
+  }, [])
+
   return (
-    <section className={cn('pb-16 sm:pb-24 pt-4 overflow-hidden', SITE_GUTTER_X)}>
-      <div className="max-w-6xl mx-auto flex justify-center items-center px-0">
+    <section className={cn('pb-20 sm:pb-28 pt-4 overflow-x-hidden', SITE_GUTTER_X)}>
+      <div ref={blockRef} className="max-w-6xl mx-auto flex justify-center items-center px-0 py-2 sm:py-4">
+        {/*
+          perspective no pai + rotateX no filho. overflow-hidden na section cortava o 3D no Firefox;
+          usar só overflow-x-hidden evita faixa preta / clipping vertical.
+        */}
         <div
-          className="w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden bg-white ring-1 ring-slate-200/80"
+          className="w-full max-w-6xl"
           style={{
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.18), 0 12px 24px -8px rgba(0,0,0,0.12)',
+            perspective: '2200px',
+            perspectiveOrigin: '50% 55%',
           }}
         >
-          <DashboardPreview />
+          <div
+            className="w-full rounded-2xl shadow-2xl overflow-hidden bg-white ring-1 ring-slate-200/80"
+            style={{
+              transform: `rotateX(${rotateXDeg}deg)`,
+              transformOrigin: 'center top',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.18), 0 12px 24px -8px rgba(0,0,0,0.12)',
+            }}
+          >
+            <DashboardPreview />
+          </div>
         </div>
       </div>
     </section>
