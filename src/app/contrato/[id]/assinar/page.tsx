@@ -31,6 +31,7 @@ interface Contract {
     signed: boolean
     signed_at?: string | null
     signature_url?: string | null
+    selfie_url?: string | null
     cpf?: string | null
     birth_date?: string | null
     location?: {
@@ -242,6 +243,7 @@ export default function AssinarContratoPage() {
               requireCpf={true}
               requireBirthDate={true}
               captureLocation={true}
+              requireSelfie={true}
             />
           </div>
         </div>

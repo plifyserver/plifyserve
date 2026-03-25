@@ -47,6 +47,7 @@ export interface SignatoryForPDF {
   signed: boolean
   signed_at?: string | null
   signature_url?: string | null
+  selfie_url?: string | null
   cpf?: string | null
   birth_date?: string | null
   location?: { latitude: number | null; longitude: number | null; address: string | null } | null
@@ -207,6 +208,33 @@ export async function generateSignedPDF(
           page.drawText('[Imagem da assinatura]', {
             x: 350,
             y: boxYFinal + 60,
+            size: 8,
+            font,
+            color: rgb(0.5, 0.5, 0.5),
+          })
+        }
+      }
+
+      if (sig.selfie_url) {
+        try {
+          const selfieBytes = await fetch(sig.selfie_url).then((res) => res.arrayBuffer())
+          const url = sig.selfie_url.trim()
+          const isJpg =
+            url.startsWith('data:image/jpeg') ||
+            url.startsWith('data:image/jpg') ||
+            url.toLowerCase().endsWith('.jpg') ||
+            url.toLowerCase().endsWith('.jpeg')
+          const selfieImg = isJpg ? await pdfDoc.embedJpg(selfieBytes) : await pdfDoc.embedPng(selfieBytes)
+          page.drawImage(selfieImg, {
+            x: 340,
+            y: boxYFinal + 115,
+            width: 180,
+            height: 110,
+          })
+        } catch {
+          page.drawText('[Selfie]', {
+            x: 350,
+            y: boxYFinal + 160,
             size: 8,
             font,
             color: rgb(0.5, 0.5, 0.5),

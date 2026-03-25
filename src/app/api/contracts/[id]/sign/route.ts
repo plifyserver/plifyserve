@@ -76,6 +76,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     signed: true,
     signed_at: signatureData.signedAt,
     signature_url: signatureData.signatureImage,
+    selfie_url: signatureData.selfieImage ?? signatories[signatoryIndex]?.selfie_url ?? null,
     cpf: signatureData.cpf,
     birth_date: signatureData.birthDate,
     location: signatureData.location,

@@ -36,6 +36,7 @@ interface Signatory {
   signed: boolean
   signed_at?: string | null
   signature_url?: string | null
+  selfie_url?: string | null
   cpf?: string | null
   birth_date?: string | null
   location?: {
@@ -93,7 +94,7 @@ export default function DocumentosPage() {
     file_url: '',
     client_id: '',
     status: 'draft',
-    signatories: [] as { name: string; email: string; signed: boolean; signed_at?: string | null; signature_url?: string | null }[],
+    signatories: [] as { name: string; email: string; signed: boolean; signed_at?: string | null; signature_url?: string | null; selfie_url?: string | null }[],
   })
 
   const fetchData = async () => {
@@ -374,6 +375,7 @@ export default function DocumentosPage() {
         signed: s.signed,
         signed_at: s.signed_at,
         signature_url: s.signature_url,
+        selfie_url: s.selfie_url,
         cpf: s.cpf,
         birth_date: s.birth_date,
         location: s.location,
@@ -934,6 +936,18 @@ export default function DocumentosPage() {
                     src={selectedSignatory.signature_url}
                     alt="Assinatura"
                     className="max-h-24 mx-auto bg-white rounded-lg border border-slate-200 p-2"
+                  />
+                </div>
+              )}
+
+              {/* Selfie */}
+              {selectedSignatory.selfie_url && (
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-sm font-medium text-slate-700 mb-2">Selfie</p>
+                  <img
+                    src={selectedSignatory.selfie_url}
+                    alt="Selfie do signatário"
+                    className="max-h-40 mx-auto bg-white rounded-lg border border-slate-200 p-2 object-cover"
                   />
                 </div>
               )}

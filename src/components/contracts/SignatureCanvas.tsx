@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 
 export interface SignatureData {
   signatureImage: string
+  selfieImage?: string | null
   cpf: string
   birthDate: string
   signedAt: string
@@ -25,6 +26,7 @@ interface SignatureCanvasProps {
   requireCpf?: boolean
   requireBirthDate?: boolean
   captureLocation?: boolean
+  requireSelfie?: boolean
 }
 
 export default function SignatureCanvas({ 
@@ -34,12 +36,19 @@ export default function SignatureCanvas({
   requireCpf = true,
   requireBirthDate = true,
   captureLocation = true,
+  requireSelfie = false,
 }: SignatureCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [mode, setMode] = useState<'draw' | 'upload'>('draw')
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [hasDrawn, setHasDrawn] = useState(false)
+
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [selfieImage, setSelfieImage] = useState<string | null>(null)
+  const [selfieOpen, setSelfieOpen] = useState(false)
+  const [selfieLoading, setSelfieLoading] = useState(false)
+  const streamRef = useRef<MediaStream | null>(null)
   
   const [cpf, setCpf] = useState('')
   const [birthDate, setBirthDate] = useState('')
@@ -124,6 +133,60 @@ export default function SignatureCanvas({
   useEffect(() => {
     captureUserLocation()
   }, [captureUserLocation])
+
+  const stopSelfieStream = useCallback(() => {
+    if (streamRef.current) {
+      for (const track of streamRef.current.getTracks()) track.stop()
+      streamRef.current = null
+    }
+  }, [])
+
+  const startSelfieStream = useCallback(async () => {
+    setSelfieLoading(true)
+    try {
+      stopSelfieStream()
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      })
+      streamRef.current = stream
+      const video = videoRef.current
+      if (video) {
+        video.srcObject = stream
+        await video.play()
+      }
+      setSelfieOpen(true)
+    } catch {
+      toast.error('Não foi possível acessar a câmera. Verifique as permissões do navegador.')
+    } finally {
+      setSelfieLoading(false)
+    }
+  }, [stopSelfieStream])
+
+  const captureSelfie = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+    const w = video.videoWidth || 1280
+    const h = video.videoHeight || 720
+    if (!w || !h) return
+
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0, w, h)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.86)
+    setSelfieImage(dataUrl)
+    setSelfieOpen(false)
+    stopSelfieStream()
+  }, [stopSelfieStream])
+
+  useEffect(() => {
+    return () => {
+      stopSelfieStream()
+    }
+  }, [stopSelfieStream])
 
   const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -213,6 +276,11 @@ export default function SignatureCanvas({
       toast.error('Por favor, desenhe ou faça upload da sua assinatura.')
       return
     }
+
+    if (requireSelfie && !selfieImage) {
+      toast.error('Por favor, tire uma selfie antes de finalizar.')
+      return
+    }
     
     if (requireCpf && !validateCpf(cpf)) {
       toast.error('Por favor, insira um CPF válido com 11 dígitos.')
@@ -232,6 +300,7 @@ export default function SignatureCanvas({
 
     onSave({
       signatureImage,
+      selfieImage,
       cpf: cpf.replace(/\D/g, ''),
       birthDate,
       signedAt,
@@ -346,6 +415,66 @@ export default function SignatureCanvas({
           </div>
         )}
       </div>
+
+      {/* Selfie */}
+      {requireSelfie && (
+        <div className="bg-slate-50 rounded-2xl p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-slate-900">Selfie (obrigatório)</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Tire uma selfie para constar no contrato junto com a assinatura.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={startSelfieStream}
+              disabled={selfieLoading}
+            >
+              {selfieImage ? 'Refazer' : 'Tirar selfie'}
+            </Button>
+          </div>
+
+          {selfieOpen && (
+            <div className="mt-4">
+              <div className="relative overflow-hidden rounded-2xl bg-black/90 border border-slate-200">
+                <video ref={videoRef} className="w-full h-[260px] sm:h-[320px] object-cover" playsInline muted />
+              </div>
+              <div className="mt-3 flex gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => {
+                    setSelfieOpen(false)
+                    stopSelfieStream()
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="button" className="rounded-xl bg-indigo-600 hover:bg-indigo-700" onClick={captureSelfie}>
+                  Capturar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!selfieOpen && selfieImage && (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-[160px,1fr] gap-4 items-start">
+              <img
+                src={selfieImage}
+                alt="Selfie"
+                className="w-full max-w-[240px] sm:max-w-[160px] rounded-xl border border-slate-200 bg-white object-cover aspect-[4/3]"
+              />
+              <div className="text-xs text-slate-500 leading-relaxed">
+                Essa imagem será armazenada junto ao registro da assinatura e exibida no certificado do contrato.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Mode Tabs */}
       <div className="flex items-center justify-center gap-4">
