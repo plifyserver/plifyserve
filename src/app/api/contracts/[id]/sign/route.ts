@@ -34,6 +34,10 @@ function getClientUserAgent(request: NextRequest): string | null {
   return request.headers.get('user-agent') || null
 }
 
+function hasSelfieUrl(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await request.json()
@@ -41,6 +45,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   
   if (!signatoryEmail || !signatureData) {
     return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
+  }
+
+  if (!hasSelfieUrl(signatureData.selfieImage)) {
+    return NextResponse.json({ error: 'Selfie obrigatória para registrar a assinatura.' }, { status: 400 })
   }
   
   const supabase = await createClient()
@@ -76,7 +84,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     signed: true,
     signed_at: signatureData.signedAt,
     signature_url: signatureData.signatureImage,
-    selfie_url: signatureData.selfieImage ?? signatories[signatoryIndex]?.selfie_url ?? null,
+    selfie_url: String(signatureData.selfieImage).trim(),
     cpf: signatureData.cpf,
     birth_date: signatureData.birthDate,
     location: signatureData.location,
@@ -84,7 +92,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     user_agent: userAgent ?? signatureData.user_agent ?? null,
   }
   
-  const allSigned = signatories.every((s: { signed: boolean }) => s.signed)
+  const allSigned = signatories.every(
+    (s: { signed: boolean; selfie_url?: string | null }) => s.signed && hasSelfieUrl(s.selfie_url)
+  )
   
   const { data, error } = await supabase
     .from('contracts')

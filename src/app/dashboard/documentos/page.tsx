@@ -66,10 +66,18 @@ interface Client {
   name: string
 }
 
-/** Contrato só é finalizado quando todos os signatários assinaram */
+/** Contrato só é finalizado quando todos assinaram e enviaram selfie */
 function isContractFinalizado(c: Contract): boolean {
   const signatories = c.signatories ?? []
-  return signatories.length > 0 && signatories.every((s: Signatory) => s.signed)
+  return (
+    signatories.length > 0 &&
+    signatories.every(
+      (s: Signatory) =>
+        s.signed &&
+        typeof s.selfie_url === 'string' &&
+        s.selfie_url.trim().length > 0
+    )
+  )
 }
 
 export default function DocumentosPage() {
@@ -175,7 +183,14 @@ export default function DocumentosPage() {
 
     const url = selected ? `/api/contracts/${selected.id}` : '/api/contracts'
     const method = selected ? 'PUT' : 'POST'
-    const allSigned = form.signatories.length > 0 && form.signatories.every((s) => s.signed)
+    const allSigned =
+      form.signatories.length > 0 &&
+      form.signatories.every(
+        (s) =>
+          s.signed &&
+          typeof s.selfie_url === 'string' &&
+          s.selfie_url.trim().length > 0
+      )
     const statusToSend = selected
       ? allSigned
         ? 'signed'
@@ -248,11 +263,17 @@ export default function DocumentosPage() {
       signed: true,
       signed_at: data.signedAt,
       signature_url: data.signatureImage,
+      selfie_url: data.selfieImage ?? null,
       cpf: data.cpf,
       birth_date: data.birthDate,
       location: data.location,
     }
-    const allSigned = signatories.every((s) => s.signed)
+    const allSigned = signatories.every(
+      (s) =>
+        s.signed &&
+        typeof s.selfie_url === 'string' &&
+        s.selfie_url.trim().length > 0
+    )
     const res = await fetch(`/api/contracts/${selected.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -916,6 +937,7 @@ export default function DocumentosPage() {
             requireCpf={true}
             requireBirthDate={true}
             captureLocation={true}
+            requireSelfie={true}
           />
         </DialogContent>
       </Dialog>

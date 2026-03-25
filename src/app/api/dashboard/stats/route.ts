@@ -92,8 +92,16 @@ export async function GET(request: NextRequest) {
   const mmr = mmrRecorrente + mmrPontual
 
   const isContractFinalizado = (c: { signatories?: unknown[] }) => {
-    const sigs = (c.signatories ?? []) as { signed?: boolean }[]
-    return sigs.length > 0 && sigs.every((s) => s.signed)
+    const sigs = (c.signatories ?? []) as { signed?: boolean; selfie_url?: string | null }[]
+    return (
+      sigs.length > 0 &&
+      sigs.every(
+        (s) =>
+          s.signed &&
+          typeof s.selfie_url === 'string' &&
+          s.selfie_url.trim().length > 0
+      )
+    )
   }
   const contractsFinalized = contracts.filter(isContractFinalizado).length
 

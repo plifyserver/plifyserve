@@ -140,6 +140,7 @@ export const contractsService = {
         signed: false,
         signed_at: null,
         signature_url: null,
+        selfie_url: null,
       })) || [],
     })
   },
