@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Mail, MessageCircle } from 'lucide-react'
+import { SITE_CONTAINER_MD, SITE_GUTTER_X } from '@/lib/siteLayout'
 
 export const metadata = {
   title: 'Suporte | Plify',
@@ -10,14 +11,14 @@ export default function SuportePage() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
+        <div className={`${SITE_CONTAINER_MD} ${SITE_GUTTER_X} py-6 flex items-center justify-between`}>
           <Link href="/" className="flex items-center gap-2">
             <img src="/logopreto.png" alt="Plify" className="h-8 w-auto object-contain" />
           </Link>
           <Link href="/" className="text-gray-500 hover:text-gray-900 text-sm">Voltar</Link>
         </div>
       </header>
-      <main className="max-w-2xl mx-auto px-4 py-16">
+      <main className={`max-w-2xl mx-auto ${SITE_GUTTER_X} py-16`}>
         <h1 className="text-3xl font-bold mb-4">Suporte</h1>
         <p className="text-gray-500 mb-12">Estamos aqui para ajudar. Escolha uma forma de contato:</p>
         <div className="space-y-6">

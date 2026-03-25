@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
+import { SITE_CONTAINER_MD, SITE_GUTTER_X } from '@/lib/siteLayout'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -24,7 +25,7 @@ export default async function EmpresaPublicPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <header className="border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
+        <div className={`${SITE_CONTAINER_MD} ${SITE_GUTTER_X} py-6 flex items-center justify-between`}>
           <Link href="/" className="flex items-center gap-2 font-bold text-xl">
             {page.logo_url ? (
               <Image src={page.logo_url} alt={page.company_name} width={40} height={40} className="rounded-lg" />
@@ -38,7 +39,7 @@ export default async function EmpresaPublicPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-12">
+      <main className={`${SITE_CONTAINER_MD} ${SITE_GUTTER_X} py-12`}>
         {page.slogan && (
           <p className="text-xl text-avocado font-medium mb-8">{page.slogan}</p>
         )}
@@ -72,7 +73,7 @@ export default async function EmpresaPublicPage({ params }: Props) {
       </main>
 
       <footer className="border-t border-gray-200 mt-16">
-        <div className="max-w-4xl mx-auto px-4 py-6 text-center text-gray-500 text-sm">
+        <div className={`${SITE_CONTAINER_MD} ${SITE_GUTTER_X} py-6 text-center text-gray-500 text-sm`}>
           © {new Date().getFullYear()} {page.company_name}
         </div>
       </footer>

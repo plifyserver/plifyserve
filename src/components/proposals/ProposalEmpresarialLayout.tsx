@@ -7,6 +7,7 @@ import type { Plan } from '@/components/proposals/PlanCard'
 import { EmpresarialDynamicIcon } from '@/components/proposals/EmpresarialDynamicIcon'
 import { mergeEmpresarialPage1 } from '@/types/empresarialProposal'
 import { getEmpresarialSiteVisual } from '@/lib/empresarialSiteTheme'
+import { sanitizeRichHtml } from '@/lib/sanitizeRichHtml'
 import { EmpresarialPage2Section } from '@/components/proposals/EmpresarialPage2Section'
 import { EmpresarialPage3Section } from '@/components/proposals/EmpresarialPage3Section'
 import { EmpresarialPage31Section } from '@/components/proposals/EmpresarialPage31Section'
@@ -194,7 +195,7 @@ export function ProposalEmpresarialLayout({
                     'prose max-w-none',
                     ev.isLight ? 'prose-slate' : 'prose-invert prose-p:text-white/85'
                   )}
-                  dangerouslySetInnerHTML={{ __html: data.description }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(data.description) }}
                 />
               </section>
         )}
@@ -240,7 +241,7 @@ export function ProposalEmpresarialLayout({
                         'prose max-w-none',
                         ev.isLight ? 'prose-slate' : 'prose-invert prose-p:text-white/85'
                       )}
-                      dangerouslySetInnerHTML={{ __html: block.content }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(block.content) }}
                     />
                   )
                 })}

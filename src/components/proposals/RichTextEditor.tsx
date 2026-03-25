@@ -1,8 +1,34 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, type ReactNode } from 'react'
 import { Bold, Italic, Underline, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Type } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+function ToolButton({
+  onClick,
+  active,
+  children,
+  title,
+}: {
+  onClick: () => void
+  active?: boolean
+  children: ReactNode
+  title: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={cn(
+        'p-2 rounded-lg transition-colors',
+        active ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+      )}
+    >
+      {children}
+    </button>
+  )
+}
 
 interface RichTextEditorProps {
   value: string
@@ -114,30 +140,6 @@ export function RichTextEditor({
       setShowFontSize(false)
     },
     [sendValue]
-  )
-
-  const ToolButton = ({
-    onClick,
-    active,
-    children,
-    title,
-  }: {
-    onClick: () => void
-    active?: boolean
-    children: React.ReactNode
-    title: string
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={cn(
-        'p-2 rounded-lg transition-colors',
-        active ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-      )}
-    >
-      {children}
-    </button>
   )
 
   return (

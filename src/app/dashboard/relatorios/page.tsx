@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
 import { toast } from 'sonner'
 
 const TYPE_OPTIONS = [
@@ -160,19 +161,19 @@ export default function RelatoriosPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className={`space-y-6 ${SITE_CONTAINER_LG}`}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Relatórios</h1>
           <p className="text-slate-500">Gere relatórios profissionais.</p>
         </div>
-        <Button onClick={() => openDialog(null)} className="rounded-xl">
+        <Button onClick={() => openDialog(null)} className="w-full sm:w-auto rounded-xl">
           <Plus className="w-4 h-4 mr-2" />
           Novo relatório
         </Button>
       </div>
 
-      <Card className="rounded-2xl border-0 shadow-sm overflow-hidden">
+      <Card className={`${DASH_SURFACE_CARD} overflow-hidden`}>
         {loading ? (
           <div className="p-12 text-center text-slate-500">Carregando...</div>
         ) : reports.length === 0 ? (
@@ -184,32 +185,32 @@ export default function RelatoriosPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/50">
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Título</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Tipo</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Cliente</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Período</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Status</th>
-                  <th className="w-10 p-4" />
+                  <th className="text-left px-5 py-3.5 text-sm font-medium text-slate-600">Título</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-medium text-slate-600">Tipo</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-medium text-slate-600">Cliente</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-medium text-slate-600">Período</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-medium text-slate-600">Status</th>
+                  <th className="w-10 px-5 py-3.5" />
                 </tr>
               </thead>
               <tbody>
                 {reports.map((r) => (
                   <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                    <td className="p-4 font-medium text-slate-900">{r.title}</td>
-                    <td className="p-4 text-slate-600">
+                    <td className="px-5 py-3.5 font-medium text-slate-900">{r.title}</td>
+                    <td className="px-5 py-3.5 text-slate-600">
                       {TYPE_OPTIONS.find((t) => t.value === r.type)?.label ?? r.type}
                     </td>
-                    <td className="p-4 text-slate-600">{r.client_name || clients.find((c) => c.id === r.client_id)?.name || '-'}</td>
-                    <td className="p-4 text-slate-500 text-sm">
+                    <td className="px-5 py-3.5 text-slate-600">{r.client_name || clients.find((c) => c.id === r.client_id)?.name || '-'}</td>
+                    <td className="px-5 py-3.5 text-slate-500 text-sm">
                       {r.period_start ? format(new Date(r.period_start), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
                       {r.period_end ? ` - ${format(new Date(r.period_end), 'dd/MM/yyyy', { locale: ptBR })}` : ''}
                     </td>
-                    <td className="p-4">
+                    <td className="px-5 py-3.5">
                       <span className={`inline-flex px-2 py-1 rounded-lg text-xs font-medium ${r.status === 'published' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                         {STATUS_OPTIONS.find((s) => s.value === r.status)?.label ?? r.status}
                       </span>
                     </td>
-                    <td className="p-4">
+                    <td className="px-5 py-3.5">
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelected(r); setViewOpen(true); }} title="Ver">
                           <Eye className="w-4 h-4" />

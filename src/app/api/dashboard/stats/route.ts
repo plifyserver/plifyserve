@@ -72,13 +72,24 @@ export async function GET(request: NextRequest) {
 
   const totalClients = clients.length
   const todayStr = new Date().toISOString().slice(0, 10)
-  const mmr = clients
+
+  const activeForMmr = (c: { status?: string | null }) => (c.status ?? '') === 'active'
+
+  const mmrRecorrente = clients
+    .filter(activeForMmr)
     .filter((c) => (c as { payment_type?: string }).payment_type === 'recorrente')
     .filter((c) => {
       const end = (c as { recurring_end_date?: string | null }).recurring_end_date
       return end == null || end === '' || end >= todayStr
     })
     .reduce((s, c) => s + Number((c as { recurring_amount?: number | null }).recurring_amount ?? 0), 0)
+
+  const mmrPontual = clients
+    .filter(activeForMmr)
+    .filter((c) => (c as { payment_type?: string }).payment_type === 'pontual')
+    .reduce((s, c) => s + Number((c as { recurring_amount?: number | null }).recurring_amount ?? 0), 0)
+
+  const mmr = mmrRecorrente + mmrPontual
 
   const isContractFinalizado = (c: { signatories?: unknown[] }) => {
     const sigs = (c.signatories ?? []) as { signed?: boolean }[]
@@ -98,7 +109,8 @@ export async function GET(request: NextRequest) {
 
   const periodDays = Math.max(1, Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000)) + 1)
   const recurringProrated = mmr * (periodDays / 30)
-  const receitaTotalMes = financeBalance + recurringProrated
+  /** Receita prevista só a partir de clientes (recorrente + pontual); sem integração com lançamentos financeiros. */
+  const receitaTotalMes = recurringProrated
 
   return NextResponse.json({
     totalClients,

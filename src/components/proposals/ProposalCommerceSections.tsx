@@ -2,6 +2,10 @@
 
 import { Check, Calendar, MapPin, Mail, Phone, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { proposalHtmlHasVisibleText } from '@/lib/proposalContent'
+import { SITE_GUTTER_X } from '@/lib/siteLayout'
+import { modernSectionShell } from '@/components/proposals/modernProposalSurface'
+import { sanitizeRichHtml } from '@/lib/sanitizeRichHtml'
 import { planBillingSuffix } from './PlanCard'
 import type { ProposalData, ColorPalette } from './ProposalPreview'
 
@@ -25,6 +29,14 @@ interface ProposalCommerceSectionsProps {
   selectedPlanId?: string | null
   onSelectPlan?: (planId: string) => void
   onOpenPlanAccept?: (planId: string) => void
+  /** Modelo Moderno: planos já aparecem na página 4 escura — evita bloco duplicado. */
+  hidePlansSection?: boolean
+  /** Modelo Moderno: sem linha de entrega no bloco claro (evita “Entrega imediata…”). */
+  hideDeliverySection?: boolean
+  /** Modelo Moderno: sem rodapé duplicado (empresa já está na página 8). */
+  hideFooterSection?: boolean
+  /** Integra fundo e texto ao tema da proposta Moderna (sem faixa branca). */
+  embedModernSurface?: 'dark' | 'light'
   className?: string
 }
 
@@ -36,18 +48,53 @@ export function ProposalCommerceSections({
   selectedPlanId,
   onSelectPlan,
   onOpenPlanAccept,
+  hidePlansSection,
+  hideDeliverySection,
+  hideFooterSection,
+  embedModernSurface,
   className,
 }: ProposalCommerceSectionsProps) {
   const palette = { ...defaultPalette, ...data.colorPalette, ...palettePartial }
+  const modernPalette = {
+    primary: palette.primary,
+    secondary: palette.secondary,
+    accent: palette.accent,
+    background: palette.background,
+    text: palette.text,
+  }
+  const shell = embedModernSurface
+    ? modernSectionShell(embedModernSurface, modernPalette)
+    : null
+  const isModernDark = embedModernSurface === 'dark'
+  const borderMuted = isModernDark ? 'border-white/10' : 'border-slate-100'
+  const textMuted = isModernDark ? 'text-white/65' : 'text-slate-600'
+  const textSoft = isModernDark ? 'text-white/50' : 'text-slate-500'
+  const proseCls = isModernDark
+    ? 'prose prose-invert max-w-none prose-headings:text-white prose-p:text-white/85 prose-li:text-white/85 prose-strong:text-white'
+    : 'prose prose-slate max-w-none'
 
   return (
-    <div className={cn('bg-white p-8 md:p-12 space-y-10', className)} style={{ color: palette.text }}>
-      {data.description && (
+    <div
+      className={cn(
+        embedModernSurface && shell
+          ? cn(shell.className, SITE_GUTTER_X, 'py-12 md:py-16 space-y-10')
+          : 'bg-white p-8 md:p-12 space-y-10',
+        className
+      )}
+      style={{
+        ...(shell?.style ?? {}),
+        ...(!embedModernSurface ? { color: palette.text } : isModernDark ? { color: 'rgba(255,255,255,0.92)' } : { color: palette.text }),
+      }}
+    >
+      {proposalHtmlHasVisibleText(data.description) && (
         <section>
-          <h2 className="text-xl font-semibold mb-4" style={{ color: palette.secondary }}>
+          <h2
+            className="text-xl font-semibold mb-4"
+            style={{ color: isModernDark ? palette.accent : palette.secondary }}
+          >
             Sobre o Projeto
           </h2>
-          <div className="prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: data.description }} />
+          <div className={proseCls} dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(data.description) }} />
         </section>
       )}
 
@@ -56,7 +103,11 @@ export function ProposalCommerceSections({
           {data.blocks.map((block) => {
             if (block.type === 'heading') {
               return (
-                <h3 key={block.id} className="text-2xl font-bold" style={{ color: palette.secondary }}>
+                <h3
+                  key={block.id}
+                  className="text-2xl font-bold"
+                  style={{ color: isModernDark ? palette.accent : palette.secondary }}
+                >
                   {block.content}
                 </h3>
               )
@@ -67,22 +118,25 @@ export function ProposalCommerceSections({
               )
             }
             if (block.type === 'divider') {
-              return <hr key={block.id} className="border-slate-200" />
+              return <hr key={block.id} className={isModernDark ? 'border-white/15' : 'border-slate-200'} />
             }
             return (
               <div
                 key={block.id}
-                className="prose prose-slate max-w-none"
-                dangerouslySetInnerHTML={{ __html: block.content }}
+                className={proseCls}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(block.content) }}
               />
             )
           })}
         </section>
       )}
 
-      {data.paymentType === 'plans' && data.plans.length > 0 && (
+      {data.paymentType === 'plans' && data.plans.length > 0 && !hidePlansSection && (
         <section>
-          <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: palette.secondary }}>
+          <h2
+            className="text-xl font-semibold mb-6 text-center"
+            style={{ color: isModernDark ? palette.accent : palette.secondary }}
+          >
             Planos Disponíveis
           </h2>
           <div
@@ -203,40 +257,50 @@ export function ProposalCommerceSections({
 
       {data.paymentType === 'single' && data.singlePrice > 0 && (
         <section className="text-center">
-          <h2 className="text-xl font-semibold mb-4" style={{ color: palette.secondary }}>
+          <h2
+            className="text-xl font-semibold mb-4"
+            style={{ color: isModernDark ? palette.accent : palette.secondary }}
+          >
             Valor do projeto
           </h2>
           <div
-            className={cn('inline-flex flex-col items-center justify-center rounded-2xl border-2 px-8 py-6 bg-white', styles.cardShadow)}
-            style={{ borderColor: `${palette.primary}40`, borderRadius: styles.sectionRadius }}
+            className={cn(
+              'inline-flex flex-col items-center justify-center rounded-2xl border-2 px-8 py-6',
+              isModernDark ? 'bg-zinc-950/90 border-white/10' : 'bg-white',
+              styles.cardShadow
+            )}
+            style={{ borderColor: isModernDark ? `${palette.primary}55` : `${palette.primary}40`, borderRadius: styles.sectionRadius }}
           >
-            <span className="text-sm text-slate-500 mb-1">Valor único</span>
-            <span className="text-4xl font-bold" style={{ color: palette.secondary }}>
+            <span className={cn('text-sm mb-1', textSoft)}>Valor único</span>
+            <span className="text-4xl font-bold" style={{ color: isModernDark ? '#fff' : palette.secondary }}>
               R$ {data.singlePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           </div>
         </section>
       )}
 
-      <section className="flex items-center justify-center gap-3 py-6 border-t border-slate-100">
-        <Calendar className="w-5 h-5" style={{ color: palette.primary }} />
-        <span className="text-slate-600">
-          {data.deliveryType === 'immediate'
-            ? 'Entrega imediata após confirmação'
-            : `Entrega prevista: ${
-                data.deliveryDate
-                  ? new Date(data.deliveryDate).toLocaleDateString('pt-BR', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
-                    })
-                  : 'A definir'
-              }`}
-        </span>
-      </section>
+      {!hideDeliverySection && (
+        <section className={cn('flex items-center justify-center gap-3 py-6 border-t', borderMuted)}>
+          <Calendar className="w-5 h-5" style={{ color: palette.primary }} />
+          <span className={textMuted}>
+            {data.deliveryType === 'immediate'
+              ? 'Entrega imediata após confirmação'
+              : `Entrega prevista: ${
+                  data.deliveryDate
+                    ? new Date(data.deliveryDate).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : 'A definir'
+                }`}
+          </span>
+        </section>
+      )}
 
-      <footer className="pt-8 border-t border-slate-100 text-center">
-        <div className="flex items-center justify-center gap-2 text-slate-500 text-sm flex-wrap">
+      {!hideFooterSection && (
+      <footer className={cn('pt-8 border-t text-center', borderMuted)}>
+        <div className={cn('flex items-center justify-center gap-2 text-sm flex-wrap', textSoft)}>
           <Building2 className="w-4 h-4" />
           <span>{data.company.name}</span>
           {data.company.document && (
@@ -247,7 +311,7 @@ export function ProposalCommerceSections({
           )}
         </div>
         {(data.company.email || data.company.phone || data.company.address) && (
-          <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-sm text-slate-500">
+          <div className={cn('mt-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-sm', textSoft)}>
             {data.company.email && (
               <span className="flex items-center gap-1.5">
                 <Mail className="w-4 h-4 shrink-0" />
@@ -269,6 +333,7 @@ export function ProposalCommerceSections({
           </div>
         )}
       </footer>
+      )}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { useBilling } from '@/hooks/useBilling'
 import type { PlanType } from '@/services/billing'
 import { useAuth } from '@/contexts/AuthContext'
 import { profileService } from '@/lib/services/profile'
+import { SITE_CONTAINER_LG } from '@/lib/siteLayout'
 import { toast } from 'sonner'
 
 const COMPARISON_ROWS: { feature: string; essential: string | 'check' | 'dash'; pro: string | 'check' | 'dash' }[] = [
@@ -73,7 +74,7 @@ export default function PlanosPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className={SITE_CONTAINER_LG}>
       <div className="rounded-3xl bg-slate-950 border border-white/10 p-4 sm:p-6 lg:p-8 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.75)]">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-white">Planos</h1>

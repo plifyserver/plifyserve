@@ -27,9 +27,14 @@ import {
   User,
   CreditCard,
   Headphones,
+  Moon,
+  Sun,
 } from 'lucide-react'
+import { useTheme } from '@/contexts/ThemeContext'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
 import { LOGO_PRETO, LOGO_BRANCO } from '@/lib/logo'
+import { cn } from '@/lib/utils'
+import { SITE_GUTTER_X } from '@/lib/siteLayout'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -143,6 +148,7 @@ export default function DashboardLayout({
     window.location.href = '/api/auth/logout'
   }, [])
 
+  const { mode: themeMode, toggleTheme } = useTheme()
   const accentColor = settings?.primary_color || '#dc2626'
   const sidebarBg = settings?.secondary_color || '#121212'
   const appName = settings?.app_name || ''
@@ -152,7 +158,7 @@ export default function DashboardLayout({
     : LOGO_BRANCO
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="dashboard-app min-h-screen bg-slate-100">
       <style>{`
         :root {
           --primary-color: ${accentColor};
@@ -242,7 +248,12 @@ export default function DashboardLayout({
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200 flex items-center justify-between px-3 sm:px-4 py-3 min-h-[52px] sm:min-h-[56px]">
+      <div
+        className={cn(
+          'lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200 flex items-center justify-between py-3 min-h-[52px] sm:min-h-[56px]',
+          SITE_GUTTER_X
+        )}
+      >
         <button onClick={() => setSidebarOpen(true)} className="p-1.5 sm:p-2 -ml-1" aria-label="Abrir menu">
           <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-slate-700" />
         </button>
@@ -311,7 +322,7 @@ export default function DashboardLayout({
 
       {/* Main - quadrado à esquerda (onde encontra o menu), redondo à direita */}
       <div className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 lg:mt-1 lg:mr-2 lg:mb-2 rounded-tl-none rounded-bl-none rounded-tr-lg rounded-br-lg bg-white shadow-sm ${sidebarCollapsed ? 'lg:ml-[84px]' : 'lg:ml-[260px]'}`}>
-        <header ref={headerRef} className="bg-white border-b border-slate-200 px-4 lg:px-6 py-3 relative">
+        <header ref={headerRef} className={cn('bg-white border-b border-slate-200 py-3 relative', SITE_GUTTER_X)}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 max-w-md hidden sm:block">
               <div className="relative">
@@ -324,6 +335,15 @@ export default function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => toggleTheme()}
+                className="rounded-lg border border-slate-200 bg-white p-2 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                title={themeMode === 'dark' ? 'Modo claro' : 'Modo escuro'}
+                aria-label={themeMode === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
+              >
+                {themeMode === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </button>
               {/* Suporte */}
               <button
                 type="button"
@@ -410,7 +430,7 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="p-4 lg:p-6 bg-slate-100 min-w-0 overflow-x-auto">{children}</main>
+        <main className={cn('py-4 lg:py-6 bg-slate-100 min-w-0 overflow-x-auto', SITE_GUTTER_X)}>{children}</main>
       </div>
 
       {/* Suporte - popup */}

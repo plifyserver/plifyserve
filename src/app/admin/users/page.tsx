@@ -71,7 +71,7 @@ export default function AdminUsersPage() {
     setActionLoading(true)
 
     try {
-      let updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
       if (action === 'plan' && newPlan) {
         updates.plan = newPlan

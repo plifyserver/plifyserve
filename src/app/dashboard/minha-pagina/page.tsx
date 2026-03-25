@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { Loader2, Save, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_SM } from '@/lib/siteLayout'
 
 export default function MinhaPaginaPage() {
-  const { user } = useAuth()
+  useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -74,13 +74,14 @@ export default function MinhaPaginaPage() {
   }
 
   return (
-    <div>
+    <div className={SITE_CONTAINER_SM}>
       <h1 className="text-2xl font-bold mb-2">Minha Página</h1>
       <p className="text-zinc-400 mb-6">
         Edite os dados da sua empresa. Sua página pública será exibida em /empresa/seu-slug
       </p>
 
-      <form onSubmit={handleSave} className="max-w-2xl space-y-6">
+      <form onSubmit={handleSave} className="space-y-6">
+        <div className={`${DASH_SURFACE_CARD} p-5 space-y-4`}>
         <div>
           <label className="block text-sm font-medium text-gray-600 mb-2">Nome da empresa</label>
           <input
@@ -142,6 +143,7 @@ export default function MinhaPaginaPage() {
               className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 focus:border-avocado"
             />
           </div>
+        </div>
         </div>
 
         <div className="flex flex-wrap gap-4">

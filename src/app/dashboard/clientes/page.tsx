@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Search, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   active: { label: 'Ativo', color: 'bg-emerald-100 text-emerald-700' },
@@ -26,6 +27,7 @@ interface Client {
   payment_type?: 'recorrente' | 'pontual'
   recurring_amount?: number | null
   recurring_end_date?: string | null
+  billing_due_date?: string | null
 }
 
 export default function ClientesPage() {
@@ -50,6 +52,7 @@ export default function ClientesPage() {
     payment_type: 'pontual' as 'recorrente' | 'pontual',
     recurring_amount: '' as string | number,
     recurring_end_date: '' as string,
+    billing_due_date: '' as string,
   })
 
   const fetchClients = async () => {
@@ -86,10 +89,11 @@ export default function ClientesPage() {
         payment_type: (client.payment_type === 'recorrente' ? 'recorrente' : 'pontual'),
         recurring_amount: client.recurring_amount != null ? client.recurring_amount : '',
         recurring_end_date: client.recurring_end_date || '',
+        billing_due_date: client.billing_due_date || '',
       })
     } else {
       setSelected(null)
-      setForm({ name: '', email: '', phone: '', company: '', status: 'lead', notes: '', source: '', responsible: '', payment_type: 'pontual', recurring_amount: '', recurring_end_date: '' })
+      setForm({ name: '', email: '', phone: '', company: '', status: 'lead', notes: '', source: '', responsible: '', payment_type: 'pontual', recurring_amount: '', recurring_end_date: '', billing_due_date: '' })
     }
     setDialogOpen(true)
   }
@@ -120,8 +124,12 @@ export default function ClientesPage() {
           source: form.source || null,
           responsible: form.responsible || null,
           payment_type: form.payment_type,
-          recurring_amount: form.payment_type === 'recorrente' && form.recurring_amount !== '' ? Number(form.recurring_amount) : null,
+          recurring_amount:
+            (form.payment_type === 'recorrente' || form.payment_type === 'pontual') && form.recurring_amount !== ''
+              ? Number(form.recurring_amount)
+              : null,
           recurring_end_date: form.payment_type === 'recorrente' && form.recurring_end_date ? form.recurring_end_date : null,
+          billing_due_date: form.billing_due_date ? form.billing_due_date : null,
         }),
       })
       if (res.ok) {
@@ -179,7 +187,7 @@ export default function ClientesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${SITE_CONTAINER_LG}`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Clientes</h1>
@@ -196,7 +204,7 @@ export default function ClientesPage() {
         </button>
       </div>
 
-      <div className="p-4 rounded-2xl border-0 shadow-sm bg-white">
+      <div className={`p-4 ${DASH_SURFACE_CARD}`}>
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -209,35 +217,35 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border-0 shadow-sm bg-white overflow-hidden">
+      <div className={`${DASH_SURFACE_CARD} overflow-hidden`}>
         <table className="w-full text-left">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="px-4 py-3 font-semibold text-slate-700">Nome</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Contato</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Responsável</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Data</th>
-              <th className="w-12 px-4 py-3" />
+              <th className="px-5 py-3.5 font-semibold text-slate-700">Nome</th>
+              <th className="px-5 py-3.5 font-semibold text-slate-700">Contato</th>
+              <th className="px-5 py-3.5 font-semibold text-slate-700">Status</th>
+              <th className="px-5 py-3.5 font-semibold text-slate-700">Responsável</th>
+              <th className="px-5 py-3.5 font-semibold text-slate-700">Data</th>
+              <th className="w-12 px-5 py-3.5" />
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
                   Carregando...
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
                   Nenhum cliente encontrado
                 </td>
               </tr>
             ) : (
               filtered.map((client) => (
                 <tr key={client.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-3.5">
                     <div>
                       <p className="font-medium text-slate-900">{client.name}</p>
                       {client.payment_type === 'recorrente' && client.recurring_amount != null && (
@@ -250,14 +258,14 @@ export default function ClientesPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-3.5">
                     <div className="space-y-1">
                       {client.email && <p className="text-sm text-slate-600">{client.email}</p>}
                       {client.phone && <p className="text-sm text-slate-600">{client.phone}</p>}
                       {!client.email && !client.phone && '—'}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-3.5">
                     {(client.status === 'active' || client.status === 'inactive') ? (
                       <button
                         type="button"
@@ -275,11 +283,11 @@ export default function ClientesPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{client.responsible || '—'}</td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-5 py-3.5 text-slate-600">{client.responsible || '—'}</td>
+                  <td className="px-5 py-3.5 text-slate-500">
                     {client.created_at ? format(new Date(client.created_at), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-3.5">
                     <div className="flex gap-1">
                       <button
                         onClick={() => openDialog(client)}
@@ -341,7 +349,7 @@ export default function ClientesPage() {
                 {form.payment_type === 'recorrente' && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor Recorrente (R$)</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor recorrente (R$)</label>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -353,7 +361,7 @@ export default function ClientesPage() {
                         }}
                         className="w-full px-3 py-2 rounded-xl border border-slate-200"
                       />
-                      <p className="text-xs text-slate-500 mt-0.5">Valor fixo que o cliente paga por mês</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Soma na receita mensal do dashboard (clientes ativos)</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Válido até</label>
@@ -363,10 +371,41 @@ export default function ClientesPage() {
                         onChange={(e) => setForm((f) => ({ ...f, recurring_end_date: e.target.value }))}
                         className="w-full px-3 py-2 rounded-xl border border-slate-200"
                       />
-                      <p className="text-xs text-slate-500 mt-0.5">Até quando esse valor entra no MMR do dashboard (deixe vazio se não tem data fim)</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Até quando esse valor entra no MMR (vazio = sem fim)</p>
                     </div>
                   </>
                 )}
+                {form.payment_type === 'pontual' && (
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor para receita mensal (R$)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={form.recurring_amount === '' ? '' : Number(form.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, '')
+                        setForm((f) => ({ ...f, recurring_amount: v === '' ? '' : Number(v) / 100 }))
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                    />
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Opcional: valor esperado que entra na receita total mensal do dashboard (igual ao recorrente, para clientes ativos)
+                    </p>
+                  </div>
+                )}
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Próxima cobrança / vencimento</label>
+                  <input
+                    type="date"
+                    value={form.billing_due_date}
+                    onChange={(e) => setForm((f) => ({ ...f, billing_due_date: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                  />
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Usamos para avisos no dashboard e no Financeiro (até 5 dias antes, inclusive hoje e amanhã)
+                  </p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
                   <select

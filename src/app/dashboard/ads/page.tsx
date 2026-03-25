@@ -20,11 +20,11 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from 'sonner'
 import MetricsCard from '@/components/ads/MetricsCard'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
 
 const PLATFORMS = [
   { value: 'meta', label: 'Meta' },
@@ -162,13 +162,13 @@ export default function AdsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className={`space-y-6 ${SITE_CONTAINER_LG}`}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Ads</h1>
           <p className="text-slate-500">Acompanhe o desempenho das suas campanhas (Meta, Google).</p>
         </div>
-        <Button onClick={() => openDialog(null)} className="rounded-xl">
+        <Button onClick={() => openDialog(null)} className="w-full sm:w-auto rounded-xl">
           <Plus className="w-4 h-4 mr-2" />
           Nova campanha
         </Button>
@@ -205,7 +205,7 @@ export default function AdsPage() {
         />
       </div>
 
-      <Card className="rounded-2xl border-0 shadow-sm overflow-hidden">
+      <Card className={`${DASH_SURFACE_CARD} overflow-hidden`}>
         {loading ? (
           <div className="p-12 text-center text-slate-500">Carregando...</div>
         ) : campaigns.length === 0 ? (
@@ -217,31 +217,31 @@ export default function AdsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/50">
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Nome</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Plataforma</th>
-                  <th className="text-right p-4 text-sm font-medium text-slate-600">Investimento</th>
-                  <th className="text-right p-4 text-sm font-medium text-slate-600">Leads</th>
-                  <th className="text-right p-4 text-sm font-medium text-slate-600">Conversões</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Status</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-600">Período</th>
-                  <th className="w-10 p-4" />
+                  <th className="text-left px-5 py-3.5 text-sm font-medium text-slate-600">Nome</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-medium text-slate-600">Plataforma</th>
+                  <th className="text-right px-5 py-3.5 text-sm font-medium text-slate-600">Investimento</th>
+                  <th className="text-right px-5 py-3.5 text-sm font-medium text-slate-600">Leads</th>
+                  <th className="text-right px-5 py-3.5 text-sm font-medium text-slate-600">Conversões</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-medium text-slate-600">Status</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-medium text-slate-600">Período</th>
+                  <th className="w-10 px-5 py-3.5" />
                 </tr>
               </thead>
               <tbody>
                 {campaigns.map((c) => (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                    <td className="p-4 font-medium text-slate-900">{c.name}</td>
-                    <td className="p-4 text-slate-600">
+                    <td className="px-5 py-3.5 font-medium text-slate-900">{c.name}</td>
+                    <td className="px-5 py-3.5 text-slate-600">
                       {PLATFORMS.find((p) => p.value === c.platform)?.label ?? c.platform}
                     </td>
-                    <td className="p-4 text-right text-slate-600">
+                    <td className="px-5 py-3.5 text-right text-slate-600">
                       {c.investment != null
                         ? `R$ ${Number(c.investment).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                         : '-'}
                     </td>
-                    <td className="p-4 text-right text-slate-600">{c.leads ?? '-'}</td>
-                    <td className="p-4 text-right text-slate-600">{c.conversions ?? '-'}</td>
-                    <td className="p-4">
+                    <td className="px-5 py-3.5 text-right text-slate-600">{c.leads ?? '-'}</td>
+                    <td className="px-5 py-3.5 text-right text-slate-600">{c.conversions ?? '-'}</td>
+                    <td className="px-5 py-3.5">
                       <span
                         className={`inline-flex px-2 py-1 rounded-lg text-xs font-medium ${
                           c.status === 'active'
@@ -254,13 +254,13 @@ export default function AdsPage() {
                         {STATUS_OPTIONS.find((s) => s.value === c.status)?.label ?? c.status}
                       </span>
                     </td>
-                    <td className="p-4 text-sm text-slate-500">
+                    <td className="px-5 py-3.5 text-sm text-slate-500">
                       {c.start_date
                         ? format(new Date(c.start_date), 'dd/MM/yyyy', { locale: ptBR })
                         : '-'}
                       {c.end_date ? ` - ${format(new Date(c.end_date), 'dd/MM/yyyy', { locale: ptBR })}` : ''}
                     </td>
-                    <td className="p-4">
+                    <td className="px-5 py-3.5">
                       <Button
                         variant="ghost"
                         size="icon"

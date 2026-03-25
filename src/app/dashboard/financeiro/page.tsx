@@ -69,6 +69,7 @@ interface Transaction {
 interface Client {
   id: string
   name: string
+  billing_due_date?: string | null
 }
 
 interface Project {
@@ -207,6 +208,21 @@ export default function FinanceiroPage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
   }, [filteredTransactions])
+
+  const billingReminders = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const dayDiff = (dateStr: string) => {
+      const d = new Date(dateStr + 'T12:00:00')
+      d.setHours(0, 0, 0, 0)
+      return Math.round((d.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
+    }
+    return clients
+      .filter((c) => c.billing_due_date && String(c.billing_due_date).trim() !== '')
+      .map((c) => ({ ...c, days: dayDiff(String(c.billing_due_date)) }))
+      .filter((c) => c.days >= 0 && c.days <= 5)
+      .sort((a, b) => a.days - b.days)
+  }, [clients])
 
   const openDialog = (tx: Transaction | null) => {
     if (tx) {
@@ -348,6 +364,10 @@ export default function FinanceiroPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Financeiro</h1>
           <p className="text-slate-500">Controle suas receitas e despesas</p>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+            Os valores aqui não entram na receita mensal do dashboard — aquele total vem só dos clientes (recorrente e
+            pontual). Use o Financeiro para o fluxo de caixa real.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button
@@ -366,6 +386,33 @@ export default function FinanceiroPage() {
           </Button>
         </div>
       </div>
+
+      {billingReminders.length > 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <Calendar className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+              <p className="font-semibold text-amber-950">Lembretes: cobrar clientes</p>
+              <p className="mt-1 text-sm text-amber-900/85">
+                Datas cadastradas em Clientes → &quot;Próxima cobrança / vencimento&quot;. Avisos para hoje, amanhã ou
+                até 5 dias.
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm text-amber-950">
+                {billingReminders.map((c) => (
+                  <li key={c.id}>
+                    <span className="font-medium">{c.name}</span>
+                    {' — '}
+                    {c.days === 0 ? 'Hoje' : c.days === 1 ? 'Amanhã' : `Em ${c.days} dias`}
+                    {c.billing_due_date
+                      ? ` (${format(parseISO(String(c.billing_due_date)), 'dd/MM/yyyy', { locale: ptBR })})`
+                      : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Period Navigation + Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl border border-slate-200 p-4">

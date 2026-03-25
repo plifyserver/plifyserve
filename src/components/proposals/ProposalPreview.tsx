@@ -19,8 +19,19 @@ import type {
   CleanPage5,
   CleanPromotionCta,
 } from '@/types/cleanProposal'
+import type {
+  ModernPage1,
+  ModernPage2,
+  ModernPage3,
+  ModernPage4,
+  ModernPage5,
+  ModernPage6,
+  ModernPage7,
+  ModernPage8,
+} from '@/types/modernProposal'
 import { ProposalEmpresarialLayout } from '@/components/proposals/ProposalEmpresarialLayout'
 import { ProposalCleanLayout } from '@/components/proposals/ProposalCleanLayout'
+import { ProposalModernLayout } from '@/components/proposals/ProposalModernLayout'
 import { ProposalCommerceSections } from '@/components/proposals/ProposalCommerceSections'
 
 export interface ProposalData {
@@ -42,6 +53,8 @@ export interface ProposalData {
   description: string
   blocks: ContentBlock[]
   colorPalette: ColorPalette
+  /** Modelo Moderno: fundos escuros (padrão) ou claros; paleta completa na secção Hero. */
+  modernSurfaceTheme?: 'dark' | 'light'
   /** Template empresarial — página 1 (hero) e faixa inferior */
   empresarialPage1?: EmpresarialPage1
   /** Template empresarial — página 2 (trabalhos / cards) */
@@ -58,6 +71,20 @@ export interface ProposalData {
   cleanPage5?: CleanPage5
   /** Modelo Clean (divulgação): texto do botão + WhatsApp */
   cleanPromotionCta?: CleanPromotionCta
+  /** Modelo Moderno — hero escuro + conteúdo claro */
+  modernPage1?: ModernPage1
+  modernPage2?: ModernPage2
+  modernPage3?: ModernPage3
+  /** Modelo Moderno — página 4 (vitrine de planos). */
+  modernPage4?: ModernPage4
+  /** Modelo Moderno — página 5 (sobre nós + marcas). */
+  modernPage5?: ModernPage5
+  /** Modelo Moderno — página 6 (equipa ou produtos). */
+  modernPage6?: ModernPage6
+  /** Modelo Moderno — página 7 (recomendações / depoimentos). */
+  modernPage7?: ModernPage7
+  /** Modelo Moderno — página 8 (rodapé: redes, links, contato). */
+  modernPage8?: ModernPage8
 }
 
 export interface ContentBlock {
@@ -119,6 +146,19 @@ export function ProposalPreview({
       <ProposalCleanLayout
         data={data}
         className={cn(!className?.includes('rounded-none') && 'rounded-2xl', className)}
+        selectedPlanId={selectedPlanId}
+        onSelectPlan={onSelectPlan}
+        onOpenPlanAccept={onOpenPlanAccept}
+      />
+    )
+  }
+
+  if (template === 'modern') {
+    return (
+      <ProposalModernLayout
+        data={data}
+        className={cn(!className?.includes('rounded-none') && 'rounded-2xl', className)}
+        commerceStyles={{ sectionRadius: '1rem', cardShadow: 'shadow-md' }}
         selectedPlanId={selectedPlanId}
         onSelectPlan={onSelectPlan}
         onOpenPlanAccept={onOpenPlanAccept}

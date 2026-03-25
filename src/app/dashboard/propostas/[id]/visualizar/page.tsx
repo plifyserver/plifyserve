@@ -4,6 +4,8 @@ import { useParams } from 'next/navigation'
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, AlertCircle, MessageSquareQuote } from 'lucide-react'
+import { SITE_GUTTER_X } from '@/lib/siteLayout'
+import { cn } from '@/lib/utils'
 import { getAcceptanceClientComment } from '@/lib/proposalAcceptanceComment'
 import { AcceptedPlanCallout } from '@/components/proposals/AcceptedPlanCallout'
 import { ProposalPreview, type ProposalData, type ColorPalette } from '@/components/proposals/ProposalPreview'
@@ -23,6 +25,17 @@ import {
   mergeCleanPage5,
   mergeCleanPromotionCta,
 } from '@/types/cleanProposal'
+import {
+  ensureModernPage4Stored,
+  mergeModernPage1,
+  mergeModernPage2,
+  mergeModernPage3,
+  mergeModernPage5,
+  mergeModernPage6,
+  mergeModernPage7,
+  mergeModernPage8,
+} from '@/types/modernProposal'
+import { mergeModernSurfaceTheme } from '@/components/proposals/modernProposalSurface'
 import type { Proposal } from '@/types'
 
 const defaultPalette: ColorPalette = {
@@ -44,12 +57,13 @@ function buildProposalData(proposal: Proposal): ProposalData {
     phone: '',
   }
   const delivery = c.delivery as { type?: string; date?: string } | undefined
+  const plans = Array.isArray(c.plans) ? (c.plans as ProposalData['plans']) : []
   return {
     template: (c.template as ProposalData['template']) || 'modern',
     clientName: proposal.client_name || '',
     company,
     paymentType: (c.paymentType as ProposalData['paymentType']) || 'plans',
-    plans: Array.isArray(c.plans) ? (c.plans as ProposalData['plans']) : [],
+    plans,
     singlePrice: typeof c.singlePrice === 'number' ? c.singlePrice : 0,
     deliveryType: delivery?.type === 'scheduled' ? 'scheduled' : 'immediate',
     deliveryDate: (delivery?.date as string) || '',
@@ -89,6 +103,16 @@ function buildProposalData(proposal: Proposal): ProposalData {
     cleanPage4: c.template === 'simple' ? mergeCleanPage4(c.cleanPage4) : undefined,
     cleanPage5: c.template === 'simple' ? mergeCleanPage5(c.cleanPage5) : undefined,
     cleanPromotionCta: c.template === 'simple' ? mergeCleanPromotionCta(c.cleanPromotionCta) : undefined,
+    modernPage1: c.template === 'modern' ? mergeModernPage1(c.modernPage1) : undefined,
+    modernPage2: c.template === 'modern' ? mergeModernPage2(c.modernPage2) : undefined,
+    modernPage3: c.template === 'modern' ? mergeModernPage3(c.modernPage3) : undefined,
+    modernPage4: c.template === 'modern' ? ensureModernPage4Stored(c.modernPage4, plans) : undefined,
+    modernPage5: c.template === 'modern' ? mergeModernPage5(c.modernPage5) : undefined,
+    modernPage6: c.template === 'modern' ? mergeModernPage6(c.modernPage6) : undefined,
+    modernPage7: c.template === 'modern' ? mergeModernPage7(c.modernPage7) : undefined,
+    modernPage8: c.template === 'modern' ? mergeModernPage8(c.modernPage8, company) : undefined,
+    modernSurfaceTheme:
+      c.template === 'modern' ? mergeModernSurfaceTheme((c as { modernSurfaceTheme?: unknown }).modernSurfaceTheme) : undefined,
   }
 }
 
@@ -101,7 +125,9 @@ export default function VisualizarProposalPage() {
 
   const proposalData = useMemo(() => (proposal ? buildProposalData(proposal) : null), [proposal])
   const previewFullBleed =
-    proposalData?.template === 'empresarial' || proposalData?.template === 'simple'
+    proposalData?.template === 'empresarial' ||
+    proposalData?.template === 'simple' ||
+    proposalData?.template === 'modern'
   const acceptanceComment = useMemo(
     () => (proposal ? getAcceptanceClientComment(proposal.content) : null),
     [proposal]
@@ -168,7 +194,11 @@ export default function VisualizarProposalPage() {
       </div>
 
       {proposal.status === 'accepted' && proposalData.template !== 'simple' ? (
-        <div className={previewFullBleed ? 'w-full max-w-6xl mx-auto space-y-4' : 'max-w-4xl mx-auto space-y-4'}>
+        <div
+          className={
+            previewFullBleed ? 'w-full max-w-6xl mx-auto space-y-4' : cn('max-w-4xl mx-auto space-y-4', SITE_GUTTER_X)
+          }
+        >
           <AcceptedPlanCallout content={proposal.content} />
           {acceptanceComment ? (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5 shadow-sm">
@@ -190,7 +220,7 @@ export default function VisualizarProposalPage() {
         </div>
       ) : null}
 
-      <div className={previewFullBleed ? 'w-full' : 'max-w-4xl mx-auto'}>
+      <div className={previewFullBleed ? 'w-full' : cn('max-w-4xl mx-auto', SITE_GUTTER_X)}>
         <div
           className={
             previewFullBleed

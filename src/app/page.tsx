@@ -19,6 +19,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { LOGO_PRETO, LOGO_BRANCO } from '@/lib/logo'
 import { chartPaletteFromPrimary } from '@/lib/colorUtils'
+import { SITE_GUTTER_X } from '@/lib/siteLayout'
+import { cn } from '@/lib/utils'
 
 const STATS = [
   { target: 500, suffix: '+', label: 'Usuários ativos' },
@@ -256,7 +258,7 @@ function DashboardImageSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="px-3 sm:px-4 pb-16 sm:pb-24 pt-4 overflow-hidden">
+    <section ref={sectionRef} className={cn('pb-16 sm:pb-24 pt-4 overflow-hidden', SITE_GUTTER_X)}>
       <div className="max-w-6xl mx-auto flex justify-center items-center">
         <div
           className="w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden transition-transform duration-500 ease-out bg-white origin-center"
@@ -305,7 +307,7 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100">
         {/* Linha laranja acima do conteúdo do header */}
         <div className="h-1.5 w-full" style={{ backgroundColor: ACCENT }} role="presentation" />
-        <nav className="max-w-6xl mx-auto px-4 sm:px-6 min-h-14 sm:min-h-16 py-2 flex items-center justify-between gap-2">
+        <nav className={cn('max-w-6xl mx-auto min-h-14 sm:min-h-16 py-2 flex items-center justify-between gap-2', SITE_GUTTER_X)}>
           <Link href="/" className="flex items-center min-w-0 shrink">
             <Image src={LOGO_PRETO} alt="Plify" width={140} height={40} className="h-8 w-auto sm:h-10 object-contain object-left" priority />
           </Link>
@@ -338,7 +340,7 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section className="pt-24 pb-12 px-4">
+      <section className={cn('pt-24 pb-12', SITE_GUTTER_X)}>
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black tracking-tight mb-6 leading-tight">
             Todas as soluções. Um único lugar. Zero complicação.
@@ -357,7 +359,7 @@ export default function LandingPage() {
       <DashboardImageSection />
 
       {/* Planos - estilo limpo branco */}
-      <section className="py-16 sm:py-24 px-4 bg-slate-50">
+      <section className={cn('py-16 sm:py-24 bg-slate-50', SITE_GUTTER_X)}>
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 text-center mb-2">Planos</h2>
           <p className="text-slate-600 text-center mb-10 sm:mb-12">Escolha o plano ideal para o seu negócio</p>
@@ -447,7 +449,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer mínimo */}
-      <footer className="py-6 sm:py-8 px-4 border-t border-slate-100">
+      <footer className={cn('py-6 sm:py-8 border-t border-slate-100', SITE_GUTTER_X)}>
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <Link href="/" className="flex items-center shrink-0 min-h-[2rem]">
             <img src="/logopreto.png" alt="Plify" className="h-6 sm:h-8 w-auto object-contain" />

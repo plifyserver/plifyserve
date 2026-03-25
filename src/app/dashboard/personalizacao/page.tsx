@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Upload, Palette, Check, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_SM } from '@/lib/siteLayout'
 
 const DEFAULT_PRIMARY = '#dc2626'
 const DEFAULT_SECONDARY = '#000020'
@@ -119,14 +120,14 @@ export default function PersonalizacaoPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className={`space-y-6 ${SITE_CONTAINER_SM}`}>
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Personalização</h1>
         <p className="text-slate-500">Personalize a aparência do seu sistema</p>
       </div>
 
       <form onSubmit={save} className="space-y-6">
-        <div className="rounded-2xl border-0 shadow-sm bg-white p-6 space-y-4">
+        <div className={`${DASH_SURFACE_CARD} p-6 space-y-4`}>
           <h2 className="text-lg font-semibold text-slate-900">Identidade Visual</h2>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Sistema</label>
@@ -188,7 +189,7 @@ export default function PersonalizacaoPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border-0 shadow-sm bg-white p-6 space-y-4">
+        <div className={`${DASH_SURFACE_CARD} p-6 space-y-4`}>
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             <Palette className="w-5 h-5" />
             Cores

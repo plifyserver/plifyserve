@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Card } from '@/components/ui/card'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
 
 const statusConfig = {
   in_progress: { label: 'Em Andamento', color: 'bg-blue-100 text-blue-700', bgColor: 'bg-blue-500', icon: Play },
@@ -380,7 +381,7 @@ export default function ProjetosPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${SITE_CONTAINER_LG}`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -398,7 +399,7 @@ export default function ProjetosPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <div className={`${DASH_SURFACE_CARD} p-5`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-slate-500 text-sm font-medium">Em Andamento</span>
             <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -408,7 +409,7 @@ export default function ProjetosPage() {
           <p className="text-3xl font-bold text-slate-900">{stats.active}</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <div className={`${DASH_SURFACE_CARD} p-5`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-slate-500 text-sm font-medium">Total</span>
             <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
@@ -418,7 +419,7 @@ export default function ProjetosPage() {
           <p className="text-3xl font-bold text-slate-900">{stats.total}</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <div className={`${DASH_SURFACE_CARD} p-5`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-slate-500 text-sm font-medium">Concluídos</span>
             <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
@@ -428,7 +429,7 @@ export default function ProjetosPage() {
           <p className="text-3xl font-bold text-slate-900">{stats.completed}</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <div className={`${DASH_SURFACE_CARD} p-5`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-slate-500 text-sm font-medium">Progresso Médio</span>
             <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center">
@@ -440,7 +441,7 @@ export default function ProjetosPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 bg-white rounded-2xl border border-slate-200 p-4">
+      <div className={`flex flex-col sm:flex-row gap-4 p-4 ${DASH_SURFACE_CARD}`}>
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -484,7 +485,7 @@ export default function ProjetosPage() {
 
       {/* Projects List/Grid */}
       {viewMode === 'list' ? (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className={`${DASH_SURFACE_CARD} overflow-hidden`}>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -605,10 +606,7 @@ export default function ProjetosPage() {
               const deadline = getDeadlineStatus(project.end_date)
 
               return (
-                <div
-                  key={project.id}
-                  className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-shadow"
-                >
+                <div key={project.id} className={`${DASH_SURFACE_CARD} p-5 hover:shadow-md transition-shadow`}>
                     <div className="flex items-start justify-between mb-4">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-slate-900 truncate">{project.name}</h3>
@@ -692,7 +690,7 @@ export default function ProjetosPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className={`${DASH_SURFACE_CARD} p-5`}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-slate-500 text-sm font-medium">Total</span>
               <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
@@ -701,7 +699,7 @@ export default function ProjetosPage() {
             </div>
             <p className="text-3xl font-bold text-slate-900">{taskStats.total}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className={`${DASH_SURFACE_CARD} p-5`}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-slate-500 text-sm font-medium">Ativas</span>
               <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -710,7 +708,7 @@ export default function ProjetosPage() {
             </div>
             <p className="text-3xl font-bold text-slate-900">{taskStats.active}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className={`${DASH_SURFACE_CARD} p-5`}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-slate-500 text-sm font-medium">Concluídas</span>
               <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
@@ -738,7 +736,7 @@ export default function ProjetosPage() {
           </Select>
         </div>
 
-        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden">
+        <Card className={`${DASH_SURFACE_CARD} overflow-hidden`}>
           {tasks.length === 0 ? (
             <div className="p-12 text-center text-slate-500">
               Nenhuma tarefa. Clique em &quot;Nova tarefa&quot; para começar.

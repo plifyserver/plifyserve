@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { SpaceKeyFix } from "@/components/SpaceKeyFix";
@@ -33,10 +34,12 @@ export default function RootLayout({
         <FaviconFix />
         <SpaceKeyFix />
         <QueryProvider>
-          <AuthProvider>
-            {children}
-            <Toaster />
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              {children}
+              <Toaster />
+            </AuthProvider>
+          </ThemeProvider>
         </QueryProvider>
       </body>
     </html>

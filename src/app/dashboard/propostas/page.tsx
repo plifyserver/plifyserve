@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Copy, Edit, Trash2, Files, CheckCircle, XCircle, Plus, Search, Eye, Send, BarChart3, Loader2 } from 'lucide-react'
 import type { Proposal } from '@/types'
@@ -13,6 +13,7 @@ import { getAcceptanceClientComment } from '@/lib/proposalAcceptanceComment'
 import { toast } from 'sonner'
 import { TemplateSelector, type TemplateType } from '@/components/proposals/TemplateSelector'
 import { AcceptedPlanCallout } from '@/components/proposals/AcceptedPlanCallout'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
 
 function getProposalPublicUrl(proposal: Proposal): string {
   const slug = proposal.public_slug || proposal.slug
@@ -45,17 +46,35 @@ export default function PropostasPage() {
   }
 
   useEffect(() => {
+    let cancelled = false
     const fetchProposals = async () => {
-      const res = await fetch('/api/proposals', { credentials: 'include' })
-      if (!res.ok) return
-
-      const all = (await res.json()) as Proposal[]
-      setProposals(all.filter((p) => p.status !== 'accepted').sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()))
-      setAcceptedProposals(all.filter((p) => p.status === 'accepted'))
-      setLoading(false)
+      try {
+        const res = await fetch('/api/proposals', { credentials: 'include' })
+        if (!res.ok) return
+        const all = (await res.json()) as Proposal[]
+        if (cancelled) return
+        setProposals(all.filter((p) => p.status !== 'accepted').sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()))
+        setAcceptedProposals(all.filter((p) => p.status === 'accepted'))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
     fetchProposals()
+    return () => {
+      cancelled = true
+    }
   }, [])
+
+  useEffect(() => {
+    router.prefetch('/dashboard/propostas/nova')
+  }, [router])
+
+  useEffect(() => {
+    for (const proposal of proposals.slice(0, 8)) {
+      router.prefetch(`/dashboard/propostas/${proposal.id}/visualizar`)
+      router.prefetch(`/dashboard/propostas/nova?id=${proposal.id}`)
+    }
+  }, [proposals, router])
 
   const shareProposalWhatsApp = (proposal: Proposal) => {
     const url = getProposalPublicUrl(proposal)
@@ -149,24 +168,20 @@ export default function PropostasPage() {
     }
   }
 
-  const filteredProposals = searchQuery.trim()
-    ? proposals.filter(
-        (p) =>
-          p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.slug?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : proposals
+  const filteredProposals = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return proposals
+    return proposals.filter((p) => p.title?.toLowerCase().includes(query) || p.slug?.toLowerCase().includes(query))
+  }, [proposals, searchQuery])
 
-  const filteredAccepted = searchQuery.trim()
-    ? acceptedProposals.filter(
-        (p) =>
-          p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.slug?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : acceptedProposals
+  const filteredAccepted = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return acceptedProposals
+    return acceptedProposals.filter((p) => p.title?.toLowerCase().includes(query) || p.slug?.toLowerCase().includes(query))
+  }, [acceptedProposals, searchQuery])
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${SITE_CONTAINER_LG}`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -223,7 +238,7 @@ export default function PropostasPage() {
       {loading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <Card key={i} className="rounded-2xl border-0 shadow-sm overflow-hidden">
+            <Card key={i} className={`${DASH_SURFACE_CARD} overflow-hidden`}>
               <CardContent className="p-6">
                 <div className="h-16 rounded-xl bg-slate-100 animate-pulse" />
               </CardContent>
@@ -233,7 +248,7 @@ export default function PropostasPage() {
       ) : activeTab === 'all' ? (
         <div className="space-y-4">
           {filteredProposals.length === 0 ? (
-            <Card className="rounded-2xl border-0 shadow-sm">
+            <Card className={DASH_SURFACE_CARD}>
               <CardContent className="p-12 text-center">
                 <p className="text-slate-500 mb-4">
                   {searchQuery ? 'Nenhuma proposta encontrada com esse filtro.' : 'Nenhuma proposta ainda.'}
@@ -252,7 +267,7 @@ export default function PropostasPage() {
             </Card>
           ) : (
             filteredProposals.map((proposal) => (
-              <Card key={proposal.id} className="rounded-2xl border-0 shadow-sm overflow-hidden">
+              <Card key={proposal.id} className={`${DASH_SURFACE_CARD} overflow-hidden`}>
                 <CardContent className="p-4 sm:p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="min-w-0 flex-1">
@@ -394,7 +409,7 @@ export default function PropostasPage() {
       ) : (
         <div className="space-y-4">
           {filteredAccepted.length === 0 ? (
-            <Card className="rounded-2xl border-0 shadow-sm border-emerald-200 bg-emerald-50/50">
+            <Card className={`${DASH_SURFACE_CARD} border-emerald-200 bg-emerald-50/50`}>
               <CardContent className="p-12 text-center">
                 <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
                 <p className="text-slate-600 font-medium">
@@ -411,7 +426,7 @@ export default function PropostasPage() {
             filteredAccepted.map((proposal) => {
               const clientComment = getAcceptanceClientComment(proposal.content)
               return (
-              <Card key={proposal.id} className="rounded-2xl border-0 shadow-sm border-emerald-200/60 bg-emerald-50/30 overflow-hidden">
+              <Card key={proposal.id} className={`${DASH_SURFACE_CARD} border-emerald-200/60 bg-emerald-50/30 overflow-hidden`}>
                 <CardContent className="p-4 sm:p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-start gap-3">

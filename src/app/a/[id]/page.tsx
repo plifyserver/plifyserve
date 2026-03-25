@@ -3,6 +3,8 @@
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { SITE_CONTAINER_SM, SITE_GUTTER_X } from '@/lib/siteLayout'
 
 type Doc = {
   id: string
@@ -213,8 +215,8 @@ export default function AssinarDocumentoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-3xl mx-auto">
+    <div className={cn('min-h-screen bg-gray-50 py-8', SITE_GUTTER_X)}>
+      <div className={SITE_CONTAINER_SM}>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Documento para assinatura</h1>
         {doc.client_name && (
           <p className="text-gray-600 text-sm mb-6">Destinatário: {doc.client_name}</p>

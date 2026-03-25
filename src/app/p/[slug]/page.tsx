@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { CheckCircle, Loader2, AlertCircle, PartyPopper } from 'lucide-react'
+import { SITE_GUTTER_X } from '@/lib/siteLayout'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -24,6 +26,17 @@ import {
   mergeCleanPage5,
   mergeCleanPromotionCta,
 } from '@/types/cleanProposal'
+import {
+  ensureModernPage4Stored,
+  mergeModernPage1,
+  mergeModernPage2,
+  mergeModernPage3,
+  mergeModernPage5,
+  mergeModernPage6,
+  mergeModernPage7,
+  mergeModernPage8,
+} from '@/types/modernProposal'
+import { mergeModernSurfaceTheme } from '@/components/proposals/modernProposalSurface'
 import { planBillingSuffix } from '@/components/proposals/PlanCard'
 import { fireProposalConfetti } from '@/lib/proposalConfetti'
 import { toast } from 'sonner'
@@ -61,6 +74,14 @@ interface Proposal {
     cleanPage4?: unknown
     cleanPage5?: unknown
     cleanPromotionCta?: unknown
+    modernPage1?: unknown
+    modernPage2?: unknown
+    modernPage3?: unknown
+    modernPage4?: unknown
+    modernPage5?: unknown
+    modernPage6?: unknown
+    modernPage7?: unknown
+    modernPage8?: unknown
     paymentType?: ProposalData['paymentType']
     singlePrice?: number
     acceptedPlanId?: string | null
@@ -72,19 +93,21 @@ interface Proposal {
 
 function buildProposalData(proposal: Proposal): ProposalData {
   const c = proposal.content || {}
+  const plans = Array.isArray(c.plans) ? c.plans : []
+  const company = c.company || {
+    name: '',
+    document: '',
+    logo: null,
+    address: '',
+    email: '',
+    phone: '',
+  }
   return {
     template: c.template || 'modern',
     clientName: proposal.client_name || '',
-    company: c.company || {
-      name: '',
-      document: '',
-      logo: null,
-      address: '',
-      email: '',
-      phone: '',
-    },
+    company,
     paymentType: c.paymentType || 'plans',
-    plans: Array.isArray(c.plans) ? c.plans : [],
+    plans,
     singlePrice: typeof c.singlePrice === 'number' ? c.singlePrice : 0,
     deliveryType: c.delivery?.type === 'scheduled' ? 'scheduled' : 'immediate',
     deliveryDate: c.delivery?.date || '',
@@ -117,6 +140,16 @@ function buildProposalData(proposal: Proposal): ProposalData {
     cleanPage4: c.template === 'simple' ? mergeCleanPage4(c.cleanPage4) : undefined,
     cleanPage5: c.template === 'simple' ? mergeCleanPage5(c.cleanPage5) : undefined,
     cleanPromotionCta: c.template === 'simple' ? mergeCleanPromotionCta(c.cleanPromotionCta) : undefined,
+    modernPage1: c.template === 'modern' ? mergeModernPage1(c.modernPage1) : undefined,
+    modernPage2: c.template === 'modern' ? mergeModernPage2(c.modernPage2) : undefined,
+    modernPage3: c.template === 'modern' ? mergeModernPage3(c.modernPage3) : undefined,
+    modernPage4: c.template === 'modern' ? ensureModernPage4Stored(c.modernPage4, plans) : undefined,
+    modernPage5: c.template === 'modern' ? mergeModernPage5(c.modernPage5) : undefined,
+    modernPage6: c.template === 'modern' ? mergeModernPage6(c.modernPage6) : undefined,
+    modernPage7: c.template === 'modern' ? mergeModernPage7(c.modernPage7) : undefined,
+    modernPage8: c.template === 'modern' ? mergeModernPage8(c.modernPage8, company) : undefined,
+    modernSurfaceTheme:
+      c.template === 'modern' ? mergeModernSurfaceTheme((c as { modernSurfaceTheme?: unknown }).modernSurfaceTheme) : undefined,
   }
 }
 
@@ -139,6 +172,8 @@ export default function PublicProposalPage() {
   const proposalData = useMemo(() => (proposal ? buildProposalData(proposal) : null), [proposal])
   const isEmpresarial = proposalData?.template === 'empresarial'
   const isClean = proposalData?.template === 'simple'
+  const isModern = proposalData?.template === 'modern'
+  const fullBleedPublic = isEmpresarial || isClean || isModern
 
   const planCount = proposalData?.plans?.length ?? 0
   /** Inclui propostas com planos no JSON mesmo se paymentType vier vazio (default no build é 'plans'). */
@@ -255,8 +290,8 @@ export default function PublicProposalPage() {
   const billingExample = planModalMeta ? planBillingSuffix(planModalMeta.priceType) : ''
 
   return (
-    <div className={`min-h-screen bg-slate-100 ${isEmpresarial || isClean ? 'py-0' : 'py-6 md:py-10'}`}>
-      <div className={isEmpresarial || isClean ? 'w-full px-0' : 'max-w-4xl mx-auto px-4'}>
+    <div className={`min-h-screen bg-slate-100 ${fullBleedPublic ? 'py-0' : 'py-6 md:py-10'}`}>
+      <div className={fullBleedPublic ? 'w-full px-0' : cn('max-w-4xl mx-auto', SITE_GUTTER_X)}>
         {accepted && !isClean && (
           <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center">
             <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
@@ -267,12 +302,10 @@ export default function PublicProposalPage() {
           </div>
         )}
 
-        <div
-          className={isEmpresarial || isClean ? '' : 'rounded-2xl overflow-hidden shadow-xl'}
-        >
+        <div className={fullBleedPublic ? '' : 'rounded-2xl overflow-hidden shadow-xl'}>
           <ProposalPreview
             data={proposalData}
-            className={`shadow-none ${isEmpresarial || isClean ? 'rounded-none' : ''}`}
+            className={`shadow-none ${fullBleedPublic ? 'rounded-none' : ''}`}
             selectedPlanId={hasPlans ? selectedPlanId : undefined}
             onOpenPlanAccept={hasPlans && !accepted && proposal.status !== 'accepted' ? openPlanAcceptModal : undefined}
           />
@@ -280,8 +313,8 @@ export default function PublicProposalPage() {
 
         {!accepted && proposal.status !== 'accepted' && hasPlans && (
           <p className="mt-6 text-center text-slate-500 text-sm max-w-lg mx-auto leading-relaxed">
-            Clique em <strong className="text-slate-700">Selecionar plano</strong> no card desejado. Você poderá deixar um
-            comentário opcional e aceitar a proposta na janela que abrir.
+            Primeiro escolha o plano em <strong className="text-slate-700">Selecionar plano</strong>. Depois abre-se a
+            janela com o resumo do plano, um campo de comentário (opcional) e o botão para confirmar a aceitação.
           </p>
         )}
 
@@ -307,7 +340,8 @@ export default function PublicProposalPage() {
           <DialogHeader>
             <DialogTitle>Aceitar proposta</DialogTitle>
             <DialogDescription>
-              Revise o plano e, se quiser, envie um breve recado para quem preparou a proposta.
+              Passo a passo: (1) o plano já foi selecionado ao abrir esta janela; (2) opcionalmente preencha o comentário;
+              (3) confirme com &quot;Aceitar proposta&quot;.
             </DialogDescription>
           </DialogHeader>
           {planModalMeta && (

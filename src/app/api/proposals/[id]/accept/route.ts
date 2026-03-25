@@ -30,7 +30,7 @@ export async function POST(
     )
   }
 
-  let updatePayload: Record<string, unknown> = {
+  const updatePayload: Record<string, unknown> = {
     status: 'accepted',
     accepted_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

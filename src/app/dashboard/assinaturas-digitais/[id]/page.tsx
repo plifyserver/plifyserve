@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, FileText, CheckCircle, Clock, MapPin, Calendar, Globe, Monitor } from 'lucide-react'
+import { SITE_CONTAINER_MD } from '@/lib/siteLayout'
 
 type Doc = {
   id: string
@@ -43,7 +44,7 @@ export default function VerDocumentoAssinaturaPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className={SITE_CONTAINER_MD}>
         <p className="text-gray-500">Carregando...</p>
       </div>
     )
@@ -51,7 +52,7 @@ export default function VerDocumentoAssinaturaPage() {
 
   if (!doc) {
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className={SITE_CONTAINER_MD}>
         <Link
           href="/dashboard/assinaturas-digitais"
           className="inline-flex items-center gap-2 text-gray-600 hover:text-avocado mb-6"
@@ -65,7 +66,7 @@ export default function VerDocumentoAssinaturaPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className={SITE_CONTAINER_MD}>
       <Link
         href="/dashboard/assinaturas-digitais"
         className="inline-flex items-center gap-2 text-gray-600 hover:text-avocado mb-6"

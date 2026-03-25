@@ -280,7 +280,7 @@ export function mergeEmpresarialPage4(raw: unknown): EmpresarialPage4 {
   }
   const o = raw as Record<string, unknown>
   const rawQuads = Array.isArray(o.quadrants) ? o.quadrants.filter(isPage4Quadrant) : []
-  let quadrants =
+  const quadrants =
     rawQuads.length >= 2
       ? rawQuads.slice(0, 6).map((q, i) => ({ ...q, id: q.id || `p4-${i + 1}` }))
       : d.quadrants.map((q) => ({ ...q }))

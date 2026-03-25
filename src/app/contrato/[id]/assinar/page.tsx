@@ -17,6 +17,8 @@ import SignatureCanvas, { type SignatureData } from '@/components/contracts/Sign
 import { useAuth } from '@/contexts/AuthContext'
 import { LOGO_PRETO } from '@/lib/logo'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { SITE_CONTAINER_LG, SITE_GUTTER_X } from '@/lib/siteLayout'
 
 interface Contract {
   id: string
@@ -254,8 +256,8 @@ export default function AssinarContratoPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header: logo proporcional, botão verde Assinar à direita */}
-      <header className="bg-white border-b border-slate-200 px-3 sm:px-4 py-2.5 sm:py-3 flex-shrink-0">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4 min-w-0">
+      <header className={cn('bg-white border-b border-slate-200 py-2.5 sm:py-3 flex-shrink-0', SITE_GUTTER_X)}>
+        <div className={cn(SITE_CONTAINER_LG, 'flex items-center justify-between gap-2 sm:gap-4 min-w-0')}>
           <Link href="/" className="flex items-center min-w-0 shrink">
             <Image src={LOGO_PRETO} alt="Plify" width={140} height={40} className="h-8 w-auto sm:h-10 object-contain object-left" priority />
           </Link>
@@ -273,7 +275,7 @@ export default function AssinarContratoPage() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col p-3 sm:p-4 max-w-6xl w-full mx-auto min-w-0">
+      <main className={cn('flex-1 flex flex-col py-3 sm:py-4 w-full min-w-0', SITE_CONTAINER_LG, SITE_GUTTER_X)}>
         {/* Sem email na URL: se logado no Plify = assinatura presencial (escolher signatário); senão = pedir uso do link exclusivo */}
         {!signatoryEmail && contract?.signatories && contract.signatories.length > 0 && signatoryIndex < 0 && (
           <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 mb-3 sm:mb-4">

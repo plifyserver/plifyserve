@@ -24,6 +24,10 @@ import {
   Phone,
   ExternalLink,
   MessageCircle,
+  CreditCard,
+  Info,
+  Users,
+  PanelBottom,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +47,7 @@ import {
   writeProposalLivePreviewBootstrap,
 } from '@/lib/proposalLivePreview'
 import type { TemplateType } from '@/components/proposals/TemplateSelector'
+import { mergeModernSurfaceTheme } from '@/components/proposals/modernProposalSurface'
 import {
   DEFAULT_EMPRESARIAL_PAGE1,
   DEFAULT_EMPRESARIAL_PAGE2,
@@ -94,6 +99,57 @@ import {
   type CleanPage5SocialLink,
   type CleanPromotionCta,
 } from '@/types/cleanProposal'
+import {
+  DEFAULT_MODERN_PAGE1,
+  DEFAULT_MODERN_PAGE2,
+  DEFAULT_MODERN_PAGE3,
+  DEFAULT_MODERN_PAGE4,
+  MODERN_PAGE6_MAX_ITEMS,
+  MODERN_PAGE6_MIN_ITEMS,
+  ensureModernPage4Stored,
+  mergeModernPage1,
+  mergeModernPage2,
+  mergeModernPage3,
+  mergeModernPage4,
+  mergeModernPage5,
+  mergeModernPage6,
+  mergeModernPage7,
+  mergeModernPage8,
+  MODERN_PAGE7_MAX_ITEMS,
+  MODERN_PAGE8_MAX_CLICKABLE,
+  MODERN_PAGE8_MAX_SOCIAL,
+  modernCarouselFromFour,
+  modernCarouselToFour,
+  type ModernPage1,
+  type ModernPage2,
+  type ModernPage3,
+  type ModernPage4,
+  type ModernPage4PlanRowStored,
+  type ModernPage5,
+  type ModernPage5BrandSlot,
+  type ModernPage6,
+  type ModernPage6Item,
+  type ModernPage7,
+  type ModernPage7Testimonial,
+  type ModernPage8,
+  type ModernPage8ClickableLink,
+  type ModernPage8SocialLink,
+  type ModernPage8SocialPlatform,
+} from '@/types/modernProposal'
+
+const MODERN8_SOCIAL_OPTIONS: { value: ModernPage8SocialPlatform; label: string }[] = [
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'twitter', label: 'X / Twitter' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'dribbble', label: 'Dribbble' },
+  { value: 'behance', label: 'Behance' },
+  { value: 'github', label: 'GitHub' },
+  { value: 'other', label: 'Outro' },
+]
 
 type EmpresarialIconPickTarget = { kind: 'page1'; index: number } | { kind: 'page4'; index: number }
 type ProposalStatus = 'draft' | 'published' | 'accepted'
@@ -255,7 +311,9 @@ const getDefaultProposalData = (template: TemplateType): ProposalData => ({
   deliveryDate: '',
   description: '',
   blocks: [],
-  colorPalette: colorPalettes[0].colors,
+  colorPalette:
+    template === 'modern' ? { ...colorPalettes[0].colors, accent: '#E85D4C' } : colorPalettes[0].colors,
+  modernSurfaceTheme: template === 'modern' ? ('dark' as const) : undefined,
   empresarialPage1:
     template === 'empresarial'
       ? {
@@ -320,6 +378,17 @@ const getDefaultProposalData = (template: TemplateType): ProposalData => ({
       ? { ...DEFAULT_CLEAN_PAGE5, socialLinks: [] }
       : undefined,
   cleanPromotionCta: template === 'simple' ? { ...DEFAULT_CLEAN_PROMOTION_CTA } : undefined,
+  modernPage1: template === 'modern' ? { ...DEFAULT_MODERN_PAGE1 } : undefined,
+  modernPage2:
+    template === 'modern'
+      ? { ...DEFAULT_MODERN_PAGE2, keywords: [...DEFAULT_MODERN_PAGE2.keywords] as ModernPage2['keywords'] }
+      : undefined,
+  modernPage3: template === 'modern' ? { ...DEFAULT_MODERN_PAGE3, carouselImages: [] } : undefined,
+  modernPage4: template === 'modern' ? { ...DEFAULT_MODERN_PAGE4 } : undefined,
+  modernPage5: template === 'modern' ? mergeModernPage5(undefined) : undefined,
+  modernPage6: template === 'modern' ? mergeModernPage6(undefined) : undefined,
+  modernPage7: template === 'modern' ? mergeModernPage7(undefined) : undefined,
+  modernPage8: template === 'modern' ? mergeModernPage8(undefined, undefined) : undefined,
 })
 
 export function NovaPropostaEditor({
@@ -399,6 +468,20 @@ export function NovaPropostaEditor({
           label: 'Botão flutuante · WhatsApp',
           icon: MessageCircle,
         },
+      ]
+    }
+    if (proposalData.template === 'modern') {
+      return [
+        ...PROPOSTA_BASE_SECTIONS.slice(0, 2),
+        { id: 'modernHero' as const, label: 'Hero · capa (modelo Moderno)', icon: LayoutTemplate },
+        { id: 'modern2' as const, label: 'Página 2 · imagem e palavras', icon: Layers },
+        { id: 'modern3' as const, label: 'Página 3 · título e carrossel', icon: Megaphone },
+        { id: 'modern4' as const, label: 'Página 4 · vitrine de planos', icon: CreditCard },
+        { id: 'modern5' as const, label: 'Página 5 · sobre nós', icon: Info },
+        { id: 'modern6' as const, label: 'Página 6 · equipa ou produtos', icon: Users },
+        { id: 'modern7' as const, label: 'Página 7 · recomendações', icon: MessageSquareQuote },
+        { id: 'modern8' as const, label: 'Página 8 · rodapé', icon: PanelBottom },
+        PROPOSTA_BASE_SECTIONS[2],
       ]
     }
     return [...PROPOSTA_BASE_SECTIONS]
@@ -505,6 +588,225 @@ export function NovaPropostaEditor({
     })
   }, [])
 
+  const patchModernPage1 = useCallback((patch: Partial<ModernPage1>) => {
+    setProposalData((prev) => {
+      const cur = mergeModernPage1(prev.modernPage1)
+      return { ...prev, modernPage1: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchModernPage2 = useCallback((patch: Partial<ModernPage2>) => {
+    setProposalData((prev) => {
+      const cur = mergeModernPage2(prev.modernPage2)
+      return { ...prev, modernPage2: mergeModernPage2({ ...cur, ...patch }) }
+    })
+  }, [])
+
+  const patchModernPage3 = useCallback((patch: Partial<ModernPage3>) => {
+    setProposalData((prev) => {
+      const cur = mergeModernPage3(prev.modernPage3)
+      return { ...prev, modernPage3: mergeModernPage3({ ...cur, ...patch }) }
+    })
+  }, [])
+
+  const patchModernPage4Header = useCallback((patch: Partial<Pick<ModernPage4, 'eyebrow' | 'sectionTitle'>>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const ensured = ensureModernPage4Stored(prev.modernPage4, prev.plans)
+      return { ...prev, modernPage4: { ...ensured, ...patch } }
+    })
+  }, [])
+
+  const patchModernPage4PlanRow = useCallback(
+    (
+      planId: string,
+      patch: Partial<Pick<ModernPage4PlanRowStored, 'headline' | 'subline' | 'imageOverride'>> & {
+        _dropImageOverride?: boolean
+      }
+    ) => {
+      setProposalData((prev) => {
+        if (prev.template !== 'modern') return prev
+        const ensured = ensureModernPage4Stored(prev.modernPage4, prev.plans)
+        const planRows = ensured.planRows.map((r) => {
+          if (r.planId !== planId) return r
+          const { _dropImageOverride, ...restPatch } = patch
+          let next: ModernPage4PlanRowStored = { ...r, ...restPatch }
+          if (_dropImageOverride) {
+            const { imageOverride: _removed, ...w } = next
+            next = w as ModernPage4PlanRowStored
+          }
+          return next
+        })
+        return { ...prev, modernPage4: { ...ensured, planRows } }
+      })
+    },
+    []
+  )
+
+  const patchModernPage5 = useCallback((patch: Partial<ModernPage5>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage5(prev.modernPage5)
+      return { ...prev, modernPage5: mergeModernPage5({ ...cur, ...patch }) }
+    })
+  }, [])
+
+  const patchModernPage5Brand = useCallback((index: 0 | 1 | 2, patch: Partial<ModernPage5BrandSlot>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage5(prev.modernPage5)
+      const brands = [...cur.brands] as [ModernPage5BrandSlot, ModernPage5BrandSlot, ModernPage5BrandSlot]
+      brands[index] = { ...brands[index], ...patch }
+      return { ...prev, modernPage5: { ...cur, brands } }
+    })
+  }, [])
+
+  const patchModernPage6 = useCallback((patch: Partial<ModernPage6>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage6(prev.modernPage6)
+      return { ...prev, modernPage6: mergeModernPage6({ ...cur, ...patch }) }
+    })
+  }, [])
+
+  const patchModernPage6Item = useCallback((index: number, patch: Partial<ModernPage6Item>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage6(prev.modernPage6)
+      const items = cur.items.map((it, i) => (i === index ? { ...it, ...patch } : it))
+      return { ...prev, modernPage6: mergeModernPage6({ ...cur, items }) }
+    })
+  }, [])
+
+  const setModernPage6ItemCount = useCallback((n: number) => {
+    const clamped = Math.max(MODERN_PAGE6_MIN_ITEMS, Math.min(MODERN_PAGE6_MAX_ITEMS, n))
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage6(prev.modernPage6)
+      let items = [...cur.items]
+      if (items.length < clamped) {
+        while (items.length < clamped) {
+          const i = items.length
+          items.push({
+            imageUrl: null,
+            line1: '',
+            line2: '',
+            frame: i === 1 ? 'arch' : 'rect',
+          })
+        }
+      } else {
+        items = items.slice(0, clamped)
+      }
+      return { ...prev, modernPage6: mergeModernPage6({ ...cur, items }) }
+    })
+  }, [])
+
+  const patchModernPage7 = useCallback((patch: Partial<ModernPage7>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage7(prev.modernPage7)
+      return { ...prev, modernPage7: mergeModernPage7({ ...cur, ...patch }) }
+    })
+  }, [])
+
+  const patchModernPage7Item = useCallback((index: number, patch: Partial<ModernPage7Testimonial>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage7(prev.modernPage7)
+      const items = cur.items.map((it, i) => (i === index ? { ...it, ...patch } : it))
+      return { ...prev, modernPage7: mergeModernPage7({ ...cur, items }) }
+    })
+  }, [])
+
+  const addModernPage7Item = useCallback(() => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage7(prev.modernPage7)
+      if (cur.items.length >= MODERN_PAGE7_MAX_ITEMS) return prev
+      const items = [
+        ...cur.items,
+        { clientName: '', clientRole: '', ratingScore: 5, starCount: 5, quote: '' },
+      ]
+      return { ...prev, modernPage7: mergeModernPage7({ ...cur, items }) }
+    })
+  }, [])
+
+  const removeModernPage7Item = useCallback((index: number) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage7(prev.modernPage7)
+      const items = cur.items.filter((_, i) => i !== index)
+      return { ...prev, modernPage7: mergeModernPage7({ ...cur, items }) }
+    })
+  }, [])
+
+  const patchModernPage8 = useCallback((patch: Partial<ModernPage8>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage8(prev.modernPage8, prev.company)
+      return { ...prev, modernPage8: mergeModernPage8({ ...cur, ...patch }, prev.company) }
+    })
+  }, [])
+
+  const patchModernPage8Social = useCallback((index: number, patch: Partial<ModernPage8SocialLink>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage8(prev.modernPage8, prev.company)
+      const socialLinks = cur.socialLinks.map((it, i) => (i === index ? { ...it, ...patch } : it))
+      return { ...prev, modernPage8: mergeModernPage8({ ...cur, socialLinks }, prev.company) }
+    })
+  }, [])
+
+  const addModernPage8Social = useCallback(() => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage8(prev.modernPage8, prev.company)
+      if (cur.socialLinks.length >= MODERN_PAGE8_MAX_SOCIAL) return prev
+      const socialLinks = [
+        ...cur.socialLinks,
+        { platform: 'instagram' as ModernPage8SocialPlatform, url: '', customLabel: '' },
+      ]
+      return { ...prev, modernPage8: mergeModernPage8({ ...cur, socialLinks }, prev.company) }
+    })
+  }, [])
+
+  const removeModernPage8Social = useCallback((index: number) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage8(prev.modernPage8, prev.company)
+      const socialLinks = cur.socialLinks.filter((_, i) => i !== index)
+      return { ...prev, modernPage8: mergeModernPage8({ ...cur, socialLinks }, prev.company) }
+    })
+  }, [])
+
+  const patchModernPage8Clickable = useCallback((index: number, patch: Partial<ModernPage8ClickableLink>) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage8(prev.modernPage8, prev.company)
+      const clickableLinks = cur.clickableLinks.map((it, i) => (i === index ? { ...it, ...patch } : it))
+      return { ...prev, modernPage8: mergeModernPage8({ ...cur, clickableLinks }, prev.company) }
+    })
+  }, [])
+
+  const addModernPage8Clickable = useCallback(() => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage8(prev.modernPage8, prev.company)
+      if (cur.clickableLinks.length >= MODERN_PAGE8_MAX_CLICKABLE) return prev
+      const clickableLinks = [...cur.clickableLinks, { label: '', url: '' }]
+      return { ...prev, modernPage8: mergeModernPage8({ ...cur, clickableLinks }, prev.company) }
+    })
+  }, [])
+
+  const removeModernPage8Clickable = useCallback((index: number) => {
+    setProposalData((prev) => {
+      if (prev.template !== 'modern') return prev
+      const cur = mergeModernPage8(prev.modernPage8, prev.company)
+      const clickableLinks = cur.clickableLinks.filter((_, i) => i !== index)
+      return { ...prev, modernPage8: mergeModernPage8({ ...cur, clickableLinks }, prev.company) }
+    })
+  }, [])
+
   useEffect(() => {
     if (!effectiveLivePreviewSid || typeof BroadcastChannel === 'undefined') {
       livePreviewChannelRef.current?.close()
@@ -591,6 +893,14 @@ export function NovaPropostaEditor({
             cleanPage4?: unknown
             cleanPage5?: unknown
             cleanPromotionCta?: unknown
+            modernPage1?: unknown
+            modernPage2?: unknown
+            modernPage3?: unknown
+            modernPage4?: unknown
+            modernPage5?: unknown
+            modernPage6?: unknown
+            modernPage7?: unknown
+            modernPage8?: unknown
             paymentType?: ProposalData['paymentType']
             singlePrice?: number
           }
@@ -645,6 +955,8 @@ export function NovaPropostaEditor({
           description: c.description ?? '',
           blocks: Array.isArray(c.blocks) ? c.blocks : [],
           colorPalette: c.colorPalette && typeof c.colorPalette === 'object' ? c.colorPalette : colorPalettes[0].colors,
+          modernSurfaceTheme:
+            c.template === 'modern' ? mergeModernSurfaceTheme((c as { modernSurfaceTheme?: unknown }).modernSurfaceTheme) : undefined,
           empresarialPage1:
             c.template === 'empresarial'
               ? mergeEmpresarialPage1(c.empresarialPage1)
@@ -671,6 +983,15 @@ export function NovaPropostaEditor({
           cleanPage4: c.template === 'simple' ? mergeCleanPage4(c.cleanPage4) : undefined,
           cleanPage5: c.template === 'simple' ? mergeCleanPage5(c.cleanPage5) : undefined,
           cleanPromotionCta: c.template === 'simple' ? mergeCleanPromotionCta(c.cleanPromotionCta) : undefined,
+          modernPage1: c.template === 'modern' ? mergeModernPage1(c.modernPage1) : undefined,
+          modernPage2: c.template === 'modern' ? mergeModernPage2(c.modernPage2) : undefined,
+          modernPage3: c.template === 'modern' ? mergeModernPage3(c.modernPage3) : undefined,
+          modernPage4:
+            c.template === 'modern' ? ensureModernPage4Stored(c.modernPage4, plans) : undefined,
+          modernPage5: c.template === 'modern' ? mergeModernPage5(c.modernPage5) : undefined,
+          modernPage6: c.template === 'modern' ? mergeModernPage6(c.modernPage6) : undefined,
+          modernPage7: c.template === 'modern' ? mergeModernPage7(c.modernPage7) : undefined,
+          modernPage8: c.template === 'modern' ? mergeModernPage8(c.modernPage8, company) : undefined,
         })
       } finally {
         if (!cancelled) setLoadingEdit(false)
@@ -703,8 +1024,24 @@ export function NovaPropostaEditor({
     ) {
       setActiveSection('client')
     }
+    if (
+      proposalData.template !== 'modern' &&
+      (activeSection === 'modernHero' ||
+        activeSection === 'modern2' ||
+        activeSection === 'modern3' ||
+        activeSection === 'modern4' ||
+        activeSection === 'modern5' ||
+        activeSection === 'modern6' ||
+        activeSection === 'modern7' ||
+        activeSection === 'modern8')
+    ) {
+      setActiveSection('client')
+    }
     if (proposalData.template === 'empresarial' && activeSection === 'company') {
       setActiveSection('empresarial')
+    }
+    if (proposalData.template === 'modern' && activeSection === 'company') {
+      setActiveSection('modernHero')
     }
     if (activeSection === 'style') {
       setActiveSection(
@@ -712,7 +1049,9 @@ export function NovaPropostaEditor({
           ? 'empresarial'
           : proposalData.template === 'simple'
             ? 'clean1'
-            : 'planos'
+            : proposalData.template === 'modern'
+              ? 'modernHero'
+              : 'planos'
       )
     }
     if (activeSection === 'delivery' || activeSection === 'content') {
@@ -721,7 +1060,9 @@ export function NovaPropostaEditor({
           ? 'empresarial'
           : proposalData.template === 'simple'
             ? 'clean1'
-            : 'planos'
+            : proposalData.template === 'modern'
+              ? 'modernHero'
+              : 'planos'
       )
     }
     if (activeSection === 'payment') {
@@ -730,7 +1071,9 @@ export function NovaPropostaEditor({
           ? 'empresarial3'
           : proposalData.template === 'simple'
             ? 'cleanCta'
-            : 'planos'
+            : proposalData.template === 'modern'
+              ? 'modernHero'
+              : 'planos'
       )
     }
     if (activeSection === 'blocks') {
@@ -739,7 +1082,9 @@ export function NovaPropostaEditor({
           ? 'empresarial'
           : proposalData.template === 'simple'
             ? 'clean1'
-            : 'planos'
+            : proposalData.template === 'modern'
+              ? 'modernHero'
+              : 'planos'
       )
     }
   }, [proposalData.template, activeSection])
@@ -808,6 +1153,27 @@ export function NovaPropostaEditor({
       ...(proposalData.template === 'simple' && proposalData.cleanPromotionCta
         ? { cleanPromotionCta: mergeCleanPromotionCta(proposalData.cleanPromotionCta) }
         : {}),
+      ...(proposalData.template === 'modern' && proposalData.modernPage1
+        ? { modernPage1: mergeModernPage1(proposalData.modernPage1) }
+        : {}),
+      ...(proposalData.template === 'modern' && proposalData.modernPage2
+        ? { modernPage2: mergeModernPage2(proposalData.modernPage2) }
+        : {}),
+      ...(proposalData.template === 'modern' && proposalData.modernPage3
+        ? { modernPage3: mergeModernPage3(proposalData.modernPage3) }
+        : {}),
+      ...(proposalData.template === 'modern'
+        ? { modernPage4: ensureModernPage4Stored(proposalData.modernPage4, proposalData.plans) }
+        : {}),
+      ...(proposalData.template === 'modern'
+        ? {
+            modernPage5: mergeModernPage5(proposalData.modernPage5),
+            modernPage6: mergeModernPage6(proposalData.modernPage6),
+            modernPage7: mergeModernPage7(proposalData.modernPage7),
+            modernPage8: mergeModernPage8(proposalData.modernPage8, proposalData.company),
+            modernSurfaceTheme: mergeModernSurfaceTheme(proposalData.modernSurfaceTheme),
+          }
+        : {}),
     },
   })
 
@@ -868,6 +1234,14 @@ export function NovaPropostaEditor({
       if (c3.carouselImages.length < 3) {
         toast.error('Na página 3 (Clean), adicione pelo menos 3 imagens no carrossel.')
         setActiveSection('clean3')
+        return
+      }
+    }
+    if (proposalData.template === 'modern') {
+      const m3 = mergeModernPage3(proposalData.modernPage3)
+      if (m3.carouselImages.length < 3) {
+        toast.error('No modelo Moderno, a página 3 exige pelo menos 3 imagens no carrossel (até 4).')
+        setActiveSection('modern3')
         return
       }
     }
@@ -1044,6 +1418,886 @@ export function NovaPropostaEditor({
             </div>
           </div>
         )
+
+      case 'modernHero': {
+        const m1 = mergeModernPage1(proposalData.modernPage1)
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Hero · capa (modelo Moderno)</h3>
+              <p className="text-sm text-slate-500">
+                O logo e o <strong>nome da empresa</strong> vêm da secção Empresa. O título gigante usa o nome em
+                maiúsculas; a cor de destaque é a <strong>Cor de destaque (accent)</strong> nos Planos. O botão superior
+                leva o visitante à segunda parte da proposta (planos e texto).
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Texto do botão (canto direito)</label>
+              <Input
+                value={m1.contactButtonLabel}
+                onChange={(e) => patchModernPage1({ contactButtonLabel: e.target.value })}
+                placeholder="GET IN TOUCH"
+                className="max-w-md rounded-xl border-slate-200"
+              />
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                <p className="text-sm font-semibold text-slate-800">Link à esquerda</p>
+                <Input
+                  value={m1.leftHandle}
+                  onChange={(e) => patchModernPage1({ leftHandle: e.target.value })}
+                  placeholder="@SUA.MARCA"
+                  className="rounded-xl border-slate-200"
+                />
+                <Input
+                  value={m1.leftUrl}
+                  onChange={(e) => patchModernPage1({ leftUrl: e.target.value })}
+                  placeholder="https://instagram.com/suaempresa"
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+                <p className="text-xs text-slate-500">Sem URL válida, o texto aparece sem link.</p>
+              </div>
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                <p className="text-sm font-semibold text-slate-800">Link à direita</p>
+                <Input
+                  value={m1.rightHandle}
+                  onChange={(e) => patchModernPage1({ rightHandle: e.target.value })}
+                  placeholder="@SUA.MARCA"
+                  className="rounded-xl border-slate-200"
+                />
+                <Input
+                  value={m1.rightUrl}
+                  onChange={(e) => patchModernPage1({ rightUrl: e.target.value })}
+                  placeholder="https://instagram.com/suaempresa"
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Frase central (use Enter para nova linha)</label>
+              <Textarea
+                value={m1.heroTagline}
+                onChange={(e) => patchModernPage1({ heroTagline: e.target.value })}
+                rows={3}
+                className="rounded-xl border-slate-200"
+                placeholder={'MOTION DESIGN\nSTUDIO'}
+              />
+            </div>
+            <ProposalColorPalettePicker
+              selected={proposalData.colorPalette}
+              onSelect={(colors) => updateField('colorPalette', colors)}
+              hint="Primária, secundária, destaque (accent), fundo e texto — aplicam-se a todas as páginas do modelo Moderno (planos, sobre, equipa, rodapé, etc.)."
+            />
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <p className="mb-3 text-sm font-medium text-slate-800">Fundo da proposta (antes do bloco branco de conteúdo)</p>
+              <p className="mb-3 text-xs text-slate-500">
+                <strong>Escuro</strong> — capa e secções pretas (padrão). <strong>Claro</strong> — fundos com a cor{' '}
+                <em>Fundo</em> da paleta e texto com a cor <em>Texto</em>.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => updateField('modernSurfaceTheme', 'dark')}
+                  className={cn(
+                    'rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all',
+                    mergeModernSurfaceTheme(proposalData.modernSurfaceTheme) === 'dark'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                  )}
+                >
+                  Tema escuro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateField('modernSurfaceTheme', 'light')}
+                  className={cn(
+                    'rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all',
+                    mergeModernSurfaceTheme(proposalData.modernSurfaceTheme) === 'light'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                  )}
+                >
+                  Tema claro
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case 'modern2': {
+        const m2 = mergeModernPage2(proposalData.modernPage2)
+        const setKeyword = (index: number, value: string) => {
+          const next = [...m2.keywords] as string[]
+          next[index] = value
+          patchModernPage2({ keywords: next as ModernPage2['keywords'] })
+        }
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Página 2 · imagem e palavras</h3>
+              <p className="text-sm text-slate-500">
+                Imagem centralizada com <strong>proporção mantida</strong> (sem esticar): ficheiros grandes encaixam na
+                área; imagens pequenas não são ampliadas à força. Abaixo, oito palavras na faixa preta (aparecem em
+                maiúsculas na proposta).
+              </p>
+            </div>
+            <ImageUploader
+              label="Imagem da página 2"
+              value={m2.imageUrl || undefined}
+              onChange={(url) => patchModernPage2({ imageUrl: url || null })}
+              aspectRatio="video"
+            />
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-slate-800">Oito palavras (faixa inferior)</h4>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {m2.keywords.map((kw, i) => (
+                  <div key={i}>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Palavra {i + 1}</label>
+                    <Input
+                      value={kw}
+                      onChange={(e) => setKeyword(i, e.target.value)}
+                      placeholder={`Palavra ${i + 1}`}
+                      className="rounded-xl border-slate-200 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case 'modern3': {
+        const m3 = mergeModernPage3(proposalData.modernPage3)
+        const four = modernCarouselToFour(m3.carouselImages)
+        const setCarouselSlot = (index: number, url: string | undefined) => {
+          const nextFour = [...four]
+          nextFour[index] = url
+          patchModernPage3({ carouselImages: modernCarouselFromFour(nextFour) })
+        }
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Página 3 · título e carrossel</h3>
+              <p className="text-sm text-slate-500">
+                Título grande em vermelho (cor de destaque). Carrossel com <strong>3 a 4 imagens</strong>; troca
+                automaticamente na proposta. É <strong>obrigatório</strong> pelo menos 3 fotos para publicar.
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título (use Enter para várias linhas)</label>
+              <Textarea
+                value={m3.headline}
+                onChange={(e) => patchModernPage3({ headline: e.target.value })}
+                rows={4}
+                className="rounded-xl border-slate-200"
+                placeholder="OUR 50+ INDEPENDENT PUBLISHERS' DNA"
+              />
+            </div>
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-slate-800">Imagens do carrossel (mín. 3, máx. 4)</h4>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {four.map((slot, i) => (
+                  <ImageUploader
+                    key={i}
+                    label={`Foto ${i + 1}${i < 3 ? ' *' : ' (opcional)'}`}
+                    value={slot}
+                    onChange={(url) => setCarouselSlot(i, url ?? undefined)}
+                    aspectRatio="video"
+                  />
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Preencha as três primeiras posições para a pré-visualização e para publicar.
+              </p>
+            </div>
+          </div>
+        )
+      }
+
+      case 'modern4': {
+        const m4 = mergeModernPage4(proposalData.modernPage4, proposalData.plans)
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Página 4 · vitrine de planos</h3>
+              <p className="text-sm text-slate-500">
+                Texto do rótulo e do título principal; por cada plano da secção <strong>Planos</strong>, edite o título
+                da linha, o subtítulo e (opcionalmente) uma imagem própria — se remover a imagem aqui, volta a usar a
+                foto do plano. Preço, descrição e benefícios continuam na secção Planos.
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Rótulo (ex.: NOSSOS PLANOS)</label>
+              <Input
+                value={m4.eyebrow}
+                onChange={(e) => patchModernPage4Header({ eyebrow: e.target.value })}
+                className="rounded-xl border-slate-200"
+                placeholder="NOSSOS PLANOS"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Título em destaque (Enter para várias linhas)
+              </label>
+              <Textarea
+                value={m4.sectionTitle}
+                onChange={(e) => patchModernPage4Header({ sectionTitle: e.target.value })}
+                rows={4}
+                className="rounded-xl border-slate-200"
+                placeholder={'OUR RECENT\nPROJECTS'}
+              />
+            </div>
+            <div className="space-y-8">
+              <h4 className="text-sm font-semibold text-slate-800">Por plano</h4>
+              {proposalData.plans.length === 0 ? (
+                <p className="text-sm text-slate-500">Adicione planos na secção Planos para preencher a vitrine.</p>
+              ) : (
+                proposalData.plans.map((plan) => {
+                  const row = m4.planRows.find((r) => r.planId === plan.id)
+                  if (!row) return null
+                  return (
+                    <div key={plan.id} className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Plano: {plan.name || 'Sem nome'}
+                      </p>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Título da linha</label>
+                        <Input
+                          value={row.headline}
+                          onChange={(e) =>
+                            patchModernPage4PlanRow(plan.id, { headline: e.target.value })
+                          }
+                          className="rounded-xl border-slate-200 text-sm"
+                          placeholder={plan.name || 'Título'}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Subtítulo</label>
+                        <Input
+                          value={row.subline}
+                          onChange={(e) =>
+                            patchModernPage4PlanRow(plan.id, { subline: e.target.value })
+                          }
+                          className="rounded-xl border-slate-200 text-sm"
+                          placeholder="Ex.: DIGITAL PLATFORM"
+                        />
+                      </div>
+                      <div>
+                        <ImageUploader
+                          label="Imagem da vitrine (opcional — usa a do plano se vazio)"
+                          value={row.imageUrl || undefined}
+                          onChange={(url) =>
+                            url?.trim()
+                              ? patchModernPage4PlanRow(plan.id, { imageOverride: url.trim() })
+                              : patchModernPage4PlanRow(plan.id, { _dropImageOverride: true })
+                          }
+                          aspectRatio="video"
+                        />
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        )
+      }
+
+      case 'modern5': {
+        const m5 = mergeModernPage5(proposalData.modernPage5)
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Página 5 · sobre nós</h3>
+              <p className="text-sm text-slate-500">
+                Título principal (tipo “Sobre nós”), rótulo com linha, texto em destaque e três marcas ou parceiros com
+                imagem e legenda.
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título (várias linhas com Enter)</label>
+              <Textarea
+                value={m5.mainTitle}
+                onChange={(e) => patchModernPage5({ mainTitle: e.target.value })}
+                rows={3}
+                className="rounded-xl border-slate-200"
+                placeholder="SOBRE NÓS"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Rótulo à esquerda (ex.: nossas conquistas)
+              </label>
+              <Input
+                value={m5.eyebrow}
+                onChange={(e) => patchModernPage5({ eyebrow: e.target.value })}
+                className="rounded-xl border-slate-200"
+                placeholder="NOSSAS CONQUISTAS"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Texto principal</label>
+              <Textarea
+                value={m5.body}
+                onChange={(e) => patchModernPage5({ body: e.target.value })}
+                rows={6}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-slate-800">Três marcas / parceiros</h4>
+              <div className="grid gap-6 sm:grid-cols-3">
+                {([0, 1, 2] as const).map((i) => (
+                  <div key={i} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                    <p className="text-xs font-medium text-slate-600">Marca {i + 1}</p>
+                    <ImageUploader
+                      label="Logo ou imagem"
+                      value={m5.brands[i].imageUrl || undefined}
+                      onChange={(url) => patchModernPage5Brand(i, { imageUrl: url || null })}
+                      aspectRatio="video"
+                    />
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">Título abaixo da imagem</label>
+                      <Input
+                        value={m5.brands[i].caption}
+                        onChange={(e) => patchModernPage5Brand(i, { caption: e.target.value })}
+                        className="rounded-xl border-slate-200 text-sm"
+                        placeholder="Ex.: SITE OF THE DAY"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case 'modern6': {
+        const m6 = mergeModernPage6(proposalData.modernPage6)
+        const modeTeam = m6.mode === 'team'
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Página 6 · equipa ou produtos</h3>
+              <p className="text-sm text-slate-500">
+                Mesmo layout: em <strong>Equipa</strong> use nome e cargo no hover; em <strong>Produtos</strong>, nome do
+                produto e descrição curta. As fotos sobem levemente ao rolar a página; com{' '}
+                <span className="whitespace-nowrap">reduzir movimento</span> no sistema, o efeito fica desativado.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="modern6mode"
+                  checked={modeTeam}
+                  onChange={() => patchModernPage6({ mode: 'team' })}
+                  className="rounded-full border-slate-300"
+                />
+                Equipa (nome + cargo no hover)
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="modern6mode"
+                  checked={!modeTeam}
+                  onChange={() => patchModernPage6({ mode: 'products' })}
+                  className="rounded-full border-slate-300"
+                />
+                Produtos (nome + descrição no hover)
+              </label>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título da secção</label>
+              <Textarea
+                value={m6.title}
+                onChange={(e) => patchModernPage6({ title: e.target.value })}
+                rows={2}
+                className="rounded-xl border-slate-200"
+                placeholder="NOSSA EQUIPA"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Descrição abaixo do título</label>
+              <Textarea
+                value={m6.subtitle}
+                onChange={(e) => patchModernPage6({ subtitle: e.target.value })}
+                rows={3}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-slate-700">Quantidade de fotos:</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={m6.items.length <= MODERN_PAGE6_MIN_ITEMS}
+                onClick={() => setModernPage6ItemCount(m6.items.length - 1)}
+              >
+                −
+              </Button>
+              <span className="text-sm tabular-nums text-slate-600">{m6.items.length}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={m6.items.length >= MODERN_PAGE6_MAX_ITEMS}
+                onClick={() => setModernPage6ItemCount(m6.items.length + 1)}
+              >
+                +
+              </Button>
+              <span className="text-xs text-slate-500">Entre {MODERN_PAGE6_MIN_ITEMS} e {MODERN_PAGE6_MAX_ITEMS}.</span>
+            </div>
+            <div className="space-y-8">
+              {m6.items.map((item, index) => (
+                <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Foto {index + 1}
+                  </p>
+                  <ImageUploader
+                    label="Imagem"
+                    value={item.imageUrl || undefined}
+                    onChange={(url) => patchModernPage6Item(index, { imageUrl: url || null })}
+                    aspectRatio="video"
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">
+                        {modeTeam ? 'Nome (hover)' : 'Nome do produto (hover)'}
+                      </label>
+                      <Input
+                        value={item.line1}
+                        onChange={(e) => patchModernPage6Item(index, { line1: e.target.value })}
+                        className="rounded-xl border-slate-200 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">
+                        {modeTeam ? 'Cargo (hover)' : 'Descrição curta (hover)'}
+                      </label>
+                      <Textarea
+                        value={item.line2}
+                        onChange={(e) => patchModernPage6Item(index, { line2: e.target.value })}
+                        rows={2}
+                        className="rounded-xl border-slate-200 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Formato do recorte</label>
+                    <select
+                      value={item.frame}
+                      onChange={(e) =>
+                        patchModernPage6Item(index, {
+                          frame: e.target.value === 'arch' ? 'arch' : 'rect',
+                        })
+                      }
+                      className="w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="rect">Retângulo arredondado</option>
+                      <option value="arch">Arco (topo arredondado)</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+
+      case 'modern7': {
+        const m7 = mergeModernPage7(proposalData.modernPage7)
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Página 7 · recomendações</h3>
+              <p className="text-sm text-slate-500">
+                Carrossel horizontal no estilo do print: nome do cliente, cargo na empresa, nota numérica, quantidade de
+                estrelas (1–5) e texto do depoimento (aspas aparecem na proposta).
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título da secção</label>
+              <Input
+                value={m7.sectionTitle}
+                onChange={(e) => patchModernPage7({ sectionTitle: e.target.value })}
+                className="rounded-xl border-slate-200"
+                placeholder="DEPOIMENTOS"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addModernPage7Item}
+                disabled={m7.items.length >= MODERN_PAGE7_MAX_ITEMS}
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                Adicionar depoimento
+              </Button>
+              <span className="text-xs text-slate-500">
+                Máximo {MODERN_PAGE7_MAX_ITEMS} cartões. Arraste o carrossel na pré-visualização para ver todos.
+              </span>
+            </div>
+            <div className="space-y-6">
+              {m7.items.length === 0 ? (
+                <p className="text-sm text-slate-500">Ainda não há depoimentos. Clique em &quot;Adicionar depoimento&quot;.</p>
+              ) : (
+                m7.items.map((t, index) => (
+                  <div key={index} className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Depoimento {index + 1}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => removeModernPage7Item(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Nome do cliente</label>
+                        <Input
+                          value={t.clientName}
+                          onChange={(e) => patchModernPage7Item(index, { clientName: e.target.value })}
+                          className="rounded-xl border-slate-200 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Cargo na empresa</label>
+                        <Input
+                          value={t.clientRole}
+                          onChange={(e) => patchModernPage7Item(index, { clientRole: e.target.value })}
+                          className="rounded-xl border-slate-200 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Nota (0 a 5)</label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={5}
+                          step={0.1}
+                          value={t.ratingScore}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value)
+                            patchModernPage7Item(index, {
+                              ratingScore: Number.isFinite(v) ? v : 0,
+                            })
+                          }}
+                          className="rounded-xl border-slate-200 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Estrelas visíveis (1–5)</label>
+                        <select
+                          value={t.starCount}
+                          onChange={(e) =>
+                            patchModernPage7Item(index, { starCount: parseInt(e.target.value, 10) })
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        >
+                          {[0, 1, 2, 3, 4, 5].map((n) => (
+                            <option key={n} value={n}>
+                              {n} {n === 1 ? 'estrela' : 'estrelas'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">Descrição / citação</label>
+                      <Textarea
+                        value={t.quote}
+                        onChange={(e) => patchModernPage7Item(index, { quote: e.target.value })}
+                        rows={4}
+                        className="rounded-xl border-slate-200 text-sm"
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )
+      }
+
+      case 'modern8': {
+        const m8 = mergeModernPage8(proposalData.modernPage8, proposalData.company)
+        return (
+          <div className="space-y-8">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Página 8 · rodapé</h3>
+              <p className="text-sm text-slate-500">
+                Rodapé escuro após o conteúdo: redes com ícone por plataforma, links em pílulas (a coluna só aparece se
+                houver pelo menos um link válido), contato e nome da empresa em destaque.
+              </p>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <h4 className="text-sm font-semibold text-slate-800">Coluna redes / destaque</h4>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Título grande (à esquerda)</label>
+                <Input
+                  value={m8.socialColumnTitle}
+                  onChange={(e) => patchModernPage8({ socialColumnTitle: e.target.value })}
+                  placeholder="REDES SOCIAIS"
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addModernPage8Social}
+                  disabled={m8.socialLinks.length >= MODERN_PAGE8_MAX_SOCIAL}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Adicionar rede
+                </Button>
+                <span className="text-xs text-slate-500">Máximo {MODERN_PAGE8_MAX_SOCIAL}. Só ícones com URL preenchida aparecem na proposta.</span>
+              </div>
+              <div className="space-y-4">
+                {m8.socialLinks.length === 0 ? (
+                  <p className="text-sm text-slate-500">Nenhuma rede. Use &quot;Adicionar rede&quot;.</p>
+                ) : (
+                  m8.socialLinks.map((s, index) => (
+                    <div key={index} className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-slate-500">Rede {index + 1}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => removeModernPage8Social(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Plataforma</label>
+                        <select
+                          value={s.platform}
+                          onChange={(e) =>
+                            patchModernPage8Social(index, {
+                              platform: e.target.value as ModernPage8SocialPlatform,
+                            })
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        >
+                          {MODERN8_SOCIAL_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {s.platform === 'other' ? (
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-600">Nome do link (acessibilidade)</label>
+                          <Input
+                            value={s.customLabel ?? ''}
+                            onChange={(e) => patchModernPage8Social(index, { customLabel: e.target.value })}
+                            className="rounded-xl border-slate-200 text-sm"
+                            placeholder="Ex.: Site"
+                          />
+                        </div>
+                      ) : null}
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">URL</label>
+                        <Input
+                          value={s.url}
+                          onChange={(e) => patchModernPage8Social(index, { url: e.target.value })}
+                          className="rounded-xl border-slate-200 text-sm"
+                          placeholder="https://"
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <h4 className="text-sm font-semibold text-slate-800">Links clicáveis</h4>
+              <p className="text-xs text-slate-500">
+                Se não adicionar nenhum link com texto e URL, esta coluna não aparece na proposta pública.
+              </p>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Título da coluna</label>
+                <Input
+                  value={m8.linksColumnTitle}
+                  onChange={(e) => patchModernPage8({ linksColumnTitle: e.target.value })}
+                  placeholder="LINKS CLICÁVEIS"
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addModernPage8Clickable}
+                  disabled={m8.clickableLinks.length >= MODERN_PAGE8_MAX_CLICKABLE}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Adicionar link
+                </Button>
+                <span className="text-xs text-slate-500">Máximo {MODERN_PAGE8_MAX_CLICKABLE}.</span>
+              </div>
+              <div className="space-y-3">
+                {m8.clickableLinks.map((l, index) => (
+                  <div key={index} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">Texto do botão</label>
+                      <Input
+                        value={l.label}
+                        onChange={(e) => patchModernPage8Clickable(index, { label: e.target.value })}
+                        className="rounded-xl border-slate-200 text-sm"
+                        placeholder="SOBRE NÓS"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">URL</label>
+                      <Input
+                        value={l.url}
+                        onChange={(e) => patchModernPage8Clickable(index, { url: e.target.value })}
+                        className="rounded-xl border-slate-200 text-sm"
+                        placeholder="https://"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="justify-self-end text-red-600 hover:text-red-700"
+                      onClick={() => removeModernPage8Clickable(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <h4 className="text-sm font-semibold text-slate-800">Contato</h4>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Título da coluna</label>
+                <Input
+                  value={m8.contactColumnTitle}
+                  onChange={(e) => patchModernPage8({ contactColumnTitle: e.target.value })}
+                  placeholder="CONTATO"
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">E-mail</label>
+                  <Input
+                    value={m8.contactEmail}
+                    onChange={(e) => patchModernPage8({ contactEmail: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                    type="email"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Telefone</label>
+                  <Input
+                    value={m8.contactPhone}
+                    onChange={(e) => patchModernPage8({ contactPhone: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Morada</label>
+                <Textarea
+                  value={m8.contactAddress}
+                  onChange={(e) => patchModernPage8({ contactAddress: e.target.value })}
+                  rows={3}
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <h4 className="text-sm font-semibold text-slate-800">Marca e rodapé legal</h4>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Nome da empresa (grande, no rodapé)</label>
+                <Textarea
+                  value={m8.footerBrandText}
+                  onChange={(e) => patchModernPage8({ footerBrandText: e.target.value })}
+                  rows={2}
+                  className="rounded-xl border-slate-200 text-sm"
+                  placeholder="NOME DA EMPRESA"
+                />
+                <p className="mt-1 text-xs text-slate-500">Pode usar Enter para várias linhas.</p>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Linha de copyright</label>
+                <Input
+                  value={m8.copyrightLine}
+                  onChange={(e) => patchModernPage8({ copyrightLine: e.target.value })}
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Texto — Termos</label>
+                  <Input
+                    value={m8.termsLabel}
+                    onChange={(e) => patchModernPage8({ termsLabel: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">URL — Termos (opcional)</label>
+                  <Input
+                    value={m8.termsUrl}
+                    onChange={(e) => patchModernPage8({ termsUrl: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                    placeholder="https://"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Texto — Privacidade</label>
+                  <Input
+                    value={m8.privacyLabel}
+                    onChange={(e) => patchModernPage8({ privacyLabel: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">URL — Privacidade (opcional)</label>
+                  <Input
+                    value={m8.privacyUrl}
+                    onChange={(e) => patchModernPage8({ privacyUrl: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                    placeholder="https://"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
 
       case 'clean1': {
         const c1 = mergeCleanPage1(proposalData.cleanPage1)
@@ -2327,8 +3581,48 @@ export function NovaPropostaEditor({
               <ProposalColorPalettePicker
                 selected={proposalData.colorPalette}
                 onSelect={(colors) => updateField('colorPalette', colors)}
-                hint="Cores da proposta (planos, destaques e elementos do layout)."
+                hint={
+                  proposalData.template === 'modern'
+                    ? 'Paleta completa no modelo Moderno: primária, secundária, destaque, fundo e texto (capa, planos, sobre, equipa, rodapé).'
+                    : 'Cores da proposta (planos, destaques e elementos do layout).'
+                }
               />
+            ) : null}
+
+            {proposalData.template === 'modern' ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                <p className="mb-3 text-sm font-medium text-slate-800">Fundo da proposta</p>
+                <p className="mb-3 text-xs text-slate-500">
+                  O mesmo controlo existe em Hero · capa. <strong>Tema escuro</strong> ou <strong>claro</strong> para as
+                  secções antes do bloco branco (conteúdo e planos internos).
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateField('modernSurfaceTheme', 'dark')}
+                    className={cn(
+                      'rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all',
+                      mergeModernSurfaceTheme(proposalData.modernSurfaceTheme) === 'dark'
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    )}
+                  >
+                    Tema escuro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateField('modernSurfaceTheme', 'light')}
+                    className={cn(
+                      'rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all',
+                      mergeModernSurfaceTheme(proposalData.modernSurfaceTheme) === 'light'
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    )}
+                  >
+                    Tema claro
+                  </button>
+                </div>
+              </div>
             ) : null}
 
             <PlansPaymentEditor

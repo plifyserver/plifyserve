@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { Users, FileText, FileSignature, Repeat, TrendingUp, LucideIcon, MoreHorizontal, Calendar } from 'lucide-react'
+import Link from 'next/link'
+import { Users, FileText, FileSignature, Repeat, TrendingUp, LucideIcon, MoreHorizontal, Calendar, AlertCircle } from 'lucide-react'
 import {
   AreaChart,
   Area,
@@ -17,6 +18,7 @@ import {
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { chartPaletteFromPrimary } from '@/lib/colorUtils'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
 
 const FALLBACK_PRIMARY = '#dc2626'
 
@@ -30,7 +32,7 @@ interface StatsCardProps {
 
 function StatsCard({ title, value, icon: Icon, trendValue, color }: StatsCardProps) {
   return (
-    <div className="p-5 rounded-2xl border-0 shadow-sm bg-white">
+    <div className={`${DASH_SURFACE_CARD} p-5`}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500 font-light">{title}</p>
@@ -95,7 +97,6 @@ export default function DashboardPage() {
   const [settings, setSettings] = useState<{ primary_color?: string } | null>(null)
   const [clients, setClients] = useState<{ created_at?: string }[]>([])
   const [proposals, setProposals] = useState<{ status: string; created_at?: string; proposal_value?: number }[]>([])
-  const [transactions, setTransactions] = useState<{ type: string; amount: number; date?: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<PeriodType>('month')
   const [dateStart, setDateStart] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -118,18 +119,16 @@ export default function DashboardPage() {
     setLoading(true)
     const load = async () => {
       try {
-        const [sRes, setRes, cr, pr, txRes] = await Promise.all([
+        const [sRes, setRes, cr, pr] = await Promise.all([
           fetch(buildStatsUrl(period, dateStart, dateEnd), { credentials: 'include' }),
           fetch('/api/app-settings', { credentials: 'include' }),
           fetch('/api/clients', { credentials: 'include' }),
           fetch('/api/proposals', { credentials: 'include' }),
-          fetch('/api/finance/transactions', { credentials: 'include' }),
         ])
         if (sRes.ok) setStats(await sRes.json())
         if (setRes.ok) setSettings(await setRes.json())
         if (cr.ok) setClients(await cr.json())
         if (pr.ok) setProposals(await pr.json())
-        if (txRes.ok) setTransactions(await txRes.json())
       } finally {
         setLoading(false)
       }
@@ -180,61 +179,26 @@ export default function DashboardPage() {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     const currentYear = new Date().getFullYear()
     const currentMonth = new Date().getMonth()
-
-    const transactionsInRange = transactions.filter((t) => {
-      if (t.type !== 'income' || !t.date) return false
-      const tTime = new Date(t.date).getTime()
-      return tTime >= rangeStart && tTime <= rangeEnd
-    })
-
-    const monthlyRevenue: Record<number, number> = {}
-    transactionsInRange.forEach((t) => {
-      const d = new Date(t.date!)
-      if (d.getFullYear() !== currentYear) return
-      const m = d.getMonth()
-      monthlyRevenue[m] = (monthlyRevenue[m] || 0) + (Number(t.amount) || 0)
-    })
-
     const mmr = stats?.mmr ?? 0
     const rangeStartDate = new Date(dateStart)
     const rangeEndDate = new Date(dateEnd)
-    if (mmr > 0 && rangeStartDate.getMonth() <= currentMonth && rangeEndDate.getMonth() >= currentMonth && rangeStartDate.getFullYear() === currentYear && rangeEndDate.getFullYear() === currentYear) {
-      monthlyRevenue[currentMonth] = (monthlyRevenue[currentMonth] || 0) + mmr
-    }
 
-    const data: { name: string; value: number }[] = []
     if (period === 'year') {
+      const data: { name: string; value: number }[] = []
       for (let i = 0; i <= currentMonth; i++) {
-        data.push({ name: months[i], value: Math.round((monthlyRevenue[i] || 0) * 100) / 100 })
+        const value = i === currentMonth ? mmr : 0
+        data.push({ name: months[i], value: Math.round(value * 100) / 100 })
       }
       return data.length ? data : months.slice(0, currentMonth + 1).map((m) => ({ name: m, value: 0 }))
     }
     if (period === 'month') {
-      // Gráfico diário acumulado no mês atual para formar uma linha em vez de um único ponto
       const today = new Date()
       const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
-      const lastDay = today.getMonth() === currentMonth && today.getFullYear() === currentYear ? today.getDate() : daysInMonth
-
-      // Totais diários a partir das transações dentro do intervalo
-      const dailyTotals: Record<number, number> = {}
-      transactionsInRange.forEach((t) => {
-        if (!t.date) return
-        const d = new Date(t.date)
-        if (d.getFullYear() !== currentYear || d.getMonth() !== currentMonth) return
-        const day = d.getDate()
-        dailyTotals[day] = (dailyTotals[day] || 0) + (Number(t.amount) || 0)
-      })
-
-      // Adiciona o MMR apenas no primeiro dia do mês (equivalente à receita recorrente mensal)
-      if (mmr > 0) {
-        dailyTotals[1] = (dailyTotals[1] || 0) + mmr
-      }
-
-      // Gera valores acumulados para cada dia, criando uma linha suave no gráfico
+      const lastDay =
+        today.getMonth() === currentMonth && today.getFullYear() === currentYear ? today.getDate() : daysInMonth
       const dataMonth: { name: string; value: number }[] = []
-      let running = 0
       for (let day = 1; day <= lastDay; day++) {
-        running += dailyTotals[day] || 0
+        const running = mmr * (day / daysInMonth)
         dataMonth.push({
           name: String(day).padStart(2, '0'),
           value: Math.round(running * 100) / 100,
@@ -243,35 +207,44 @@ export default function DashboardPage() {
       return dataMonth.length ? dataMonth : [{ name: months[currentMonth], value: 0 }]
     }
     if (period === 'week' || period === 'day') {
-      const total = transactionsInRange.reduce((s, t) => s + (Number(t.amount) || 0), 0)
+      const daysInPeriod = period === 'day' ? 1 : 7
+      const prorated = mmr * (daysInPeriod / 30)
       const label = period === 'day' ? 'Dia' : 'Semana'
-      return [{ name: label, value: Math.round(total * 100) / 100 }]
+      return [{ name: label, value: Math.round(prorated * 100) / 100 }]
     }
     if (period === 'range') {
-      const byKey: Record<string, number> = {}
-      transactionsInRange.forEach((t) => {
-        const d = new Date(t.date!)
-        const key = `${d.getFullYear()}-${d.getMonth()}`
-        byKey[key] = (byKey[key] || 0) + (Number(t.amount) || 0)
-      })
       const keys: string[] = []
       for (let y = rangeStartDate.getFullYear(); y <= rangeEndDate.getFullYear(); y++) {
         const startM = y === rangeStartDate.getFullYear() ? rangeStartDate.getMonth() : 0
         const endM = y === rangeEndDate.getFullYear() ? rangeEndDate.getMonth() : 11
         for (let m = startM; m <= endM; m++) keys.push(`${y}-${m}`)
       }
-      if (mmr > 0) {
-        const k = `${currentYear}-${currentMonth}`
-        if (keys.includes(k)) byKey[k] = (byKey[k] || 0) + mmr
-      }
       return keys.map((k) => {
         const [y, m] = k.split('-').map(Number)
         const label = `${months[m]} ${String(y).slice(2)}`
-        return { name: label, value: Math.round((byKey[k] || 0) * 100) / 100 }
+        const isCurrentMonth = y === currentYear && m === currentMonth
+        const value = isCurrentMonth ? mmr : 0
+        return { name: label, value: Math.round(value * 100) / 100 }
       })
     }
     return [{ name: months[currentMonth], value: 0 }]
-  }, [transactions, stats?.mmr, period, dateStart, dateEnd])
+  }, [stats?.mmr, period, dateStart, dateEnd])
+
+  const clientsBillingSoon = useMemo(() => {
+    type C = { id: string; name: string; billing_due_date?: string | null }
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const dayDiff = (dateStr: string) => {
+      const d = new Date(dateStr + 'T12:00:00')
+      d.setHours(0, 0, 0, 0)
+      return Math.round((d.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
+    }
+    return (clients as C[])
+      .filter((c) => c.billing_due_date && String(c.billing_due_date).trim() !== '')
+      .map((c) => ({ ...c, days: dayDiff(String(c.billing_due_date)) }))
+      .filter((c) => c.days >= 0 && c.days <= 5)
+      .sort((a, b) => a.days - b.days)
+  }, [clients])
 
   const clientDistributionData = useMemo(() => {
     const active = activeClients ?? 0
@@ -316,7 +289,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className={`space-y-5 ${SITE_CONTAINER_LG}`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-light text-slate-900 tracking-tight">Dashboard</h1>
@@ -400,6 +373,43 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {clientsBillingSoon.length > 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 shadow-sm">
+          <div className="flex gap-3">
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-amber-950">Cobranças próximas</p>
+              <p className="mt-1 text-sm text-amber-900/80">
+                Avisos para data de cobrança cadastrada no cliente: hoje, amanhã ou até 5 dias.
+              </p>
+              <ul className="mt-3 space-y-2 text-sm">
+                {clientsBillingSoon.map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-medium text-slate-900">{c.name}</span>
+                    <span className="text-amber-800">
+                      {c.days === 0
+                        ? 'Vence hoje'
+                        : c.days === 1
+                          ? 'Amanhã'
+                          : `Em ${c.days} dias`}
+                      {c.billing_due_date
+                        ? ` · ${format(new Date(`${String(c.billing_due_date)}T12:00:00`), 'dd/MM/yyyy', { locale: ptBR })}`
+                        : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/dashboard/clientes"
+                className="mt-3 inline-block text-sm font-medium text-amber-900 underline-offset-2 hover:underline"
+              >
+                Abrir clientes
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard
           title="Total de Clientes"
@@ -410,16 +420,16 @@ export default function DashboardPage() {
         />
         <StatsCard
           title="Receita Total Mês"
-          value={`R$ ${(stats.receitaTotalMes ?? stats.financeBalance).toLocaleString('pt-BR')}`}
+          value={`R$ ${(stats.receitaTotalMes ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           icon={TrendingUp}
-          trendValue="Total de pontual e recorrentes"
+          trendValue="Só clientes ativos (recorrente + pontual)"
           color="#10B981"
         />
         <StatsCard
           title="MMR"
           value={typeof stats.mmr === 'number' ? `R$ ${stats.mmr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : stats.mmr}
           icon={Repeat}
-          trendValue="Receita recorrente"
+          trendValue="Recorrente + pontual (sem financeiro)"
           color="#8B5CF6"
         />
         <StatsCard
@@ -439,11 +449,13 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl shadow-sm p-5">
+        <div className={`${DASH_SURFACE_CARD} p-5`}>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-semibold text-slate-900 font-light">Receita Mensal</h2>
-              <p className="text-sm text-slate-500 font-light">Acompanhe sua receita ao longo do tempo</p>
+              <h2 className="text-base font-semibold text-slate-900 font-light">Receita prevista (clientes)</h2>
+              <p className="text-sm text-slate-500 font-light">
+                Valores dos clientes ativos; não inclui lançamentos do Financeiro
+              </p>
             </div>
             <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
               <MoreHorizontal className="w-5 h-5 text-slate-400" />
@@ -488,7 +500,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-5">
+        <div className={`${DASH_SURFACE_CARD} p-5`}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-semibold text-slate-900 font-light">Distribuição de Clientes</h2>
@@ -541,7 +553,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-5">
+      <div className={`${DASH_SURFACE_CARD} p-5`}>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-base font-semibold text-slate-900 font-light">Aumento de clientes</h2>

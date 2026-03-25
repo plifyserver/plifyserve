@@ -31,9 +31,9 @@ const OPTIONS: {
   {
     id: 'modern',
     label: 'Moderno',
-    description: 'Blocos flexíveis e estilo contemporâneo.',
+    description: 'Capa escura estilo agência (logo, @ redes, frase central, nome gigante) + planos e conteúdo.',
     icon: LayoutGrid,
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'executive',
@@ -66,7 +66,8 @@ export function TemplateSelector({ open, onClose, onSelect }: TemplateSelectorPr
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Nova proposta</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Empresarial (landing completa) ou Clean (portfolio escuro). Moderno e Executivo em breve.
+              Empresarial (landing completa), Clean (portfolio / divulgação) ou Moderno (hero escuro + proposta). Executivo
+              em breve.
             </p>
           </div>
           <button type="button" onClick={onClose} className="shrink-0 rounded-xl p-2 transition-colors hover:bg-slate-100">

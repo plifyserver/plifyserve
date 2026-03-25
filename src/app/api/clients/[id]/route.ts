@@ -62,6 +62,10 @@ export async function PUT(
     const val = body.recurring_end_date
     updates.recurring_end_date = val == null || val === '' ? null : String(val).slice(0, 10)
   }
+  if (body.billing_due_date !== undefined) {
+    const val = body.billing_due_date
+    updates.billing_due_date = val == null || val === '' ? null : String(val).slice(0, 10)
+  }
 
   const supabase = await createClient()
   const { data, error } = await supabase

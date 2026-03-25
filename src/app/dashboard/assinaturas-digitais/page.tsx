@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { PenTool, Plus, Copy, FileText, CheckCircle, Clock } from 'lucide-react'
+import { SITE_CONTAINER_MD } from '@/lib/siteLayout'
 
 type Doc = {
   id: string
@@ -44,7 +45,7 @@ export default function AssinaturasDigitaisPage() {
   const pending = docs.filter((d) => d.status === 'pending')
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className={SITE_CONTAINER_MD}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <PenTool className="w-7 h-7 text-avocado" />

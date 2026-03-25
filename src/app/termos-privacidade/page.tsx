@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SITE_CONTAINER_MD, SITE_GUTTER_X } from '@/lib/siteLayout'
 
 export const metadata = {
   title: 'Termos de Privacidade | Plify',
@@ -9,14 +10,14 @@ export default function TermosPrivacidadePage() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
+        <div className={`${SITE_CONTAINER_MD} ${SITE_GUTTER_X} py-6 flex items-center justify-between`}>
           <Link href="/" className="flex items-center gap-2">
             <img src="/logopreto.png" alt="Plify" className="h-8 w-auto object-contain" />
           </Link>
           <Link href="/" className="text-gray-500 hover:text-gray-900 text-sm">Voltar</Link>
         </div>
       </header>
-      <main className="max-w-3xl mx-auto px-4 py-16">
+      <main className={`max-w-3xl mx-auto ${SITE_GUTTER_X} py-16`}>
         <h1 className="text-3xl font-bold mb-8">Termos de Privacidade</h1>
         <div className="prose prose-gray max-w-none space-y-6 text-gray-600">
           <p>Última atualização: Janeiro de 2025</p>

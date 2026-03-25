@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Mail, Lock, User, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { AuthSidePanel } from '@/components/AuthSidePanel'
+import { SITE_GUTTER_X } from '@/lib/siteLayout'
+import { cn } from '@/lib/utils'
 
 function GoogleIcon() {
   return (
@@ -72,7 +74,7 @@ export default function CadastroPage() {
   return (
     <div className="h-screen flex overflow-hidden">
       {/* Coluna esquerda - formulário em card sobre fundo cinza claro */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-neutral-100">
+      <div className={cn('flex-1 flex items-center justify-center py-12 bg-neutral-100', SITE_GUTTER_X)}>
         <div className="w-full max-w-md p-4 sm:p-0">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-8">Criar conta</h1>

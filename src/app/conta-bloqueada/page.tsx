@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ShieldX, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
+import { cn } from '@/lib/utils'
+import { SITE_GUTTER_X } from '@/lib/siteLayout'
 
 export default function ContaBloqueadaPage() {
   const { signOut, profile } = useAuth()
@@ -22,7 +24,7 @@ export default function ContaBloqueadaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className={cn('min-h-screen bg-slate-50 flex items-center justify-center py-4', SITE_GUTTER_X)}>
       <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
         <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
           <ShieldX className="w-10 h-10 text-red-600" />

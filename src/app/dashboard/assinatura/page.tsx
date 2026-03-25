@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_SM } from '@/lib/siteLayout'
 
 export default function AssinaturaPage() {
   const [loading, setLoading] = useState(false)
@@ -35,7 +36,7 @@ export default function AssinaturaPage() {
   }
 
   return (
-    <div>
+    <div className={SITE_CONTAINER_SM}>
       <Link
         href="/dashboard"
         className="inline-flex items-center gap-2 text-zinc-400 hover:text-white mb-8"
@@ -44,13 +45,13 @@ export default function AssinaturaPage() {
         Voltar
       </Link>
 
-      <div className="max-w-lg mx-auto">
+      <div>
         <h1 className="text-3xl font-bold mb-2">Assinar Plify Pro</h1>
         <p className="text-zinc-400 mb-8">
           Propostas ilimitadas por apenas R$ 4,90/mês
         </p>
 
-        <div className="p-8 rounded-2xl bg-white border-2 border-avocado/50 shadow-sm mb-6">
+        <div className={`${DASH_SURFACE_CARD} p-8 border-avocado/50 border-2 mb-6`}>
           <div className="flex items-baseline gap-2 mb-6">
             <span className="text-4xl font-bold">R$ 4,90</span>
             <span className="text-zinc-400">/mês</span>

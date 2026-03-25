@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle, Search, Mail, MessageCircle, Globe, Monitor } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -26,6 +26,8 @@ import SignatureCanvas, { type SignatureData } from '@/components/contracts/Sign
 import ContractUploader from '@/components/contracts/ContractUploader'
 import { generateSignedPDF, downloadPDF } from '@/lib/pdf-generator'
 import { useAuth } from '@/contexts/AuthContext'
+import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
+import { toSafeExternalUrl } from '@/lib/urlSafety'
 import { toast } from 'sonner'
 
 interface Signatory {
@@ -399,16 +401,16 @@ export default function DocumentosPage() {
   const countPendenteAssinatura = contracts.filter(
     (c) => (c.signatories?.length ?? 0) > 0 && !isContractFinalizado(c)
   ).length
-  const filteredContracts = docSearch.trim()
-    ? contracts.filter(
-        (c) =>
-          c.title?.toLowerCase().includes(docSearch.toLowerCase()) ||
-          (c.client_name ?? '').toLowerCase().includes(docSearch.toLowerCase())
-      )
-    : contracts
+  const filteredContracts = useMemo(() => {
+    const query = docSearch.trim().toLowerCase()
+    if (!query) return contracts
+    return contracts.filter(
+      (c) => c.title?.toLowerCase().includes(query) || (c.client_name ?? '').toLowerCase().includes(query)
+    )
+  }, [contracts, docSearch])
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${SITE_CONTAINER_LG}`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Documentos</h1>
@@ -422,7 +424,7 @@ export default function DocumentosPage() {
 
       {/* Cards de resumo */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-emerald-50/80">
+        <Card className={`${DASH_SURFACE_CARD} overflow-hidden bg-emerald-50/80`}>
           <Card className="border-0 shadow-none bg-transparent p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -433,7 +435,7 @@ export default function DocumentosPage() {
             </div>
           </Card>
         </Card>
-        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-amber-50/80">
+        <Card className={`${DASH_SURFACE_CARD} overflow-hidden bg-amber-50/80`}>
           <Card className="border-0 shadow-none bg-transparent p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -444,7 +446,7 @@ export default function DocumentosPage() {
             </div>
           </Card>
         </Card>
-        <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-blue-50/80">
+        <Card className={`${DASH_SURFACE_CARD} overflow-hidden bg-blue-50/80`}>
           <Card className="border-0 shadow-none bg-transparent p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -485,7 +487,7 @@ export default function DocumentosPage() {
               const pendenteAssinatura = (c.signatories?.length ?? 0) > 0 && !finalizado
               const isRascunho = c.status === 'draft'
               return (
-                <Card key={c.id} className="rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <Card key={c.id} className={`${DASH_SURFACE_CARD} overflow-hidden`}>
                   <div className="p-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-4 min-w-0 flex-1">
                       <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
@@ -572,7 +574,14 @@ export default function DocumentosPage() {
                     variant="outline"
                     size="sm"
                     className="rounded-xl gap-2 border-slate-200"
-                    onClick={() => window.open(viewContract.file_url!, '_blank')}
+                    onClick={() => {
+                      const safeUrl = toSafeExternalUrl(viewContract.file_url)
+                      if (!safeUrl) {
+                        toast.error('Link do PDF invalido ou inseguro.')
+                        return
+                      }
+                      window.open(safeUrl, '_blank', 'noopener,noreferrer')
+                    }}
                   >
                     <ExternalLink className="w-4 h-4" />
                     Ver PDF

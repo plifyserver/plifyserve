@@ -9,6 +9,8 @@ import SignatureCanvas, { type SignatureData } from '@/components/contracts/Sign
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { SITE_CONTAINER_MD, SITE_GUTTER_X } from '@/lib/siteLayout'
 
 interface Contract {
   id: string
@@ -163,8 +165,8 @@ export default function AssinaturaPage() {
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-4 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <header className={cn('bg-white border-b border-slate-200 py-4', SITE_GUTTER_X)}>
+        <div className={cn(SITE_CONTAINER_MD, 'flex items-center justify-between')}>
           <div className="flex items-center gap-3">
             {contract.company_logo ? (
               <img src={contract.company_logo} alt="" className="h-10 w-auto" />
@@ -183,7 +185,7 @@ export default function AssinaturaPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 md:p-6">
+      <main className={cn(SITE_CONTAINER_MD, SITE_GUTTER_X, 'py-4 md:py-6')}>
         {/* Contract Info */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
           <div className="flex items-start gap-4 mb-6">

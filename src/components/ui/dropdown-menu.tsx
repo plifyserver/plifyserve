@@ -27,6 +27,7 @@ const DropdownMenuTrigger = React.forwardRef<
 >(({ className = '', asChild, children, onClick, ...props }, ref) => {
   const ctx = React.useContext(DropdownContext)
   if (!ctx) return null
+  const { triggerRef } = ctx
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -35,7 +36,7 @@ const DropdownMenuTrigger = React.forwardRef<
   }
 
   const setRef = (r: HTMLButtonElement | null) => {
-    ctx.triggerRef.current = r
+    triggerRef.current = r
 
     if (typeof ref === 'function') {
       ref(r)

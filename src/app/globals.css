@@ -120,3 +120,57 @@ strong, b { font-weight: 500; }
 ::-webkit-scrollbar-track { background: hsl(var(--muted)); }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Dashboard (layout com .dashboard-app): reforço do tema escuro em telas com classes slate/branco */
+html.dark .dashboard-app.bg-slate-100 {
+  background-color: rgb(2 6 23);
+}
+html.dark .dashboard-app .bg-white {
+  background-color: rgb(15 23 42) !important;
+  color: rgb(241 245 249);
+}
+html.dark .dashboard-app .bg-slate-50,
+html.dark .dashboard-app .bg-slate-50\/80 {
+  background-color: rgb(30 41 59 / 0.5) !important;
+}
+html.dark .dashboard-app .bg-slate-100 {
+  background-color: rgb(15 23 42) !important;
+}
+html.dark .dashboard-app .text-slate-900 {
+  color: rgb(241 245 249) !important;
+}
+html.dark .dashboard-app .text-slate-800 {
+  color: rgb(226 232 240) !important;
+}
+html.dark .dashboard-app .text-slate-700 {
+  color: rgb(203 213 225) !important;
+}
+html.dark .dashboard-app .text-slate-600 {
+  color: rgb(148 163 184) !important;
+}
+html.dark .dashboard-app .text-slate-500 {
+  color: rgb(148 163 184) !important;
+}
+html.dark .dashboard-app .border-slate-200 {
+  border-color: rgb(51 65 85) !important;
+}
+html.dark .dashboard-app .border-slate-100 {
+  border-color: rgb(51 65 85) !important;
+}
+html.dark .dashboard-app .hover\:bg-slate-50:hover {
+  background-color: rgb(30 41 59) !important;
+}
+html.dark .dashboard-app .hover\:bg-slate-100:hover {
+  background-color: rgb(30 41 59) !important;
+}
+html.dark .dashboard-app input,
+html.dark .dashboard-app textarea,
+html.dark .dashboard-app select {
+  background-color: rgb(30 41 59);
+  color: rgb(241 245 249);
+  border-color: rgb(71 85 105);
+}
+html.dark .dashboard-app .lg\:hidden.fixed.top-0 {
+  background-color: rgb(15 23 42 / 0.95) !important;
+  border-color: rgb(51 65 85) !important;
+}

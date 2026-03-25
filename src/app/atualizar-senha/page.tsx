@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Lock, Loader2, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { AuthSidePanel } from '@/components/AuthSidePanel'
+import { SITE_GUTTER_X } from '@/lib/siteLayout'
+import { cn } from '@/lib/utils'
 
 export default function AtualizarSenhaPage() {
   const [password, setPassword] = useState('')
@@ -69,7 +71,7 @@ export default function AtualizarSenhaPage() {
 
   return (
     <div className="min-h-screen flex">
-      <div className="flex-1 flex items-center justify-center pl-6 pr-6 py-12 bg-white">
+      <div className={cn('flex-1 flex items-center justify-center py-12 bg-white', SITE_GUTTER_X)}>
         <div className="w-full max-w-md">
           <div className="p-8">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Nova senha</h1>

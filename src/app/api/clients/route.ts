@@ -43,13 +43,21 @@ export async function POST(request: NextRequest) {
   const validStatuses: ClientStatus[] = ['active', 'inactive', 'lead', 'archived']
   const finalStatus = validStatuses.includes(status) ? status : 'active'
   const paymentType = body.payment_type === 'recorrente' ? 'recorrente' : 'pontual'
+  const rawAmount = body.recurring_amount
   const recurringAmount =
-    paymentType === 'recorrente' && body.recurring_amount != null && !Number.isNaN(Number(body.recurring_amount))
-      ? Number(body.recurring_amount)
+    (paymentType === 'recorrente' || paymentType === 'pontual') &&
+    rawAmount != null &&
+    rawAmount !== '' &&
+    !Number.isNaN(Number(rawAmount))
+      ? Number(rawAmount)
       : null
   const recurringEndDate =
-    body.recurring_end_date != null && body.recurring_end_date !== ''
+    paymentType === 'recorrente' && body.recurring_end_date != null && body.recurring_end_date !== ''
       ? String(body.recurring_end_date).slice(0, 10)
+      : null
+  const billingDueDate =
+    body.billing_due_date != null && body.billing_due_date !== ''
+      ? String(body.billing_due_date).slice(0, 10)
       : null
 
   const supabase = await createClient()
@@ -69,6 +77,7 @@ export async function POST(request: NextRequest) {
       payment_type: paymentType,
       recurring_amount: recurringAmount,
       recurring_end_date: recurringEndDate,
+      billing_due_date: billingDueDate,
     })
     .select()
     .single()
