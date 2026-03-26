@@ -403,7 +403,7 @@ export default function ClientesPage() {
                     className="w-full px-3 py-2 rounded-xl border border-slate-200"
                   />
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Usamos para avisos no dashboard e no Financeiro (até 5 dias antes, inclusive hoje e amanhã)
+                    Usamos para avisos no dashboard e em Gastos Pessoais (até 5 dias antes, inclusive hoje e amanhã)
                   </p>
                 </div>
                 <div>

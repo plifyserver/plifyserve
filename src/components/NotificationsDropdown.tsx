@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef, startTransition, memo } from 'react'
 import { Bell, Eye, CheckCircle, FileText, X, Check, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
@@ -23,33 +23,133 @@ interface NotificationsDropdownProps {
   userId: string
 }
 
+const ICON_MAP = {
+  proposal_viewed: <Eye className="h-4 w-4 text-blue-600" />,
+  proposal_accepted: <CheckCircle className="h-4 w-4 text-emerald-600" />,
+  contract_signed: <FileText className="h-4 w-4 text-purple-600" />,
+  system: <Bell className="h-4 w-4 text-slate-600" />,
+} as const
+
+const BG_MAP: Record<Notification['type'], string> = {
+  proposal_viewed: 'bg-blue-100',
+  proposal_accepted: 'bg-emerald-100',
+  contract_signed: 'bg-purple-100',
+  system: 'bg-slate-100',
+}
+
+function getIcon(type: Notification['type']) {
+  return ICON_MAP[type] ?? ICON_MAP.system
+}
+
+function getBgColor(type: Notification['type']) {
+  return BG_MAP[type] ?? 'bg-slate-100'
+}
+
+type NotificationRowProps = {
+  notification: Notification
+  timeLabel: string
+  onMarkRead: (id: string) => void
+  onDelete: (id: string, e: React.MouseEvent) => void
+}
+
+const NotificationRow = memo(function NotificationRow({
+  notification: n,
+  timeLabel,
+  onMarkRead,
+  onDelete,
+}: NotificationRowProps) {
+  return (
+    <div
+      className={`p-4 transition-colors hover:bg-slate-50 ${!n.read ? 'bg-indigo-50/50' : ''}`}
+    >
+      <div className="flex gap-3">
+        <div
+          className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${getBgColor(n.type)}`}
+        >
+          {getIcon(n.type)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-slate-900">{n.title}</p>
+          <p className="truncate text-sm text-slate-600">{n.message}</p>
+          <p className="mt-1 text-xs text-slate-400">{timeLabel}</p>
+          <div
+            className="mt-2 flex items-center gap-2"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {!n.read && (
+              <button
+                type="button"
+                onClick={() => onMarkRead(n.id)}
+                className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                <Check className="h-3 w-3" />
+                Marcar como lida
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => onDelete(n.id, e)}
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-600"
+            >
+              <Trash2 className="h-3 w-3" />
+              Excluir
+            </button>
+          </div>
+        </div>
+        {!n.read && <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-indigo-500" />}
+      </div>
+    </div>
+  )
+})
+
+/** Evita refetch em rajada (abrir painel + polling). */
+const REFETCH_COOLDOWN_MS = 5_000
+
 export default function NotificationsDropdown({ userId }: NotificationsDropdownProps) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const lastFetchAtRef = useRef(0)
 
-  const fetchNotifications = useCallback(async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20)
+  const setNotificationsLowPri = useCallback((updater: (prev: Notification[]) => Notification[]) => {
+    startTransition(() => {
+      setNotifications(updater)
+    })
+  }, [])
 
-    if (!error && data) {
-      setNotifications(data)
-    }
-    setLoading(false)
-  }, [userId])
+  const fetchNotifications = useCallback(
+    async (opts?: { force?: boolean }) => {
+      const now = Date.now()
+      if (!opts?.force && now - lastFetchAtRef.current < REFETCH_COOLDOWN_MS) {
+        return
+      }
+      lastFetchAtRef.current = now
+
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      startTransition(() => {
+        if (!error && data) {
+          setNotifications(data as Notification[])
+        }
+        setLoading(false)
+      })
+    },
+    [userId]
+  )
 
   useEffect(() => {
-    fetchNotifications()
+    void fetchNotifications({ force: true })
 
-    // Realtime para novas notificações (instantâneo quando disponível)
     const supabase = createClient()
     const channel = supabase
-      .channel('notifications')
+      .channel(`notifications:${userId}`)
       .on(
         'postgres_changes',
         {
@@ -59,134 +159,153 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev])
+          startTransition(() => {
+            setNotifications((prev) => [payload.new as Notification, ...prev])
+          })
         }
       )
       .subscribe()
 
-    // Fallback: polling a cada 15s para garantir atualização mesmo se realtime falhar
-    const pollInterval = setInterval(fetchNotifications, 15_000)
+    const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      void fetchNotifications({ force: false })
+    }, 30_000)
 
     return () => {
-      supabase.removeChannel(channel)
+      void supabase.removeChannel(channel)
       clearInterval(pollInterval)
     }
   }, [userId, fetchNotifications])
 
-  const markAsRead = async (id: string) => {
-    try {
-      const res = await fetch(`/api/notifications/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ read: true }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-        )
-      } else {
-        toast.error((data as { error?: string }).error || 'Erro ao marcar como lida')
+  const toggleOpen = useCallback(() => {
+    setIsOpen((was) => {
+      if (!was) {
+        requestAnimationFrame(() => {
+          void fetchNotifications({ force: true })
+        })
       }
-    } catch {
-      toast.error('Erro ao marcar como lida')
-    }
-  }
+      return !was
+    })
+  }, [fetchNotifications])
 
-  const markAllAsRead = async () => {
-    try {
-      const res = await fetch('/api/notifications/mark-all-read', {
-        method: 'POST',
-        credentials: 'include',
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-      } else {
-        toast.error((data as { error?: string }).error || 'Erro ao marcar todas como lidas')
+  const resync = useCallback(() => {
+    void fetchNotifications({ force: true })
+  }, [fetchNotifications])
+
+  const markAsRead = useCallback(
+    (id: string) => {
+      setNotificationsLowPri((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)))
+      void (async () => {
+        try {
+          const res = await fetch(`/api/notifications/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ read: true }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) {
+            toast.error((data as { error?: string }).error || 'Erro ao marcar como lida')
+            resync()
+          }
+        } catch {
+          toast.error('Erro ao marcar como lida')
+          resync()
+        }
+      })()
+    },
+    [setNotificationsLowPri, resync]
+  )
+
+  const markAllAsRead = useCallback(() => {
+    setNotificationsLowPri((p) => p.map((n) => ({ ...n, read: true })))
+    void (async () => {
+      try {
+        const res = await fetch('/api/notifications/mark-all-read', {
+          method: 'POST',
+          credentials: 'include',
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          toast.error((data as { error?: string }).error || 'Erro ao marcar todas como lidas')
+          resync()
+        }
+      } catch {
+        toast.error('Erro ao marcar todas como lidas')
+        resync()
       }
-    } catch {
-      toast.error('Erro ao marcar todas como lidas')
-    }
-  }
+    })()
+  }, [setNotificationsLowPri, resync])
 
-  const deleteNotification = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    try {
-      const res = await fetch(`/api/notifications/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setNotifications((prev) => prev.filter((n) => n.id !== id))
-      } else {
-        toast.error((data as { error?: string }).error || 'Erro ao excluir')
+  const deleteNotification = useCallback(
+    (id: string, e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setNotificationsLowPri((p) => p.filter((n) => n.id !== id))
+      void (async () => {
+        try {
+          const res = await fetch(`/api/notifications/${id}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) {
+            toast.error((data as { error?: string }).error || 'Erro ao excluir')
+            resync()
+          }
+        } catch {
+          toast.error('Erro ao excluir notificação')
+          resync()
+        }
+      })()
+    },
+    [setNotificationsLowPri, resync]
+  )
+
+  const deleteAllNotifications = useCallback(() => {
+    setNotificationsLowPri(() => [])
+    void (async () => {
+      try {
+        const res = await fetch('/api/notifications', {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          toast.error((data as { error?: string }).error || 'Erro ao excluir todas')
+          resync()
+        }
+      } catch {
+        toast.error('Erro ao excluir notificações')
+        resync()
       }
-    } catch {
-      toast.error('Erro ao excluir notificação')
-    }
-  }
+    })()
+  }, [setNotificationsLowPri, resync])
 
-  const deleteAllNotifications = async () => {
-    try {
-      const res = await fetch('/api/notifications', {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setNotifications([])
-      } else {
-        toast.error((data as { error?: string }).error || 'Erro ao excluir todas')
-      }
-    } catch {
-      toast.error('Erro ao excluir notificações')
-    }
-  }
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
 
-  const getIcon = (type: Notification['type']) => {
-    switch (type) {
-      case 'proposal_viewed':
-        return <Eye className="w-4 h-4 text-blue-600" />
-      case 'proposal_accepted':
-        return <CheckCircle className="w-4 h-4 text-emerald-600" />
-      case 'contract_signed':
-        return <FileText className="w-4 h-4 text-purple-600" />
-      default:
-        return <Bell className="w-4 h-4 text-slate-600" />
-    }
-  }
-
-  const getBgColor = (type: Notification['type']) => {
-    switch (type) {
-      case 'proposal_viewed':
-        return 'bg-blue-100'
-      case 'proposal_accepted':
-        return 'bg-emerald-100'
-      case 'contract_signed':
-        return 'bg-purple-100'
-      default:
-        return 'bg-slate-100'
-    }
-  }
-
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const rowsWithTime = useMemo(
+    () =>
+      notifications.map((n) => ({
+        notification: n,
+        timeLabel: formatDistanceToNow(new Date(n.created_at), {
+          addSuffix: true,
+          locale: ptBR,
+        }),
+      })),
+    [notifications]
+  )
 
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => {
-          if (!isOpen) fetchNotifications()
-          setIsOpen(!isOpen)
-        }}
-        className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+        onClick={toggleOpen}
+        className="relative rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100"
       >
-        <Bell className="w-5 h-5" />
+        <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
+          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -194,12 +313,12 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
 
       {isOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setIsOpen(false)}
-          />
-          <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div className="fixed inset-0 z-40" aria-hidden onClick={() => setIsOpen(false)} />
+          <div
+            className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-96"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
               <div>
                 <h3 className="font-semibold text-slate-900">Notificações</h3>
                 {unreadCount > 0 && (
@@ -209,97 +328,56 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     onClick={markAllAsRead}
-                    className="text-xs h-7 rounded-lg"
+                    className="h-7 rounded-lg text-xs"
                   >
-                    <Check className="w-3 h-3 mr-1" />
+                    <Check className="mr-1 h-3 w-3" />
                     Marcar todas como lidas
                   </Button>
                 )}
                 {notifications.length > 0 && (
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     onClick={deleteAllNotifications}
-                    className="text-xs h-7 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="h-7 rounded-lg text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
                   >
-                    <Trash2 className="w-3 h-3 mr-1" />
+                    <Trash2 className="mr-1 h-3 w-3" />
                     Excluir todas
                   </Button>
                 )}
                 <button
+                  type="button"
                   onClick={() => setIsOpen(false)}
-                  className="p-1 hover:bg-slate-100 rounded-lg"
+                  className="rounded-lg p-1 hover:bg-slate-100"
                 >
-                  <X className="w-4 h-4 text-slate-400" />
+                  <X className="h-4 w-4 text-slate-400" />
                 </button>
               </div>
             </div>
 
-            <div className="max-h-96 overflow-y-auto">
-              {loading ? (
-                <div className="p-8 text-center text-slate-500">
-                  Carregando...
-                </div>
+            <div className="max-h-96 overflow-y-auto overscroll-contain">
+              {loading && notifications.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">Carregando...</div>
               ) : notifications.length === 0 ? (
                 <div className="p-8 text-center">
-                  <Bell className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <Bell className="mx-auto mb-2 h-10 w-10 text-slate-300" />
                   <p className="text-slate-500">Nenhuma notificação</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {notifications.map((notification) => (
-                    <div
+                  {rowsWithTime.map(({ notification, timeLabel }) => (
+                    <NotificationRow
                       key={notification.id}
-                      className={`p-4 hover:bg-slate-50 transition-colors ${
-                        !notification.read ? 'bg-indigo-50/50' : ''
-                      }`}
-                    >
-                      <div className="flex gap-3">
-                        <div className={`w-8 h-8 rounded-lg ${getBgColor(notification.type)} flex items-center justify-center flex-shrink-0`}>
-                          {getIcon(notification.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900">
-                            {notification.title}
-                          </p>
-                          <p className="text-sm text-slate-600 truncate">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1">
-                            {formatDistanceToNow(new Date(notification.created_at), {
-                              addSuffix: true,
-                              locale: ptBR,
-                            })}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
-                            {!notification.read && (
-                              <button
-                                type="button"
-                                onClick={() => markAsRead(notification.id)}
-                                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
-                              >
-                                <Check className="w-3 h-3" />
-                                Marcar como lida
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={(e) => deleteNotification(notification.id, e)}
-                              className="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              Excluir
-                            </button>
-                          </div>
-                        </div>
-                        {!notification.read && (
-                          <div className="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0 mt-2" />
-                        )}
-                      </div>
-                    </div>
+                      notification={notification}
+                      timeLabel={timeLabel}
+                      onMarkRead={markAsRead}
+                      onDelete={deleteNotification}
+                    />
                   ))}
                 </div>
               )}

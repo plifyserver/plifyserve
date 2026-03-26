@@ -72,7 +72,7 @@ export default function CadastroPage() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="public-marketing-page h-screen flex overflow-hidden">
       {/* Coluna esquerda - formulário em card sobre fundo cinza claro */}
       <div className={cn('flex-1 flex items-center justify-center py-12 bg-neutral-100', SITE_GUTTER_X)}>
         <div className="w-full max-w-md p-4 sm:p-0">
@@ -100,7 +100,7 @@ export default function CadastroPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Digite seu nome"
-                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                 />
               </div>
             </div>
@@ -115,7 +115,7 @@ export default function CadastroPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Digite seu email"
                   required
-                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                 />
               </div>
             </div>
@@ -131,7 +131,7 @@ export default function CadastroPage() {
                   placeholder="Digite sua senha"
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                 />
               </div>
             </div>

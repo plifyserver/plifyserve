@@ -362,11 +362,11 @@ export default function FinanceiroPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Financeiro</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Gastos Pessoais</h1>
           <p className="text-slate-500">Controle suas receitas e despesas</p>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
             Os valores aqui não entram na receita mensal do dashboard — aquele total vem só dos clientes (recorrente e
-            pontual). Use o Financeiro para o fluxo de caixa real.
+            pontual). Use Gastos Pessoais para o fluxo de caixa real.
           </p>
         </div>
         <div className="flex items-center gap-3">

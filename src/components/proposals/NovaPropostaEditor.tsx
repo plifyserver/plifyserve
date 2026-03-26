@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -275,8 +275,8 @@ function PlansPaymentEditor({
 }
 
 const PROPOSTA_BASE_SECTIONS = [
-  { id: 'client', label: 'Cliente', icon: User },
   { id: 'company', label: 'Empresa', icon: Building2 },
+  { id: 'client', label: 'Cliente', icon: User },
   { id: 'planos', label: 'Planos', icon: Megaphone },
 ] as const
 
@@ -406,7 +406,13 @@ export function NovaPropostaEditor({
   const effectiveLivePreviewSid = livePreviewFromUrl ?? livePreviewSidExtra
   const livePreviewChannelRef = useRef<BroadcastChannel | null>(null)
 
-  const [activeSection, setActiveSection] = useState('client')
+  const [activeSection, setActiveSection] = useState(() => {
+    const t = (templateParam || 'empresarial') as TemplateType
+    if (t === 'empresarial') return 'empresarial'
+    if (t === 'simple') return 'clean1'
+    if (t === 'modern') return 'modernHero'
+    return 'company'
+  })
   const [showPreview, setShowPreview] = useState(true)
   const [status, setStatus] = useState<ProposalStatus>('draft')
   const [isSaving, setIsSaving] = useState(false)
@@ -425,14 +431,14 @@ export function NovaPropostaEditor({
   const sections = useMemo(() => {
     if (proposalData.template === 'empresarial') {
       return [
-        ...PROPOSTA_BASE_SECTIONS.slice(0, 1),
         { id: 'empresarial' as const, label: 'Hero · Pág. 1', icon: LayoutTemplate },
+        PROPOSTA_BASE_SECTIONS[1],
         { id: 'empresarial2' as const, label: 'Trabalhos · Pág. 2', icon: Layers },
         { id: 'empresarial3' as const, label: 'Planos · Pág. 3', icon: Megaphone },
         { id: 'empresarial31' as const, label: 'Depoimentos · 3.1', icon: MessageSquareQuote },
         { id: 'empresarial4' as const, label: 'Sobre nós · Pág. 4', icon: Building2 },
         { id: 'empresarial5' as const, label: 'Contato · Pág. 5', icon: Phone },
-        ...PROPOSTA_BASE_SECTIONS.slice(3),
+        PROPOSTA_BASE_SECTIONS[2],
       ]
     }
     if (proposalData.template === 'simple') {
@@ -993,6 +999,15 @@ export function NovaPropostaEditor({
           modernPage7: c.template === 'modern' ? mergeModernPage7(c.modernPage7) : undefined,
           modernPage8: c.template === 'modern' ? mergeModernPage8(c.modernPage8, company) : undefined,
         })
+        setActiveSection(
+          c.template === 'empresarial'
+            ? 'empresarial'
+            : c.template === 'simple'
+              ? 'clean1'
+              : c.template === 'modern'
+                ? 'modernHero'
+                : 'company'
+        )
       } finally {
         if (!cancelled) setLoadingEdit(false)
       }
@@ -1000,6 +1015,12 @@ export function NovaPropostaEditor({
     load()
     return () => { cancelled = true }
   }, [editId, templateParam])
+
+  useLayoutEffect(() => {
+    if (proposalData.template === 'empresarial' && activeSection === 'company') {
+      setActiveSection('empresarial')
+    }
+  }, [proposalData.template, activeSection])
 
   useEffect(() => {
     if (
@@ -1011,7 +1032,7 @@ export function NovaPropostaEditor({
         activeSection === 'empresarial4' ||
         activeSection === 'empresarial5')
     ) {
-      setActiveSection('client')
+      setActiveSection('company')
     }
     if (
       proposalData.template !== 'simple' &&
@@ -1022,7 +1043,7 @@ export function NovaPropostaEditor({
         activeSection === 'clean5' ||
         activeSection === 'cleanCta')
     ) {
-      setActiveSection('client')
+      setActiveSection('company')
     }
     if (
       proposalData.template !== 'modern' &&
@@ -1035,13 +1056,7 @@ export function NovaPropostaEditor({
         activeSection === 'modern7' ||
         activeSection === 'modern8')
     ) {
-      setActiveSection('client')
-    }
-    if (proposalData.template === 'empresarial' && activeSection === 'company') {
-      setActiveSection('empresarial')
-    }
-    if (proposalData.template === 'modern' && activeSection === 'company') {
-      setActiveSection('modernHero')
+      setActiveSection('company')
     }
     if (activeSection === 'style') {
       setActiveSection(
@@ -1219,14 +1234,17 @@ export function NovaPropostaEditor({
   }
 
   const handlePublish = async () => {
-    if (!proposalData.clientName.trim()) {
-      toast.error('Por favor, preencha o nome do cliente.')
-      setActiveSection('client')
-      return
-    }
     if (!proposalData.company.name.trim()) {
-      toast.error('Por favor, preencha o nome da empresa.')
-      setActiveSection(proposalData.template === 'empresarial' ? 'empresarial' : 'company')
+      toast.error('Preencha o nome da empresa para publicar.')
+      setActiveSection(
+        proposalData.template === 'empresarial'
+          ? 'empresarial'
+          : proposalData.template === 'simple'
+            ? 'clean1'
+            : proposalData.template === 'modern'
+              ? 'modernHero'
+              : 'company'
+      )
       return
     }
     if (proposalData.template === 'simple') {
@@ -1321,11 +1339,14 @@ export function NovaPropostaEditor({
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 mb-1">Dados do Cliente</h3>
-              <p className="text-sm text-slate-500">Informe os dados do cliente para a proposta</p>
+              <p className="text-sm text-slate-500">
+                Opcional. O nome da sua empresa (obrigatório para publicar) fica no{' '}
+                {proposalData.template === 'empresarial' ? 'Hero · pág. 1' : 'separador Empresa'}.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Nome do cliente *
+                Nome do cliente (opcional)
               </label>
               <Input
                 value={proposalData.clientName}
@@ -1338,11 +1359,16 @@ export function NovaPropostaEditor({
         )
 
       case 'company':
+        if (proposalData.template === 'empresarial') {
+          return null
+        }
         return (
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 mb-1">Dados da Empresa</h3>
-              <p className="text-sm text-slate-500">Informações que aparecerão na proposta</p>
+              <p className="text-sm text-slate-500">
+                Preencha primeiro o nome da sua empresa — é obrigatório para publicar. O nome do cliente é opcional.
+              </p>
             </div>
 
             <ImageUploader
@@ -2763,6 +2789,54 @@ export function NovaPropostaEditor({
                 <p className="mt-1 text-xs text-slate-500">
                   Exibido no topo quando não há logo, ou como texto alternativo da imagem.
                 </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-800">Dados fiscais e contato</h4>
+                <p className="mt-1 text-xs text-slate-500">
+                  Opcional. Usados em documentos e onde o modelo referenciar a sua empresa.
+                </p>
+              </div>
+              <div className="min-w-0">
+                <label className="mb-2 block text-sm font-medium text-slate-700">CNPJ ou CPF</label>
+                <Input
+                  value={proposalData.company.document}
+                  onChange={(e) => updateCompany('document', e.target.value)}
+                  placeholder="00.000.000/0001-00"
+                  className="w-full rounded-xl border-slate-200"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-2 block text-sm font-medium text-slate-700">Endereço</label>
+                <Input
+                  value={proposalData.company.address}
+                  onChange={(e) => updateCompany('address', e.target.value)}
+                  placeholder="Rua, número, bairro - Cidade/UF"
+                  className="w-full rounded-xl border-slate-200"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Email</label>
+                  <Input
+                    type="email"
+                    value={proposalData.company.email}
+                    onChange={(e) => updateCompany('email', e.target.value)}
+                    placeholder="contato@empresa.com"
+                    className="w-full rounded-xl border-slate-200"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Telefone</label>
+                  <Input
+                    value={proposalData.company.phone}
+                    onChange={(e) => updateCompany('phone', e.target.value)}
+                    placeholder="(11) 99999-9999"
+                    className="w-full rounded-xl border-slate-200"
+                  />
+                </div>
               </div>
             </div>
 

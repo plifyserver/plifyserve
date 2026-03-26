@@ -82,7 +82,7 @@ const DialogContent = React.forwardRef<
       <div
         ref={ref}
         role="dialog"
-        className={`fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-slate-200 bg-white p-6 shadow-lg sm:rounded-lg ${className}`}
+        className={`fixed left-[50%] top-[50%] z-50 flex w-full max-w-lg translate-x-[-50%] translate-y-[-50%] flex-col gap-4 border border-slate-200 bg-white p-6 shadow-lg sm:rounded-lg ${className}`}
         onClick={(e) => e.stopPropagation()}
         {...props}
       >

@@ -11,7 +11,6 @@ import { toast } from 'sonner'
 
 const COMPARISON_ROWS: { feature: string; essential: string | 'check' | 'dash'; pro: string | 'check' | 'dash' }[] = [
   { feature: 'Preço', essential: 'R$ 49,90 / mês', pro: 'R$ 89,90 / mês' },
-  { feature: 'Usuários', essential: '1 usuário', pro: 'Até 5 usuários' },
   { feature: 'Clientes', essential: 'Até 20', pro: 'Ilimitados' },
   { feature: 'Propostas por mês', essential: '5', pro: 'Ilimitadas' },
   { feature: 'Templates de propostas', essential: '1 template', pro: '2 templates' },
@@ -19,7 +18,7 @@ const COMPARISON_ROWS: { feature: string; essential: string | 'check' | 'dash'; 
   { feature: 'Dashboard', essential: 'Dashboard completo', pro: 'Dashboard completo + personalização' },
   { feature: 'Agenda', essential: 'Básica (sem integrações)', pro: 'Agenda com integrações' },
   { feature: 'Gestão de Projetos', essential: 'check', pro: 'check' },
-  { feature: 'Controle Financeiro', essential: 'check', pro: 'check' },
+  { feature: 'Gastos Pessoais', essential: 'check', pro: 'check' },
   { feature: 'Relatórios', essential: 'Relatórios completos', pro: 'Relatórios completos' },
   { feature: 'Mapa Mental Estratégico', essential: 'Até 5 mapas', pro: 'Ilimitados' },
   { feature: 'Gestão de Tarefas', essential: 'check', pro: 'check' },
@@ -131,7 +130,6 @@ export default function PlanosPage() {
             </div>
             <div className="mt-5 space-y-3">
               {[
-                '1 usuário',
                 'Até 20 clientes',
                 '5 propostas por mês',
                 '1 template de proposta',
@@ -171,7 +169,6 @@ export default function PlanosPage() {
             </div>
             <div className="mt-5 space-y-3">
               {[
-                'Até 5 usuários',
                 'Clientes ilimitados',
                 'Propostas ilimitadas',
                 'White Label',

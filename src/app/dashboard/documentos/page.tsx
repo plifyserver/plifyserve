@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import SignatureCanvas, { type SignatureData } from '@/components/contracts/SignatureCanvas'
+import ContractSignaturePlacement, { type SignaturePlacement } from '@/components/contracts/ContractSignaturePlacement'
 import ContractUploader from '@/components/contracts/ContractUploader'
 import { generateSignedPDF, downloadPDF } from '@/lib/pdf-generator'
 import { useAuth } from '@/contexts/AuthContext'
@@ -46,6 +47,7 @@ interface Signatory {
   } | null
   ip_address?: string | null
   user_agent?: string | null
+  signature_placement?: SignaturePlacement | null
 }
 
 interface Contract {
@@ -87,6 +89,8 @@ export default function DocumentosPage() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [signDialogOpen, setSignDialogOpen] = useState(false)
+  const [placementOpen, setPlacementOpen] = useState(false)
+  const [pendingSignData, setPendingSignData] = useState<SignatureData | null>(null)
   const [selected, setSelected] = useState<Contract | null>(null)
   const [signatoryIndex, setSignatoryIndex] = useState<number>(0)
   const [signatoriesForSign, setSignatoriesForSign] = useState<Signatory[]>([])
@@ -251,13 +255,51 @@ export default function DocumentosPage() {
     setSignDialogOpen(true)
   }
 
-  const handleSignatureSave = async (data: SignatureData) => {
+  const handleSignatureSave = (data: SignatureData) => {
     if (!selected) return
-    const signatories = [...signatoriesForSign]
-    if (!signatories[signatoryIndex]) {
+    if (!signatoriesForSign[signatoryIndex]) {
       setSignDialogOpen(false)
       return
     }
+    if (!selected.file_url?.trim()) {
+      toast.error('Adicione um PDF ao contrato antes de assinar.')
+      return
+    }
+    setPendingSignData(data)
+    setSignDialogOpen(false)
+    setPlacementOpen(true)
+  }
+
+  const handlePlacementBack = () => {
+    setPlacementOpen(false)
+    setPendingSignData(null)
+    setSignDialogOpen(true)
+  }
+
+  const handlePlacementConfirm = async (placement: SignaturePlacement) => {
+    if (!selected || !pendingSignData) return
+    const data = pendingSignData
+    setPendingSignData(null)
+    setPlacementOpen(false)
+
+    const signatories = [...signatoriesForSign]
+    if (!signatories[signatoryIndex]) {
+      setSelected(null)
+      return
+    }
+
+    let clientIp: string | null = null
+    try {
+      const ipRes = await fetch('/api/my-ip', { credentials: 'include' })
+      if (ipRes.ok) {
+        const j = (await ipRes.json()) as { ip?: string }
+        clientIp = typeof j?.ip === 'string' ? j.ip : null
+      }
+    } catch {
+      /* ignore */
+    }
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : null
+
     signatories[signatoryIndex] = {
       ...signatories[signatoryIndex],
       signed: true,
@@ -267,6 +309,9 @@ export default function DocumentosPage() {
       cpf: data.cpf,
       birth_date: data.birthDate,
       location: data.location,
+      signature_placement: placement,
+      ip_address: clientIp,
+      user_agent: ua,
     }
     const allSigned = signatories.every(
       (s) =>
@@ -288,8 +333,9 @@ export default function DocumentosPage() {
     if (res.ok) {
       await fetchData()
       setForm((f) => ({ ...f, signatories }))
-      setSignDialogOpen(false)
       setSelected(null)
+    } else {
+      toast.error('Não foi possível salvar a assinatura.')
     }
   }
 
@@ -371,7 +417,17 @@ export default function DocumentosPage() {
           client_id: contract.client_id,
           client_name: contract.client_name,
           status: 'draft',
-          signatories: contract.signatories?.map(s => ({ ...s, signed: false, signed_at: null, signature_url: null })) || [],
+          signatories:
+            contract.signatories?.map((s) => ({
+              ...s,
+              signed: false,
+              signed_at: null,
+              signature_url: null,
+              selfie_url: null,
+              signature_placement: null,
+              ip_address: null,
+              user_agent: null,
+            })) || [],
         }),
       })
       
@@ -397,9 +453,12 @@ export default function DocumentosPage() {
         signed_at: s.signed_at,
         signature_url: s.signature_url,
         selfie_url: s.selfie_url,
+        signature_placement: s.signature_placement ?? null,
         cpf: s.cpf,
         birth_date: s.birth_date,
         location: s.location,
+        ip_address: s.ip_address ?? undefined,
+        browser: s.user_agent ?? undefined,
       }))
       const pdfBytes = await generateSignedPDF(
         {
@@ -939,6 +998,38 @@ export default function DocumentosPage() {
             captureLocation={true}
             requireSelfie={true}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={placementOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPlacementOpen(false)
+            setPendingSignData(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-4xl w-[min(100vw-2rem,56rem)] h-[min(92vh,100dvh)] max-h-[92vh] overflow-hidden flex flex-col min-h-0 p-4 sm:p-6 rounded-2xl">
+          <DialogHeader className="shrink-0 flex-none">
+            <DialogTitle>Posicionar assinatura no documento</DialogTitle>
+            <DialogDescription>
+              Arraste a caixa da assinatura sobre o PDF e confirme. Isso define onde a assinatura aparece no arquivo final.
+            </DialogDescription>
+          </DialogHeader>
+          {selected?.file_url && pendingSignData ? (
+            <div
+              className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 -mr-0.5 [scrollbar-gutter:stable]"
+              data-signature-placement-scroll
+            >
+              <ContractSignaturePlacement
+                pdfUrl={toSafeExternalUrl(selected.file_url) ?? selected.file_url}
+                signatureDataUrl={pendingSignData.signatureImage}
+                onConfirm={handlePlacementConfirm}
+                onBack={handlePlacementBack}
+              />
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
 

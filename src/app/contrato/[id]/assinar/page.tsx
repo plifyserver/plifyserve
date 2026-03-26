@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -14,8 +14,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import SignatureCanvas, { type SignatureData } from '@/components/contracts/SignatureCanvas'
+import ContractSignaturePlacement, {
+  type SignaturePlacement,
+} from '@/components/contracts/ContractSignaturePlacement'
 import { useAuth } from '@/contexts/AuthContext'
-import { LOGO_PRETO } from '@/lib/logo'
+import { LOGO_BRANCO, LOGO_PRETO } from '@/lib/logo'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { SITE_CONTAINER_LG, SITE_GUTTER_X } from '@/lib/siteLayout'
@@ -39,12 +42,18 @@ interface Contract {
       longitude: number | null
       address: string | null
     } | null
+    signature_placement?: SignaturePlacement | null
   }[]
   status: string
   created_at: string
 }
 
-type PageStep = 'loading' | 'view' | 'sign' | 'success' | 'error' | 'already_signed'
+type PageStep = 'loading' | 'view' | 'sign' | 'place' | 'success' | 'error' | 'already_signed'
+
+function shouldReduceMotion() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
+}
 
 export default function AssinarContratoPage() {
   const params = useParams()
@@ -59,8 +68,14 @@ export default function AssinarContratoPage() {
   const [signatoryIndex, setSignatoryIndex] = useState<number>(-1)
   const [selectedSignatoryEmail, setSelectedSignatoryEmail] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pendingSignPayload, setPendingSignPayload] = useState<
+    (SignatureData & { ip_address: string | null; user_agent: string | null }) | null
+  >(null)
+  const [introVisible, setIntroVisible] = useState(false)
+  const introStartedRef = useRef(false)
 
   const effectiveSignatoryEmail = selectedSignatoryEmail || signatoryEmail || null
+  const introStorageKey = useMemo(() => `plify-contract-intro-${contractId}`, [contractId])
 
   useEffect(() => {
     const fetchContract = async () => {
@@ -104,6 +119,21 @@ export default function AssinarContratoPage() {
     fetchContract()
   }, [contractId, signatoryEmail])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (step === 'loading' || step === 'error' || step === 'success' || step === 'already_signed') return
+    if (!contract?.id) return
+
+    if (introStartedRef.current) return
+    introStartedRef.current = true
+
+    const alreadySeen = sessionStorage.getItem(introStorageKey) === '1'
+    if (alreadySeen) return
+
+    sessionStorage.setItem(introStorageKey, '1')
+    setIntroVisible(true)
+  }, [step, contract?.id, introStorageKey])
+
   const handleSignatureComplete = async (signatureData: SignatureData) => {
     const emailToUse = effectiveSignatoryEmail || contract?.signatories?.[signatoryIndex]?.email
     if (!contract || signatoryIndex < 0 || !emailToUse) return
@@ -125,6 +155,17 @@ export default function AssinarContratoPage() {
       ip_address: clientIp,
       user_agent: userAgent,
     }
+    if (!contract.file_url) {
+      toast.error('Este contrato não possui PDF anexado. Não é possível posicionar a assinatura.')
+      return
+    }
+    setPendingSignPayload(payload)
+    setStep('place')
+  }
+
+  const submitSignWithPlacement = async (placement: SignaturePlacement) => {
+    const emailToUse = effectiveSignatoryEmail || contract?.signatories?.[signatoryIndex]?.email
+    if (!contract || signatoryIndex < 0 || !emailToUse || !pendingSignPayload) return
 
     try {
       const res = await fetch(`/api/contracts/${contract.id}/sign`, {
@@ -132,11 +173,13 @@ export default function AssinarContratoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           signatoryEmail: emailToUse,
-          signatureData: payload,
+          signatureData: pendingSignPayload,
+          signaturePlacement: placement,
         }),
       })
-      
+
       if (res.ok) {
+        setPendingSignPayload(null)
         setStep('success')
       } else {
         const data = await res.json()
@@ -251,12 +294,112 @@ export default function AssinarContratoPage() {
     )
   }
 
+  if (step === 'place' && contract && pendingSignPayload && contract.file_url) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
+          <ContractSignaturePlacement
+            pdfUrl={contract.file_url}
+            signatureDataUrl={pendingSignPayload.signatureImage}
+            onConfirm={submitSignWithPlacement}
+            onBack={() => {
+              setStep('sign')
+              setPendingSignPayload(null)
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
+
   const unsignedSignatories = (contract?.signatories ?? [])
     .map((s, i) => ({ ...s, index: i }))
     .filter((s) => !s.signed)
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      {introVisible && (
+        <div className="fixed inset-0 z-[60]">
+          <style>{`
+            @keyframes plifyIntroFadeUp {
+              0% { opacity: 0; transform: translateY(10px); filter: blur(2px); }
+              100% { opacity: 1; transform: translateY(0px); filter: blur(0px); }
+            }
+            @keyframes plifyIntroPulse {
+              0%, 100% { transform: scale(1); opacity: .9; }
+              50% { transform: scale(1.02); opacity: 1; }
+            }
+            @keyframes plifyIntroOut {
+              0% { opacity: 1; transform: translateY(0px); }
+              100% { opacity: 0; transform: translateY(-6px); }
+            }
+            .plify-intro-enter { animation: plifyIntroFadeUp 480ms ease-out both; }
+            .plify-intro-pulse { animation: plifyIntroPulse 900ms ease-in-out infinite; }
+          `}</style>
+          <div className="absolute inset-0 bg-[radial-gradient(1200px_800px_at_10%_10%,rgba(59,130,246,.30),transparent_60%),radial-gradient(900px_700px_at_90%_40%,rgba(20,184,166,.18),transparent_55%),linear-gradient(180deg,#0b2a6a,#071b3f)]" />
+          <div className="absolute inset-0 opacity-[0.10] [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:22px_22px]" />
+
+          <div className="relative h-full w-full flex items-center justify-center px-6">
+            <div className="plify-intro-enter w-full max-w-lg text-center">
+              <div className="mb-6 flex items-center justify-center">
+                <Image
+                  src={LOGO_BRANCO}
+                  alt="Plify"
+                  width={160}
+                  height={46}
+                  className="h-9 w-auto object-contain"
+                  priority
+                />
+              </div>
+              <div className="mx-auto mb-5 flex w-full max-w-[280px] items-center justify-center rounded-2xl bg-white/10 p-4 ring-1 ring-white/20 backdrop-blur-md">
+                <div className="plify-intro-pulse flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
+                    <PenLine className="h-5 w-5 text-white" aria-hidden />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold tracking-wide text-white/90">Assinatura do contrato</p>
+                    <p className="text-xs text-white/70">Preparando seu documento…</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mx-auto mb-6 max-w-md">
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  {contract?.title?.trim() ? contract.title : 'Documento para assinatura'}
+                </h1>
+                <p className="mt-2 text-sm sm:text-base text-white/75">
+                  Revise o PDF e, quando estiver pronto, toque em <strong className="text-white">Assinar</strong>.
+                </p>
+              </div>
+
+              <div className="mx-auto mb-6 max-w-lg rounded-2xl bg-white/10 p-4 text-left ring-1 ring-white/15 backdrop-blur-md">
+                <p className="text-sm font-semibold text-white/90">Seus dados estão protegidos</p>
+                <div className="mt-2 space-y-2 text-sm text-white/75">
+                  <p>
+                    Esta página usa conexão segura (HTTPS). O trânsito entre o seu navegador e os servidores Plify é
+                    criptografado, reduzindo o risco de interceptação.
+                  </p>
+                  <p>
+                    A assinatura, a selfie e os metadados (horário, IP quando disponível e localização, se autorizada)
+                    são vinculados ao documento para comprovação e auditoria.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIntroVisible(false)}
+                  className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition-colors"
+                >
+                  Continuar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header: logo proporcional, botão verde Assinar à direita */}
       <header className={cn('bg-white border-b border-slate-200 py-2.5 sm:py-3 flex-shrink-0', SITE_GUTTER_X)}>
         <div className={cn(SITE_CONTAINER_LG, 'flex items-center justify-between gap-2 sm:gap-4 min-w-0')}>

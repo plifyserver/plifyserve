@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     logo_url: body.logo_url ?? null,
     favicon_url: body.favicon_url ?? null,
     primary_color: body.primary_color ?? '#dc2626',
-    secondary_color: body.secondary_color ?? '#000020',
+    secondary_color: body.secondary_color ?? '#121212',
     theme: body.theme ?? 'light',
     custom_domain: body.custom_domain ?? null,
     hide_branding: body.hide_branding ?? false,

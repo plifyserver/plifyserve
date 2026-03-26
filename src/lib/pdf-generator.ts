@@ -1,5 +1,42 @@
-import { PDFDocument, rgb, StandardFonts, type PDFFont } from 'pdf-lib'
+import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage } from 'pdf-lib'
 import { format } from 'date-fns'
+import { LOGO_PRETO } from '@/lib/logo'
+
+/** URL absoluta da logo em /public (cliente ou servidor). */
+function resolvePlifyLogoUrl(): string | null {
+  if (typeof window !== 'undefined') {
+    return new URL(LOGO_PRETO, window.location.origin).href
+  }
+  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || ''
+  return base ? `${base}${LOGO_PRETO}` : null
+}
+
+/** Logo Plify para carimbar no relatório (PNG/JPG em /public). */
+async function embedPlifyLogo(pdfDoc: PDFDocument): Promise<{ image: PDFImage; width: number; height: number } | null> {
+  const url = resolvePlifyLogoUrl()
+  if (!url) return null
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const bytes = await res.arrayBuffer()
+    let image: PDFImage
+    try {
+      image = await pdfDoc.embedPng(bytes)
+    } catch {
+      try {
+        image = await pdfDoc.embedJpg(bytes)
+      } catch {
+        return null
+      }
+    }
+    const maxW = 88
+    const w = Math.min(maxW, image.width)
+    const h = image.height * (w / image.width)
+    return { image, width: w, height: h }
+  } catch {
+    return null
+  }
+}
 
 /** Quebra texto em linhas que cabem na largura máxima (em pontos). */
 function wrapText(font: PDFFont, text: string, fontSize: number, maxWidth: number): string[] {
@@ -48,6 +85,13 @@ export interface SignatoryForPDF {
   signed_at?: string | null
   signature_url?: string | null
   selfie_url?: string | null
+  signature_placement?: {
+    pageIndex: number
+    x: number
+    y: number
+    w: number
+    h: number
+  } | null
   cpf?: string | null
   birth_date?: string | null
   location?: { latitude: number | null; longitude: number | null; address: string | null } | null
@@ -88,6 +132,26 @@ export async function generateSignedPDF(
   const documentHash = await generateHash(existingPdfBytes)
   const verificationCode = generateVerificationCode()
 
+  /* Assinaturas posicionadas no corpo do PDF */
+  for (const sig of signatures) {
+    if (!sig.signed || !sig.signature_url || !sig.signature_placement) continue
+    const pl = sig.signature_placement
+    const idx = Math.max(0, Math.min(pl.pageIndex, pages.length - 1))
+    const page = pages[idx]
+    const { width: pw, height: ph } = page.getSize()
+    try {
+      const bytes = await fetch(sig.signature_url).then((res) => res.arrayBuffer())
+      const image = await pdfDoc.embedPng(bytes)
+      const pdfX = pl.x * pw
+      const pdfY = (1 - pl.y - pl.h) * ph
+      const pdfW = pl.w * pw
+      const pdfH = pl.h * ph
+      page.drawImage(image, { x: pdfX, y: pdfY, width: pdfW, height: pdfH })
+    } catch {
+      /* ignora */
+    }
+  }
+
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i]
     const { width } = page.getSize()
@@ -107,114 +171,220 @@ export async function generateSignedPDF(
     })
   }
 
-  // Página de assinaturas (após o contrato, antes do certificado) — evita interferir nas cláusulas
-  const signaturesPage = pdfDoc.addPage([595, 842])
-  let sigY = signaturesPage.getHeight() - 50
-  signaturesPage.drawText('REGISTRO DE ASSINATURAS', {
+  /* Página de relatório de assinaturas (estilo relatório completo, organizado) */
+  const reportNow = format(new Date(), 'dd/MM/yyyy HH:mm:ss')
+  const signedTotal = signatures.filter((s) => s.signed).length
+  const plifyLogo = await embedPlifyLogo(pdfDoc)
+
+  let currentReportPage = pdfDoc.addPage([595, 842])
+  let sigY = currentReportPage.getHeight() - 48
+  const pageW = currentReportPage.getWidth()
+  const rightMargin = 50
+
+  currentReportPage.drawText('Relatório de Assinaturas', {
     x: 50,
     y: sigY,
-    size: 16,
+    size: 17,
     font: boldFont,
-    color: rgb(0, 0.4, 0.6),
+    color: rgb(0.12, 0.12, 0.12),
   })
-  sigY -= 35
-  const introLines = wrapText(
-    font,
-    'As assinaturas abaixo foram realizadas eletronicamente e não constam no corpo do documento para preservar a integridade das cláusulas.',
-    9,
-    495
-  )
-  const introLineHeight = 12
-  for (const line of introLines) {
-    signaturesPage.drawText(line, { x: 50, y: sigY, size: 9, font, color: rgb(0.3, 0.3, 0.3) })
-    sigY -= introLineHeight
+  if (plifyLogo) {
+    const { image, width: lw, height: lh } = plifyLogo
+    const lx = pageW - rightMargin - lw
+    const lineCenterY = sigY + 7
+    const ly = lineCenterY - lh / 2
+    currentReportPage.drawImage(image, { x: lx, y: ly, width: lw, height: lh })
+  } else {
+    currentReportPage.drawText('PLIFY', {
+      x: pageW - rightMargin - boldFont.widthOfTextAtSize('PLIFY', 13),
+      y: sigY,
+      size: 13,
+      font: boldFont,
+      color: rgb(0.12, 0.12, 0.12),
+    })
   }
-  sigY -= 18
+  sigY -= 20
+  currentReportPage.drawText(`Horário local | Emitido em ${reportNow}`, {
+    x: 50,
+    y: sigY,
+    size: 8,
+    font,
+    color: rgb(0.45, 0.45, 0.45),
+  })
+  sigY -= 14
+  currentReportPage.drawRectangle({
+    x: 50,
+    y: sigY - 1,
+    width: 495,
+    height: 0.6,
+    color: rgb(0.88, 0.88, 0.88),
+  })
+  sigY -= 20
 
+  currentReportPage.drawText(`Status: ${contract.status === 'signed' ? 'Assinado' : 'Em andamento'}`, {
+    x: 50,
+    y: sigY,
+    size: 9,
+    font: boldFont,
+  })
+  sigY -= 14
+  const docTitle = wrapText(font, `Documento: ${contract.title}`, 9, 420)
+  for (const line of docTitle.slice(0, 2)) {
+    currentReportPage.drawText(line, { x: 50, y: sigY, size: 9, font })
+    sigY -= 12
+  }
+  currentReportPage.drawText(`Codigo unico: ${contract.id}`, { x: 50, y: sigY, size: 8, font, color: rgb(0.35, 0.35, 0.35) })
+  sigY -= 12
+  currentReportPage.drawText(
+    `Data da criacao: ${format(new Date(contract.created_at), 'dd/MM/yyyy HH:mm:ss')}`,
+    { x: 50, y: sigY, size: 8, font, color: rgb(0.35, 0.35, 0.35) }
+  )
+  sigY -= 12
+  const hashLine = `Hash SHA-256 (original): ${documentHash}`
+  for (const line of wrapText(font, hashLine, 7, 490).slice(0, 3)) {
+    currentReportPage.drawText(line, { x: 50, y: sigY, size: 7, font, color: rgb(0.4, 0.4, 0.4) })
+    sigY -= 10
+  }
+  currentReportPage.drawText(`Codigo de verificacao: ${verificationCode}`, {
+    x: 50,
+    y: sigY,
+    size: 8,
+    font,
+    color: rgb(0.2, 0.2, 0.2),
+  })
+  sigY -= 22
+  currentReportPage.drawRectangle({
+    x: 50,
+    y: sigY - 1,
+    width: 495,
+    height: 0.6,
+    color: rgb(0.88, 0.88, 0.88),
+  })
+  sigY -= 16
+  currentReportPage.drawText(`Assinaturas (${signedTotal})`, {
+    x: 50,
+    y: sigY,
+    size: 12,
+    font: boldFont,
+    color: rgb(0.12, 0.12, 0.12),
+  })
+  sigY -= 22
+
+  const blockH = 210
   if (signatures?.length) {
-    let currentSignaturesPage = signaturesPage
     for (let idx = 0; idx < signatures.length; idx++) {
       const sig = signatures[idx]
       if (!sig.signed) continue
-      let boxYFinal = sigY - 140
-      if (boxYFinal < 50) {
-        currentSignaturesPage = pdfDoc.addPage([595, 842])
-        sigY = currentSignaturesPage.getHeight() - 50
-        boxYFinal = sigY - 140
+      let boxYFinal = sigY - blockH
+      if (boxYFinal < 55) {
+        currentReportPage = pdfDoc.addPage([595, 842])
+        sigY = currentReportPage.getHeight() - 50
+        boxYFinal = sigY - blockH
       }
-      const page = currentSignaturesPage
+      const page = currentReportPage
       const y = sigY
       page.drawRectangle({
         x: 50,
         y: boxYFinal,
         width: 495,
-        height: 140,
-        borderColor: rgb(0.8, 0.8, 0.8),
-        borderWidth: 0.5,
+        height: blockH,
+        borderColor: rgb(0.86, 0.86, 0.86),
+        borderWidth: 0.6,
       })
-      page.drawText('PLIFY', {
-        x: 55,
-        y: y - 18,
+      let ty = y - 16
+      page.drawText('Assinado via Plify', {
+        x: 58,
+        y: ty,
+        size: 7,
+        font: boldFont,
+        color: rgb(0.1, 0.45, 0.25),
+      })
+      ty -= 14
+      page.drawText(sig.name.toUpperCase(), {
+        x: 58,
+        y: ty,
         size: 10,
         font: boldFont,
-        color: rgb(0, 0.4, 0.6),
+        color: rgb(0.1, 0.1, 0.1),
       })
-      page.drawText(`Nome: ${sig.name}`, { x: 55, y: y - 32, size: 9, font })
+      ty -= 14
+      page.drawText(`E-mail: ${sig.email}`, { x: 58, y: ty, size: 8, font, color: rgb(0.25, 0.25, 0.25) })
+      ty -= 12
       if (sig.cpf) {
         const cpfFmt = sig.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-        page.drawText(`CPF: ${cpfFmt}`, { x: 55, y: y - 46, size: 9, font })
+        page.drawText(`CPF: ${cpfFmt}`, { x: 58, y: ty, size: 8, font })
+        ty -= 12
       }
       if (sig.birth_date) {
-        page.drawText(
-          `Data de nascimento: ${format(new Date(sig.birth_date), 'dd/MM/yyyy')}`,
-          { x: 55, y: y - 60, size: 9, font }
-        )
+        page.drawText(`Data de nascimento: ${format(new Date(sig.birth_date), 'dd/MM/yyyy')}`, {
+          x: 58,
+          y: ty,
+          size: 8,
+          font,
+        })
+        ty -= 12
       }
       if (sig.signed_at) {
         page.drawText(
           `Data e hora da assinatura: ${format(new Date(sig.signed_at), 'dd/MM/yyyy HH:mm:ss')}`,
-          { x: 55, y: y - 74, size: 9, font }
+          { x: 58, y: ty, size: 8, font }
         )
+        ty -= 12
+      }
+      page.drawText('Pontos de autenticacao:', { x: 58, y: ty, size: 8, font: boldFont, color: rgb(0.3, 0.3, 0.3) })
+      ty -= 12
+      page.drawText('E-mail do signatario verificado no fluxo de assinatura', {
+        x: 58,
+        y: ty,
+        size: 7,
+        font,
+        color: rgb(0.4, 0.4, 0.4),
+      })
+      ty -= 14
+      if (sig.ip_address) {
+        page.drawText(`IP: ${sig.ip_address}`, { x: 58, y: ty, size: 7, font, color: rgb(0.4, 0.4, 0.4) })
+        ty -= 12
+      }
+      const ua = sig.browser || ''
+      if (ua) {
+        for (const line of wrapText(font, `Dispositivo: ${ua}`, 6, 240).slice(0, 3)) {
+          page.drawText(line, { x: 58, y: ty, size: 6, font, color: rgb(0.45, 0.45, 0.45) })
+          ty -= 9
+        }
       }
       const localColor = rgb(0.4, 0.4, 0.4)
-      const localFontSize = 8
-      const localMaxWidth = 275
-      const localLineHeight = 10
-      const maxLocalLines = 3
       if (sig.location?.address) {
-        const localLines = wrapText(font, `Local: ${sig.location.address}`, localFontSize, localMaxWidth).slice(0, maxLocalLines)
-        let localY = y - 88
-        for (const line of localLines) {
-          page.drawText(line, { x: 55, y: localY, size: localFontSize, font, color: localColor })
-          localY -= localLineHeight
+        for (const line of wrapText(font, `Local: ${sig.location.address}`, 7, 240).slice(0, 2)) {
+          page.drawText(line, { x: 58, y: ty, size: 7, font, color: localColor })
+          ty -= 10
         }
       } else if (sig.location?.latitude != null) {
         page.drawText(
-          `Local: ${sig.location.latitude?.toFixed(6)}, ${sig.location.longitude?.toFixed(6)}`,
-          { x: 55, y: y - 88, size: localFontSize, font, color: localColor }
+          `Local (aprox.): ${sig.location.latitude?.toFixed(5)}, ${sig.location.longitude?.toFixed(5)}`,
+          { x: 58, y: ty, size: 7, font, color: localColor }
         )
+        ty -= 10
       }
       if (sig.signature_url) {
         try {
           const signatureImage = await fetch(sig.signature_url).then((res) => res.arrayBuffer())
           const image = await pdfDoc.embedPng(signatureImage)
           page.drawImage(image, {
-            x: 340,
-            y: boxYFinal + 30,
-            width: 180,
-            height: 80,
+            x: 330,
+            y: boxYFinal + 95,
+            width: 200,
+            height: 72,
           })
         } catch {
-          page.drawText('[Imagem da assinatura]', {
-            x: 350,
-            y: boxYFinal + 60,
+          page.drawText('[Assinatura]', {
+            x: 340,
+            y: boxYFinal + 120,
             size: 8,
             font,
             color: rgb(0.5, 0.5, 0.5),
           })
         }
       }
-
       if (sig.selfie_url) {
         try {
           const selfieBytes = await fetch(sig.selfie_url).then((res) => res.arrayBuffer())
@@ -226,22 +396,23 @@ export async function generateSignedPDF(
             url.toLowerCase().endsWith('.jpeg')
           const selfieImg = isJpg ? await pdfDoc.embedJpg(selfieBytes) : await pdfDoc.embedPng(selfieBytes)
           page.drawImage(selfieImg, {
-            x: 340,
-            y: boxYFinal + 115,
-            width: 180,
-            height: 110,
+            x: 330,
+            y: boxYFinal + 12,
+            width: 200,
+            height: 78,
           })
+          page.drawText('Selfie', { x: 330, y: boxYFinal + 8, size: 7, font, color: rgb(0.4, 0.4, 0.4) })
         } catch {
           page.drawText('[Selfie]', {
-            x: 350,
-            y: boxYFinal + 160,
+            x: 340,
+            y: boxYFinal + 40,
             size: 8,
             font,
             color: rgb(0.5, 0.5, 0.5),
           })
         }
       }
-      sigY = boxYFinal - 25
+      sigY = boxYFinal - 18
     }
   }
 

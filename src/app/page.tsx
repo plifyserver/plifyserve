@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Globe, LayoutDashboard, Users, FileText, FileSignature, Briefcase, Calendar, Network, BarChart3, DollarSign, Columns3, Palette, CreditCard, Settings, Menu, TrendingUp, Repeat, MoreHorizontal } from 'lucide-react'
+import { Globe, LayoutDashboard, Users, FileText, FileSignature, Briefcase, Calendar, Network, BarChart3, DollarSign, Calculator, Columns3, Palette, CreditCard, Settings, Menu, TrendingUp, Repeat, MoreHorizontal } from 'lucide-react'
 import {
   AreaChart,
   Area,
@@ -38,7 +38,8 @@ const SIDEBAR_ITEMS = [
   { icon: Calendar, label: 'Agenda' },
   { icon: Network, label: 'Mapa Mental' },
   { icon: BarChart3, label: 'Ads' },
-  { icon: DollarSign, label: 'Financeiro' },
+  { icon: DollarSign, label: 'Gastos Pessoais' },
+  { icon: Calculator, label: 'Calculadora' },
   { icon: Columns3, label: 'Kanban' },
   { icon: Palette, label: 'Personalização' },
   { icon: CreditCard, label: 'Planos' },
@@ -441,7 +442,6 @@ export default function LandingPage() {
               </div>
               <ul className="space-y-3 flex-1">
                 {[
-                  '1 usuário',
                   'Até 20 clientes',
                   '5 propostas e 5 contratos por mês',
                   '1 template de proposta',
@@ -474,7 +474,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900">Plify Pro</h3>
               <p className="text-slate-600 text-sm mt-2 mb-6">
-                Plano completo para crescer. Personalização, mais usuários e recursos avançados.
+                Plano completo para crescer. Personalização e recursos avançados.
               </p>
               <div className="mb-6">
                 <span className="text-3xl font-bold text-slate-900">R$ 89,90</span>
@@ -482,7 +482,6 @@ export default function LandingPage() {
               </div>
               <ul className="space-y-3 flex-1">
                 {[
-                  'Até 5 usuários',
                   'Clientes ilimitados',
                   'Propostas e contratos ilimitados',
                   '2 templates de proposta',

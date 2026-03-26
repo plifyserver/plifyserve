@@ -48,7 +48,12 @@ export default function SignatureCanvas({
   const [selfieImage, setSelfieImage] = useState<string | null>(null)
   const [selfieOpen, setSelfieOpen] = useState(false)
   const [selfieLoading, setSelfieLoading] = useState(false)
+  /** Sem dimensões reais do vídeo, capturar gera imagem preta (canvas 1280×720 com frame vazio). */
+  const [videoReady, setVideoReady] = useState(false)
   const streamRef = useRef<MediaStream | null>(null)
+  /** Estado para ligar o <video> depois que ele montar (evita Firefox: stream antes do elemento existir). */
+  const [liveCameraStream, setLiveCameraStream] = useState<MediaStream | null>(null)
+  const cameraStartLockRef = useRef(false)
   
   const [cpf, setCpf] = useState('')
   const [birthDate, setBirthDate] = useState('')
@@ -139,47 +144,78 @@ export default function SignatureCanvas({
       for (const track of streamRef.current.getTracks()) track.stop()
       streamRef.current = null
     }
+    setLiveCameraStream(null)
   }, [])
 
+  /** Monta o <video> primeiro; só então anexa o stream (corrige câmera lenta / 2º clique no Firefox). */
+  useEffect(() => {
+    if (!selfieOpen || !liveCameraStream) return
+    const video = videoRef.current
+    if (!video) return
+    video.srcObject = liveCameraStream
+    void video.play().catch(() => undefined)
+  }, [selfieOpen, liveCameraStream])
+
   const startSelfieStream = useCallback(async () => {
+    if (cameraStartLockRef.current) return
+    cameraStartLockRef.current = true
     setSelfieLoading(true)
+    setVideoReady(false)
+    setSelfieOpen(true)
     try {
       stopSelfieStream()
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      })
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       })
       streamRef.current = stream
-      const video = videoRef.current
-      if (video) {
-        video.srcObject = stream
-        await video.play()
-      }
-      setSelfieOpen(true)
+      setLiveCameraStream(stream)
     } catch {
       toast.error('Não foi possível acessar a câmera. Verifique as permissões do navegador.')
+      setSelfieOpen(false)
     } finally {
       setSelfieLoading(false)
+      cameraStartLockRef.current = false
     }
   }, [stopSelfieStream])
 
   const captureSelfie = useCallback(() => {
     const video = videoRef.current
     if (!video) return
-    const w = video.videoWidth || 1280
-    const h = video.videoHeight || 720
-    if (!w || !h) return
 
-    const canvas = document.createElement('canvas')
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.drawImage(video, 0, 0, w, h)
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.86)
-    setSelfieImage(dataUrl)
-    setSelfieOpen(false)
-    stopSelfieStream()
+    const drawFrame = () => {
+      const w = video.videoWidth
+      const h = video.videoHeight
+      if (!w || !h) {
+        toast.error('Aguarde a prévia da câmera carregar e tente de novo.')
+        return
+      }
+
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d', { alpha: false })
+      if (!ctx) return
+      try {
+        ctx.drawImage(video, 0, 0, w, h)
+      } catch {
+        toast.error('Não foi possível capturar o quadro. Tente novamente.')
+        return
+      }
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.86)
+      setSelfieImage(dataUrl)
+      setSelfieOpen(false)
+      setVideoReady(false)
+      stopSelfieStream()
+    }
+
+    // Dois frames: alguns navegadores só preenchem o buffer após o próximo paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(drawFrame)
+    })
   }, [stopSelfieStream])
 
   useEffect(() => {
@@ -439,9 +475,23 @@ export default function SignatureCanvas({
 
           {selfieOpen && (
             <div className="mt-4">
-              <div className="relative overflow-hidden rounded-2xl bg-black/90 border border-slate-200">
-                <video ref={videoRef} className="w-full h-[260px] sm:h-[320px] object-cover" playsInline muted />
+              <div className="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-200">
+                <video
+                  ref={videoRef}
+                  className="w-full h-[260px] sm:h-[320px] object-cover [transform:scaleX(-1)]"
+                  playsInline
+                  muted
+                  autoPlay
+                  onLoadedMetadata={() => setVideoReady(true)}
+                  onCanPlay={() => setVideoReady(true)}
+                  onEmptied={() => setVideoReady(false)}
+                />
               </div>
+              <p className="text-xs text-slate-500 mt-2">
+                {videoReady
+                  ? 'Quando estiver vendo sua imagem acima, toque em Capturar.'
+                  : 'Carregando câmera…'}
+              </p>
               <div className="mt-3 flex gap-2 justify-end">
                 <Button
                   type="button"
@@ -449,12 +499,18 @@ export default function SignatureCanvas({
                   className="rounded-xl"
                   onClick={() => {
                     setSelfieOpen(false)
+                    setVideoReady(false)
                     stopSelfieStream()
                   }}
                 >
                   Cancelar
                 </Button>
-                <Button type="button" className="rounded-xl bg-indigo-600 hover:bg-indigo-700" onClick={captureSelfie}>
+                <Button
+                  type="button"
+                  className="rounded-xl bg-indigo-600 hover:bg-indigo-700"
+                  onClick={captureSelfie}
+                  disabled={!videoReady}
+                >
                   Capturar
                 </Button>
               </div>

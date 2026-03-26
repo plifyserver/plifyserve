@@ -64,7 +64,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="public-marketing-page h-screen flex overflow-hidden">
       {/* Coluna esquerda - formulário em card sobre fundo cinza claro */}
       <div className={cn('flex-1 flex items-center justify-center py-8 sm:py-12 bg-neutral-100', SITE_GUTTER_X)}>
         <div className="w-full max-w-md p-4 sm:p-0">

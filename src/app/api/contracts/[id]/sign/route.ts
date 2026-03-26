@@ -41,7 +41,7 @@ function hasSelfieUrl(value: unknown): boolean {
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await request.json()
-  const { signatoryEmail, signatureData } = body
+  const { signatoryEmail, signatureData, signaturePlacement } = body
   
   if (!signatoryEmail || !signatureData) {
     return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
@@ -49,6 +49,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   if (!hasSelfieUrl(signatureData.selfieImage)) {
     return NextResponse.json({ error: 'Selfie obrigatória para registrar a assinatura.' }, { status: 400 })
+  }
+
+  const pl = signaturePlacement as { pageIndex?: number; x?: number; y?: number; w?: number; h?: number } | null
+  if (
+    !pl ||
+    typeof pl.pageIndex !== 'number' ||
+    typeof pl.x !== 'number' ||
+    typeof pl.y !== 'number' ||
+    typeof pl.w !== 'number' ||
+    typeof pl.h !== 'number'
+  ) {
+    return NextResponse.json({ error: 'Posicione a assinatura no documento antes de concluir.' }, { status: 400 })
   }
   
   const supabase = await createClient()
@@ -85,6 +97,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     signed_at: signatureData.signedAt,
     signature_url: signatureData.signatureImage,
     selfie_url: String(signatureData.selfieImage).trim(),
+    signature_placement: {
+      pageIndex: pl.pageIndex,
+      x: pl.x,
+      y: pl.y,
+      w: pl.w,
+      h: pl.h,
+    },
     cpf: signatureData.cpf,
     birth_date: signatureData.birthDate,
     location: signatureData.location,

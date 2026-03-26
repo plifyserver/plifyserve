@@ -1,12 +1,21 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Upload, Palette, Check, Loader2, Trash2 } from 'lucide-react'
+import { Upload, Palette, Check, Loader2, Trash2, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_SM } from '@/lib/siteLayout'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 const DEFAULT_PRIMARY = '#dc2626'
-const DEFAULT_SECONDARY = '#000020'
+const DEFAULT_SECONDARY = '#121212'
 const presetColors = [DEFAULT_PRIMARY, '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#6366F1']
 
 export default function PersonalizacaoPage() {
@@ -21,6 +30,8 @@ export default function PersonalizacaoPage() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [logoUploading, setLogoUploading] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
 
@@ -112,6 +123,49 @@ export default function PersonalizacaoPage() {
       toast.error(err instanceof Error ? err.message : 'Falha ao salvar')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const executeResetToPlifyDefaults = async () => {
+    setResetDialogOpen(false)
+    setResetting(true)
+    try {
+      const payload = {
+        app_name: null,
+        logo_url: null,
+        primary_color: DEFAULT_PRIMARY,
+        secondary_color: DEFAULT_SECONDARY,
+        theme: 'light',
+        custom_domain: null,
+        hide_branding: false,
+      }
+      const res = await fetch('/api/app-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || 'Falha ao restaurar')
+      }
+      setForm({
+        app_name: '',
+        logo_url: '',
+        primary_color: DEFAULT_PRIMARY,
+        secondary_color: DEFAULT_SECONDARY,
+        theme: 'light',
+        custom_domain: '',
+        hide_branding: false,
+      })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('app-settings-updated'))
+      }
+      toast.success('Padrões da Plify restaurados.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao restaurar')
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -234,7 +288,16 @@ export default function PersonalizacaoPage() {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => setResetDialogOpen(true)}
+            disabled={resetting || saving}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+          >
+            {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+            Resetar
+          </button>
           <button
             type="submit"
             disabled={saving}
@@ -245,6 +308,44 @@ export default function PersonalizacaoPage() {
           </button>
         </div>
       </form>
+
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-slate-200 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">Restaurar padrões da Plify?</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Nome do sistema, logo e cores voltam aos valores iniciais da Plify (vermelho padrão, sidebar escura, etc.).
+              Você pode personalizar de novo depois.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl border-slate-200"
+              onClick={() => setResetDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="rounded-xl text-white"
+              style={{ backgroundColor: DEFAULT_PRIMARY }}
+              onClick={() => void executeResetToPlifyDefaults()}
+              disabled={resetting}
+            >
+              {resetting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Restaurando…
+                </>
+              ) : (
+                'Restaurar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -29,6 +29,7 @@ import {
   Headphones,
   Moon,
   Sun,
+  Calculator,
 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
@@ -46,7 +47,8 @@ const navItems = [
   { href: '/dashboard/chat-ia', icon: Headphones, label: 'Chat IA' },
   { href: '/dashboard/mapa-mental', icon: Network, label: 'Mapa Mental' },
   { href: '/dashboard/ads', icon: BarChart3, label: 'Ads' },
-  { href: '/dashboard/financeiro', icon: DollarSign, label: 'Financeiro' },
+  { href: '/dashboard/financeiro', icon: DollarSign, label: 'Gastos Pessoais' },
+  { href: '/dashboard/calculadora', icon: Calculator, label: 'Calculadora' },
   { href: '/dashboard/kanban', icon: Columns3, label: 'Kanban' },
   { href: '/dashboard/personalizacao', icon: Palette, label: 'Personalização' },
   { href: '/dashboard/planos', icon: CreditCard, label: 'Planos' },
@@ -132,7 +134,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     const primary = settings?.primary_color || '#dc2626'
-    const secondary = settings?.secondary_color || '#1E293B'
+    const secondary = settings?.secondary_color || '#121212'
     document.documentElement.style.setProperty('--primary-color', primary)
     document.documentElement.style.setProperty('--secondary-color', secondary)
     document.title = (settings?.app_name?.trim() && settings.app_name) ? settings.app_name : 'Plify - Gestão e Propostas'

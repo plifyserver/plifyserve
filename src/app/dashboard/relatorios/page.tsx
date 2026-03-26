@@ -31,7 +31,7 @@ const TYPE_OPTIONS = [
   { value: 'proposals', label: 'Propostas' },
   { value: 'projects', label: 'Projetos' },
   { value: 'ads', label: 'Anúncios' },
-  { value: 'finance', label: 'Financeiro' },
+  { value: 'finance', label: 'Gastos Pessoais' },
   { value: 'custom', label: 'Personalizado' },
 ]
 
