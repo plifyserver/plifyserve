@@ -18,7 +18,8 @@ export async function POST(
     return NextResponse.json({ error: 'Proposta não encontrada' }, { status: 404 })
   }
 
-  if (proposal.status !== 'open') {
+  const canAccept = ['open', 'sent', 'viewed'].includes(proposal.status ?? '')
+  if (!canAccept) {
     return NextResponse.json({ error: 'Proposta já foi processada' }, { status: 400 })
   }
 

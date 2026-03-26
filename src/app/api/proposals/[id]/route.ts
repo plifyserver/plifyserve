@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { mapProposalStatusToDb } from '@/lib/mapProposalDbStatus'
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +16,7 @@ export async function GET(
       .from('proposals')
       .select('*')
       .or(`id.eq.${id},slug.eq.${id}`)
-      .eq('status', 'open')
+      .in('status', ['sent', 'viewed', 'accepted', 'open'])
       .single()
 
     if (error || !proposal) {
@@ -64,7 +65,7 @@ export async function PUT(
   if (body.client_name !== undefined) updates.client_name = body.client_name
   if (body.client_email !== undefined) updates.client_email = body.client_email
   if (body.status !== undefined) {
-    updates.status = body.status === 'accepted' ? 'accepted' : 'open'
+    updates.status = mapProposalStatusToDb(body.status)
   }
   if (body.title !== undefined) updates.title = body.title
   if (body.public_slug !== undefined) {

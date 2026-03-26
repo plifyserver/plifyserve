@@ -313,9 +313,9 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40" aria-hidden onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-[55]" aria-hidden onClick={() => setIsOpen(false)} />
           <div
-            className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-96"
+            className="z-[60] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl max-sm:fixed max-sm:left-4 max-sm:right-4 max-sm:top-[7.25rem] max-sm:max-h-[min(70vh,calc(100dvh-8rem))] max-sm:w-auto sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-96"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">

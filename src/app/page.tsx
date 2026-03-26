@@ -165,16 +165,16 @@ function DashboardPreview() {
                 <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
               </button>
             </div>
-            <div className="h-44 sm:h-60 flex items-center">
-              <div className="w-1/2 h-full relative">
+            <div className="h-44 sm:h-56 flex items-center min-h-0">
+              <div className="w-1/2 h-full min-h-0 relative flex items-center justify-center py-1">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
                     <Pie
                       data={PIE_DATA}
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
-                      outerRadius={75}
+                      innerRadius="52%"
+                      outerRadius="78%"
                       paddingAngle={4}
                       dataKey="value"
                       stroke="none"

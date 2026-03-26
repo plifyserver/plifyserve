@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
 import { generateProposalSlug } from '@/lib/generateProposalSlug'
+import { mapProposalStatusToDb } from '@/lib/mapProposalDbStatus'
 
 export async function GET() {
   const userId = await getCurrentUserId()
@@ -34,9 +35,7 @@ export async function POST(request: NextRequest) {
   
   const publicSlug = body.public_slug || generateProposalSlug(body.title || 'proposta', body.client_name || 'cliente')
   const now = new Date().toISOString()
-  // Compatível com constraint (open, accepted, ignored): draft/sent -> open, accepted -> accepted
-  const rawStatus = body.status || 'draft'
-  const dbStatus = rawStatus === 'accepted' ? 'accepted' : 'open'
+  const dbStatus = mapProposalStatusToDb(body.status)
 
   const row: Record<string, unknown> = {
     user_id: userId,
