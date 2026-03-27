@@ -187,8 +187,8 @@ function DashboardPreview() {
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="flex flex-col items-center justify-center gap-0 leading-none">
-                    <span className="text-xl font-semibold text-slate-900 font-light">100%</span>
-                    <span className="text-xs text-slate-500 font-light">Total</span>
+                    <span className="text-base sm:text-lg font-semibold text-slate-900 font-light">100%</span>
+                    <span className="text-[11px] text-slate-500 font-light">Total</span>
                   </div>
                 </div>
               </div>

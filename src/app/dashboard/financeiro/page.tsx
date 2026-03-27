@@ -739,7 +739,7 @@ export default function FinanceiroPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Tipo *</Label>
                 <Select
@@ -788,7 +788,7 @@ export default function FinanceiroPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="date">Data *</Label>
                 <Input
@@ -818,7 +818,7 @@ export default function FinanceiroPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Cliente</Label>
                 <Select

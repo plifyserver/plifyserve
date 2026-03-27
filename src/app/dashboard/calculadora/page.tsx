@@ -469,7 +469,7 @@ export default function CalculadoraPage() {
           )}
 
           {mode === 'parcelas' && (
-            <div className="px-5 sm:px-6 py-6 grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
+            <div className="px-5 sm:px-6 py-6 grid gap-4 lg:grid-cols-[.95fr_1.05fr]">
               <Card className="rounded-2xl border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,.08)] dark:border-slate-800/80 dark:bg-slate-900/60 dark:shadow-none">
                 <CardContent className="px-5 pt-7 pb-5 space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -485,7 +485,7 @@ export default function CalculadoraPage() {
                       <label className="block text-sm font-medium text-slate-700 mb-2 dark:text-slate-200">Nº de parcelas</label>
                       <Input className="rounded-xl border-slate-200" value={nper} onChange={(e) => setNper(e.target.value)} />
                     </div>
-                    <div className="flex items-end gap-2">
+                    <div className="flex items-end gap-2 sm:col-span-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -514,7 +514,7 @@ export default function CalculadoraPage() {
 
               <Card className="rounded-2xl border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,.08)] dark:border-slate-800/80 dark:bg-slate-900/60 dark:shadow-none">
                 <CardContent className="px-5 pt-7 pb-5">
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,.06)] dark:border-slate-800/80 dark:bg-slate-900/40 dark:shadow-none">
                       <p className="text-xs text-slate-500 dark:text-slate-400">Parcela estimada</p>
                       <p className="mt-1 text-xl font-black text-slate-900 dark:text-slate-50">{formatBRL(parcelas.pmt)}</p>

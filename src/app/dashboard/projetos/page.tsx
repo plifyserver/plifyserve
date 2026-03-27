@@ -746,7 +746,7 @@ export default function ProjetosPage() {
               {tasks.map((t) => (
                 <div
                   key={t.id}
-                  className="flex items-center gap-4 p-4 hover:bg-slate-50/50 group"
+                  className="flex items-start sm:items-center gap-3 sm:gap-4 p-4 hover:bg-slate-50/50 group"
                 >
                   <button
                     type="button"
@@ -765,7 +765,7 @@ export default function ProjetosPage() {
                     >
                       {t.title}
                     </p>
-                    <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+                    <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3 text-sm text-slate-500">
                       {(t.client_name || clients.find((c) => c.id === t.client_id)?.name) && (
                         <span>{t.client_name || clients.find((c) => c.id === t.client_id)?.name}</span>
                       )}
@@ -775,7 +775,7 @@ export default function ProjetosPage() {
                         </span>
                       )}
                       <span
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        className={`whitespace-nowrap px-2 py-0.5 rounded text-xs font-medium ${
                           t.priority === 'high'
                             ? 'bg-red-100 text-red-700'
                             : t.priority === 'medium'
@@ -785,23 +785,23 @@ export default function ProjetosPage() {
                       >
                         {TASK_PRIORITY_OPTIONS.find((p) => p.value === t.priority)?.label ?? t.priority}
                       </span>
+                      <span
+                        className={`whitespace-nowrap text-xs font-medium px-2 py-1 rounded-lg ${
+                          t.status === 'completed'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : t.status === 'in_progress'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {TASK_STATUS_OPTIONS.find((s) => s.value === t.status)?.label ?? t.status}
+                      </span>
                     </div>
                   </div>
-                  <span
-                    className={`text-xs font-medium px-2 py-1 rounded-lg ${
-                      t.status === 'completed'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : t.status === 'in_progress'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {TASK_STATUS_OPTIONS.find((s) => s.value === t.status)?.label ?? t.status}
-                  </span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                    className="h-8 w-8 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                     onClick={() => openTaskDialog(t)}
                     title="Editar tarefa"
                   >
@@ -854,7 +854,7 @@ export default function ProjetosPage() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Status</Label>
                 <Select
@@ -888,7 +888,7 @@ export default function ProjetosPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="start_date">Data Início</Label>
                 <Input
@@ -1029,7 +1029,7 @@ export default function ProjetosPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Vencimento</Label>
                 <Input
@@ -1049,7 +1049,7 @@ export default function ProjetosPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Status</Label>
                 <Select value={taskForm.status} onValueChange={(v) => setTaskForm({ ...taskForm, status: v })}>

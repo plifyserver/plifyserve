@@ -218,11 +218,11 @@ export default function ClientesPage() {
       </div>
 
       <div className={`${DASH_SURFACE_CARD} overflow-hidden`}>
-        <table className="w-full text-left">
+        <table className="w-full table-fixed md:table-auto text-left">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="px-5 py-3.5 font-semibold text-slate-700">Nome</th>
-              <th className="px-5 py-3.5 font-semibold text-slate-700">Contato</th>
+              <th className="w-[34%] px-4 sm:px-5 py-3.5 font-semibold text-slate-700">Nome</th>
+              <th className="w-[40%] px-4 sm:px-5 py-3.5 font-semibold text-slate-700">Contato</th>
               <th className="px-5 py-3.5 font-semibold text-slate-700">Status</th>
               <th className="px-5 py-3.5 font-semibold text-slate-700">Responsável</th>
               <th className="px-5 py-3.5 font-semibold text-slate-700">Data</th>
@@ -245,11 +245,11 @@ export default function ClientesPage() {
             ) : (
               filtered.map((client) => (
                 <tr key={client.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                  <td className="px-5 py-3.5">
-                    <div>
-                      <p className="font-medium text-slate-900">{client.name}</p>
+                  <td className="px-4 sm:px-5 py-3.5">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900 break-words">{client.name}</p>
                       {client.payment_type === 'recorrente' && client.recurring_amount != null && (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-slate-500 break-words">
                           R$ {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês
                           {client.recurring_end_date && (
                             <> · Válido até {format(new Date(client.recurring_end_date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</>
@@ -258,10 +258,10 @@ export default function ClientesPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-5 py-3.5">
-                    <div className="space-y-1">
-                      {client.email && <p className="text-sm text-slate-600">{client.email}</p>}
-                      {client.phone && <p className="text-sm text-slate-600">{client.phone}</p>}
+                  <td className="px-4 sm:px-5 py-3.5">
+                    <div className="min-w-0 space-y-1">
+                      {client.email && <p className="text-sm text-slate-600 break-all leading-snug">{client.email}</p>}
+                      {client.phone && <p className="text-sm text-slate-600 break-all leading-snug">{client.phone}</p>}
                       {!client.email && !client.phone && '—'}
                     </div>
                   </td>

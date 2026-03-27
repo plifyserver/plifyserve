@@ -19,7 +19,7 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useAuth } from '@/contexts/AuthContext'
-import { Plus, Save, Loader2, FileDown, Trash2, Palette, Type, FileStack, Pencil, Check, X } from 'lucide-react'
+import { Plus, Save, Loader2, FileDown, Trash2, Palette, Type, FileStack, Pencil, Check, X, Menu } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -511,6 +511,7 @@ function MindMapEditor() {
   const [historyRenameValue, setHistoryRenameValue] = useState('')
   const [renamingMap, setRenamingMap] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false)
   const mapCacheRef = useRef<Map<string, { id: string; name: string; nodes: Node[]; edges: Edge[]; updatedAt?: string }>>(
     new Map()
   )
@@ -924,7 +925,74 @@ function MindMapEditor() {
 
   return (
     <div className="flex gap-4 h-[calc(100vh-8rem)]">
-      <aside className="w-56 flex-shrink-0 flex flex-col rounded-xl border border-gray-200 bg-white overflow-hidden">
+      {mobileHistoryOpen && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[70] bg-black/40 sm:hidden"
+            onClick={() => setMobileHistoryOpen(false)}
+            aria-label="Fechar histórico"
+          />
+          <aside className="fixed inset-y-0 left-0 z-[80] flex w-[86vw] max-w-xs flex-col border-r border-gray-200 bg-white shadow-xl sm:hidden">
+            <div className="p-3 border-b border-gray-200 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <FileStack className="w-5 h-5 text-gray-600" />
+                <span className="font-medium text-gray-900">Histórico</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileHistoryOpen(false)}
+                className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+                aria-label="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-2">
+              <button
+                type="button"
+                onClick={() => {
+                  startNewMap()
+                  setMobileHistoryOpen(false)
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Novo mapa
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {historyList.length === 0 && !loading && (
+                <p className="text-sm text-gray-500 px-2 py-4">Nenhum mapa salvo. Salve o mapa para aparecer aqui.</p>
+              )}
+              {historyList.map((item) => (
+                <div
+                  key={`m-${item.id}`}
+                  className={`group flex items-start gap-1 rounded-lg text-sm transition-colors ${
+                    currentMapId === item.id ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void loadMapById(item.id)
+                      setMobileHistoryOpen(false)
+                    }}
+                    onMouseEnter={() => { void prefetchMapById(item.id) }}
+                    className="flex-1 min-w-0 text-left px-3 py-2"
+                    title="Clique para abrir"
+                  >
+                    <p className="font-medium truncate">{item.name || 'Mapa sem título'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {item.updated_at ? format(new Date(item.updated_at), "dd/MM/yyyy HH:mm", { locale: ptBR }) : ''}
+                    </p>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </>
+      )}
+      <aside className="hidden w-56 flex-shrink-0 sm:flex flex-col rounded-xl border border-gray-200 bg-white overflow-hidden">
         <div className="p-3 border-b border-gray-200 flex items-center gap-2">
           <FileStack className="w-5 h-5 text-gray-600" />
           <span className="font-medium text-gray-900">Histórico</span>
@@ -1049,24 +1117,33 @@ function MindMapEditor() {
         <Background color="#d1d5db" gap={16} />
         <Controls className="!bg-white !border-gray-200 !rounded-lg [&>button]:!bg-gray-100 [&>button]:!text-gray-700 [&>button:hover]:!bg-gray-200" />
         <MiniMap nodeColor="#568203" maskColor="rgba(255,255,255,0.9)" className="!bg-white !border !border-gray-300 !rounded-lg" />
-        <Panel position="top-left" className="flex flex-wrap gap-2">
+        <Panel position="top-left" className="flex max-w-[90vw] flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setMobileHistoryOpen(true)}
+            className="sm:hidden flex items-center justify-center px-3 py-2 rounded-lg bg-gray-200 text-gray-800 font-medium hover:bg-gray-300 transition-colors"
+            title="Histórico"
+            aria-label="Abrir histórico"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
           <button
             onClick={addNode}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" /> Adicionar nó
           </button>
           <button
             onClick={saveMap}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-gray-200 text-gray-800 font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Salvar
           </button>
           <button
             onClick={exportPdf}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 font-medium hover:bg-gray-300 transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-gray-200 text-gray-800 font-medium hover:bg-gray-300 transition-colors"
           >
             <FileDown className="w-4 h-4" /> Exportar PDF
           </button>
