@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { cn } from '@/lib/utils'
 
 interface DialogContextValue {
   open: boolean
@@ -82,11 +83,10 @@ const DialogContent = React.forwardRef<
       <div
         ref={ref}
         role="dialog"
-        className={`fixed left-1/2 top-1/2 z-[200] flex w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-4 border p-6 shadow-lg sm:rounded-lg ${
-          className?.trim()
-            ? className
-            : 'border-slate-200 bg-white text-slate-900'
-        }`}
+        className={cn(
+          'fixed left-1/2 top-1/2 z-[200] flex w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-4 border border-slate-200 bg-white p-6 text-slate-900 shadow-lg sm:rounded-lg',
+          className
+        )}
         onClick={(e) => e.stopPropagation()}
         {...props}
       >
