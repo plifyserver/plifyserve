@@ -34,9 +34,15 @@ export default function CadastroPage() {
   const handleGoogleSignUp = async () => {
     setError('')
     setGoogleLoading(true)
+    const params = new URLSearchParams(window.location.search)
+    const plan = params.get('plan')
+    const next =
+      plan === 'essential' || plan === 'pro' ? `/checkout?plan=${plan}` : '/checkout'
     const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/api/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(next)}`,
+      },
     })
     setGoogleLoading(false)
     if (err) {
@@ -67,7 +73,14 @@ export default function CadastroPage() {
 
     setSuccess(data.message || 'Conta criada! Faça login para continuar.')
     if (data.userId) {
-      setTimeout(() => router.push('/login'), 2000)
+      const params = new URLSearchParams(window.location.search)
+      const plan = params.get('plan')
+      const next =
+        plan === 'essential' || plan === 'pro' ? `/checkout?plan=${plan}` : '/checkout'
+      setTimeout(
+        () => router.push(`/login?redirect=${encodeURIComponent(next)}`),
+        2000
+      )
     }
   }
 

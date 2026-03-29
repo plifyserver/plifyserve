@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { guardProFeatures } from '@/lib/server/require-pro-features'
 
 const ACCEPTED_LOGO = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
 const ACCEPTED_FAVICON = ['image/x-icon', 'image/png', 'image/svg+xml', 'image/gif']
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
   const path = `${userId}/settings/${type}.${ext}`
 
   const supabase = await createClient()
+  const denied = await guardProFeatures(supabase, userId)
+  if (denied) return denied
+
   const { data, error } = await supabase.storage
     .from('avatars')
     .upload(path, file, { upsert: true })

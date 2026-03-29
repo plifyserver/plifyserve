@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { guardProFeatures } from '@/lib/server/require-pro-features'
 
 export async function GET(request: NextRequest) {
   const userId = await getCurrentUserId()
@@ -9,6 +10,11 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createClient()
+  const denied = await guardProFeatures(supabase, userId)
+  if (denied) {
+    return NextResponse.redirect(new URL('/dashboard/planos?motivo=ads', request.url))
+  }
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'facebook',
     options: {

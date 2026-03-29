@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { guardProFeatures } from '@/lib/server/require-pro-features'
 
 export async function GET(request: NextRequest) {
   const userId = await getCurrentUserId()
@@ -13,6 +14,8 @@ export async function GET(request: NextRequest) {
   const dateEnd = searchParams.get('date_end') ?? ''
 
   const supabase = await createClient()
+  const denied = await guardProFeatures(supabase, userId)
+  if (denied) return denied
 
   // Verificar se tem conta Meta conectada
   const { data: fbAccount } = await supabase

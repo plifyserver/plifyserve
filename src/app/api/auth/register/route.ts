@@ -28,9 +28,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const uid = data.user?.id
+    if (uid) {
+      try {
+        await supabase.rpc('log_activity', {
+          p_user_id: uid,
+          p_action: 'register',
+          p_resource_type: null,
+          p_resource_id: null,
+          p_metadata: { email: data.user?.email ?? null },
+        })
+      } catch {
+        /* log opcional */
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      userId: data.user?.id,
+      userId: uid,
       message: 'Conta criada! Faça login para continuar.',
     })
   } catch {

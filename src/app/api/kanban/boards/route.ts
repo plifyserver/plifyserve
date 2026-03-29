@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
-
-const MAX_BOARDS_PER_USER = 5
+import { ESSENTIAL_MAX_KANBAN_BOARDS, hasUnlimitedQuotas } from '@/lib/plan-entitlements'
+import { getEffectivePlanForUser } from '@/lib/server/get-effective-plan'
 
 export async function GET() {
   const userId = await getCurrentUserId()
@@ -24,13 +24,20 @@ export async function POST(request: NextRequest) {
   const name = (body.name ?? '').trim() || 'Novo Kanban'
   const supabase = await createClient()
 
+  const plan = await getEffectivePlanForUser(supabase, userId)
+  const maxBoards = hasUnlimitedQuotas(plan) ? Number.MAX_SAFE_INTEGER : ESSENTIAL_MAX_KANBAN_BOARDS
+
   const { count } = await supabase
     .from('kanban_boards')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
-  if ((count ?? 0) >= MAX_BOARDS_PER_USER) {
+  if ((count ?? 0) >= maxBoards) {
     return NextResponse.json(
-      { error: `Você pode criar no máximo ${MAX_BOARDS_PER_USER} Kanbans.` },
+      {
+        error: hasUnlimitedQuotas(plan)
+          ? 'Não foi possível criar o Kanban.'
+          : `No Essential você pode criar até ${ESSENTIAL_MAX_KANBAN_BOARDS} Kanbans. Upgrade para o Pro para quantidade ilimitada.`,
+      },
       { status: 400 }
     )
   }

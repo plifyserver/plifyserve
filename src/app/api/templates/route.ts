@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import {
+  effectiveCustomTemplateLimit,
+  hasUnlimitedQuotas,
+  resolveEffectivePlan,
+} from '@/lib/plan-entitlements'
 
-const PLAN_LIMITS: Record<string, number | null> = {
+const PLAN_LIMITS_FALLBACK: Record<string, number | null> = {
   free: 10,
-  essential: 50,
+  essential: 10,
   pro: null,
   admin: null,
 }
@@ -45,9 +50,14 @@ export async function POST(request: NextRequest) {
 
   if (profile && profile.account_type !== 'admin') {
     const planType = profile.plan_type || profile.plan || 'essential'
-    const limit = profile.templates_limit ?? PLAN_LIMITS[planType] ?? 50
+    const eff = resolveEffectivePlan(profile)
+    const limit = hasUnlimitedQuotas(eff)
+      ? null
+      : effectiveCustomTemplateLimit(eff, profile.templates_limit) ??
+        PLAN_LIMITS_FALLBACK[planType] ??
+        10
     const currentCount = profile.templates_count || 0
-    
+
     if (limit !== null && currentCount >= limit) {
       return NextResponse.json(
         { 

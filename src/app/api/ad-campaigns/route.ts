@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { guardProFeatures } from '@/lib/server/require-pro-features'
 
 export async function GET() {
   const userId = await getCurrentUserId()
   if (!userId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
   const supabase = await createClient()
+  const denied = await guardProFeatures(supabase, userId)
+  if (denied) return denied
   const { data, error } = await supabase
     .from('ad_campaigns')
     .select('*')
@@ -20,6 +23,8 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
   const body = await request.json()
   const supabase = await createClient()
+  const denied = await guardProFeatures(supabase, userId)
+  if (denied) return denied
   const { data, error } = await supabase
     .from('ad_campaigns')
     .insert({

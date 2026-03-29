@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [redirectTo, setRedirectTo] = useState('/dashboard')
   const router = useRouter()
   const supabase = createClient()
 
@@ -34,12 +35,22 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rodar uma vez ao montar para limpar sessão ao vir do logout
   }, [])
 
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('redirect')
+    if (p && p.startsWith('/') && !p.startsWith('//') && !p.includes('://')) {
+      setRedirectTo(p)
+    }
+  }, [])
+
   const handleGoogleSignIn = async () => {
     setError('')
     setGoogleLoading(true)
+    const next = redirectTo.startsWith('/') ? redirectTo : '/dashboard'
     const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/api/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(next)}`,
+      },
     })
     setGoogleLoading(false)
     if (err) {
@@ -59,7 +70,7 @@ export default function LoginPage() {
       setError(err.message === 'Invalid login credentials' ? 'Email ou senha inválidos' : err.message)
       return
     }
-    router.push('/dashboard')
+    router.push(redirectTo.startsWith('/') ? redirectTo : '/dashboard')
     router.refresh()
   }
 

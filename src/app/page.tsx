@@ -395,7 +395,7 @@ export default function LandingPage() {
               </Link>
             ) : (
               <Link
-                href="/login"
+                href="/cadastro"
                 className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-black text-white text-xs sm:text-sm font-medium hover:bg-slate-800 whitespace-nowrap"
               >
                 começar
@@ -444,12 +444,12 @@ export default function LandingPage() {
                 {[
                   'Até 20 clientes',
                   '5 propostas e 5 contratos por mês',
-                  '1 template de proposta',
-                  'Dashboard completo',
-                  'Agenda básica',
-                  'Gestão de projetos e tarefas',
-                  'Controle financeiro e relatórios',
-                  'Até 5 mapas mentais',
+                  '1 modelo de template de proposta',
+                  'Até 5 quadros Kanban e 5 mapas mentais',
+                  'Dashboard padrão',
+                  'Agenda (sem integrações externas)',
+                  'Projetos, tarefas, gastos pessoais, calculadora e Chat IA',
+                  'Suporte por e-mail',
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                     <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: ACCENT }} />
@@ -458,7 +458,7 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Link
-                href={user ? '/dashboard/planos' : '/cadastro'}
+                href={user ? '/checkout?plan=essential' : '/cadastro?plan=essential'}
                 className="mt-8 w-full py-3 px-4 rounded-xl font-medium text-center text-white transition-opacity hover:opacity-90"
                 style={{ backgroundColor: ACCENT }}
               >
@@ -482,17 +482,14 @@ export default function LandingPage() {
               </div>
               <ul className="space-y-3 flex-1">
                 {[
-                  'Clientes ilimitados',
-                  'Propostas e contratos ilimitados',
-                  '2 templates de proposta',
-                  'Dashboard + personalização',
-                  'Agenda com integrações',
-                  'Gestão de projetos e tarefas',
-                  'Indicadores de performance',
-                  'Gestão de Ads (tráfego)',
-                  'White Label e integrações avançadas',
-                  'Suporte prioritário',
-                  'Atualizações antecipadas',
+                  'Clientes, propostas e contratos ilimitados',
+                  '3 modelos de template de proposta (4º em desenvolvimento)',
+                  'Dashboard personalizável (cores, logo, white label)',
+                  'Agenda com integrações (ex.: Google)',
+                  'Kanban e mapas mentais ilimitados',
+                  'Gestão de Ads (tráfego) e métricas avançadas',
+                  'Projetos, tarefas, gastos, calculadora e Chat IA',
+                  'Suporte via WhatsApp',
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                     <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: ACCENT }} />
@@ -501,7 +498,7 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Link
-                href={user ? '/dashboard/planos' : '/cadastro'}
+                href={user ? '/checkout?plan=pro' : '/cadastro?plan=pro'}
                 className="mt-8 w-full py-3 px-4 rounded-xl font-medium text-center text-white transition-opacity hover:opacity-90"
                 style={{ backgroundColor: ACCENT }}
               >

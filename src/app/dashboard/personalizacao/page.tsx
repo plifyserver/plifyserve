@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { Upload, Palette, Check, Loader2, Trash2, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '@/contexts/AuthContext'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_SM } from '@/lib/siteLayout'
 import {
   Dialog,
@@ -19,6 +21,9 @@ const DEFAULT_SECONDARY = '#121212'
 const presetColors = [DEFAULT_PRIMARY, '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#6366F1']
 
 export default function PersonalizacaoPage() {
+  const { profile, loading: authLoading } = useAuth()
+  const canCustomize = !!(profile?.is_pro || profile?.is_admin)
+
   const [form, setForm] = useState({
     app_name: '',
     logo_url: '',
@@ -169,8 +174,26 @@ export default function PersonalizacaoPage() {
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-slate-200 border-t-slate-700 rounded-full animate-spin" /></div>
+  }
+
+  if (!canCustomize) {
+    return (
+      <div className={SITE_CONTAINER_SM}>
+        <div className={`${DASH_SURFACE_CARD} p-8 text-center max-w-lg mx-auto`}>
+          <Palette className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-slate-900 mb-2">Personalização</h1>
+          <p className="text-slate-600 text-sm mb-6">
+            Cores, logo e white label estão disponíveis no plano <strong>Pro</strong>. No Essential você usa o
+            dashboard padrão.
+          </p>
+          <Button asChild className="rounded-xl">
+            <Link href="/dashboard/planos">Ver planos</Link>
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

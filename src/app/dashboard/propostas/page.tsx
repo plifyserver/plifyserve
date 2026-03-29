@@ -14,6 +14,8 @@ import { toast } from 'sonner'
 import { TemplateSelector, type TemplateType } from '@/components/proposals/TemplateSelector'
 import { AcceptedPlanCallout } from '@/components/proposals/AcceptedPlanCallout'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
+import { PlanQuotaInline, usePlanQuotaFull } from '@/components/billing/PlanQuotaInline'
+import { useBilling } from '@/hooks/useBilling'
 
 function getProposalPublicUrl(proposal: Proposal): string {
   const slug = proposal.public_slug || proposal.slug
@@ -30,6 +32,9 @@ function WhatsAppIcon({ className }: { className?: string }) {
 
 export default function PropostasPage() {
   const router = useRouter()
+  const { refetch: refetchBilling } = useBilling()
+  const proposalsMonthFull = usePlanQuotaFull('proposalsThisMonth')
+
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [acceptedProposals, setAcceptedProposals] = useState<Proposal[]>([])
   const [activeTab, setActiveTab] = useState<'all' | 'accepted'>('all')
@@ -64,6 +69,11 @@ export default function PropostasPage() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!loading) void refetchBilling()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- atualizar quotas quando a lista mudar
+  }, [loading, proposals.length, acceptedProposals.length])
 
   useEffect(() => {
     router.prefetch('/dashboard/propostas/nova')
@@ -187,6 +197,7 @@ export default function PropostasPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Propostas</h1>
           <p className="text-sm text-slate-500 mt-0.5">Gerencie suas propostas: edite, duplique ou exclua</p>
+          <PlanQuotaInline kind="proposalsThisMonth" className="mt-2" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 sm:flex-initial sm:w-56">
@@ -201,6 +212,8 @@ export default function PropostasPage() {
           <Button 
             size="default" 
             className="h-9 rounded-lg gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+            disabled={proposalsMonthFull}
+            title={proposalsMonthFull ? 'Limite de 5 propostas por mês no Essential. Upgrade no Pro.' : undefined}
             onClick={() => setTemplateModalOpen(true)}
           >
             <Plus className="w-4 h-4" />
@@ -257,6 +270,8 @@ export default function PropostasPage() {
                   <Button 
                     variant="default" 
                     className="rounded-lg gap-2 bg-indigo-600 hover:bg-indigo-700"
+                    disabled={proposalsMonthFull}
+                    title={proposalsMonthFull ? 'Limite mensal do Essential atingido.' : undefined}
                     onClick={() => setTemplateModalOpen(true)}
                   >
                     <Plus className="w-4 h-4" />

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { ESSENTIAL_MONTHLY_CONTRACTS, hasUnlimitedQuotas, startOfUtcMonth } from '@/lib/plan-entitlements'
+import { getEffectivePlanForUser } from '@/lib/server/get-effective-plan'
 
 export async function GET() {
   const userId = await getCurrentUserId()
@@ -20,6 +22,29 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
   const body = await request.json()
   const supabase = await createClient()
+
+  const plan = await getEffectivePlanForUser(supabase, userId)
+  if (!hasUnlimitedQuotas(plan)) {
+    const monthStart = startOfUtcMonth().toISOString()
+    const { count, error: cErr } = await supabase
+      .from('contracts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', monthStart)
+    if (cErr) {
+      return NextResponse.json({ error: cErr.message }, { status: 500 })
+    }
+    if ((count ?? 0) >= ESSENTIAL_MONTHLY_CONTRACTS) {
+      return NextResponse.json(
+        {
+          error: 'MONTHLY_CONTRACT_LIMIT',
+          message: `No Essential você pode criar até ${ESSENTIAL_MONTHLY_CONTRACTS} contratos por mês. Upgrade para o Pro para contratos ilimitados.`,
+        },
+        { status: 403 }
+      )
+    }
+  }
+
   const { data, error } = await supabase
     .from('contracts')
     .insert({

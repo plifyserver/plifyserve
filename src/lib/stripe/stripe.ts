@@ -1,124 +1,131 @@
-/**
- * Stripe Integration - Preparação para integração futura
- * 
- * Este arquivo contém a estrutura base para integração com Stripe.
- * A implementação real será feita quando o Stripe for ativado.
- */
+import Stripe from 'stripe'
+import { PLANS, type PlanType } from '@/services/billing'
+import { PIX_ACCESS_MONTHS } from '@/lib/stripe/pix-access-months'
 
-// TODO: Adicionar Stripe SDK quando for implementar
-// import Stripe from 'stripe'
+export { PIX_ACCESS_MONTHS }
 
-export interface StripeConfig {
-  secretKey: string
-  publishableKey: string
-  webhookSecret: string
+let stripeSingleton: Stripe | null = null
+
+export function getStripe(): Stripe {
+  if (!stripeSingleton) {
+    const key = process.env.STRIPE_SECRET_KEY
+    if (!key) {
+      throw new Error('STRIPE_SECRET_KEY não configurada')
+    }
+    stripeSingleton = new Stripe(key)
+  }
+  return stripeSingleton
 }
 
-export interface CreateCheckoutSessionParams {
+export type CheckoutPlan = Exclude<PlanType, 'admin'>
+export type CheckoutPaymentKind = 'pix' | 'card'
+
+export interface CreatePlifyCheckoutParams {
   userId: string
-  priceId: string
+  email: string
+  customerId: string | null
+  plan: CheckoutPlan
+  paymentKind: CheckoutPaymentKind
   successUrl: string
   cancelUrl: string
-  customerEmail?: string
 }
 
-export interface CheckoutSession {
-  id: string
-  url: string
-  customerId: string
+export interface PlifyCheckoutResult {
+  sessionId: string
+  url: string | null
 }
 
-export interface StripeCustomer {
-  id: string
-  email: string
-  name?: string
+function monthlyPriceId(plan: CheckoutPlan): string | null {
+  if (plan === 'essential') {
+    return process.env.STRIPE_PRICE_ESSENTIAL_MONTHLY?.trim() || null
+  }
+  return process.env.STRIPE_PRICE_PRO_MONTHLY?.trim() || null
 }
 
-export interface StripeSubscription {
-  id: string
-  status: string
-  currentPeriodEnd: Date
-  cancelAtPeriodEnd: boolean
+function pixPriceId(plan: CheckoutPlan): string | null {
+  if (plan === 'essential') {
+    return process.env.STRIPE_PRICE_ESSENTIAL_PIX?.trim() || null
+  }
+  return process.env.STRIPE_PRICE_PRO_PIX?.trim() || null
 }
 
-// TODO: Implementar quando ativar Stripe
-export async function createCheckoutSession(
-  _params: CreateCheckoutSessionParams
-): Promise<CheckoutSession | null> {
-  console.log('[Stripe] createCheckoutSession - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-  // const session = await stripe.checkout.sessions.create({
-  //   customer_email: params.customerEmail,
-  //   line_items: [{ price: params.priceId, quantity: 1 }],
-  //   mode: 'subscription',
-  //   success_url: params.successUrl,
-  //   cancel_url: params.cancelUrl,
-  //   metadata: { userId: params.userId },
-  // })
-  
-  return null
-}
+export async function createPlifyCheckoutSession(
+  params: CreatePlifyCheckoutParams
+): Promise<PlifyCheckoutResult> {
+  const stripe = getStripe()
+  const meta = {
+    supabase_user_id: params.userId,
+    plan_type: params.plan,
+    billing_kind: params.paymentKind,
+  } as const
 
-// TODO: Implementar quando ativar Stripe
-export async function createCustomer(
-  _email: string,
-  _name?: string
-): Promise<StripeCustomer | null> {
-  console.log('[Stripe] createCustomer - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-  // const customer = await stripe.customers.create({ email, name })
-  
-  return null
-}
+  const baseSession: Stripe.Checkout.SessionCreateParams = {
+    locale: 'pt-BR',
+    client_reference_id: params.userId,
+    metadata: { ...meta },
+    success_url: params.successUrl,
+    cancel_url: params.cancelUrl,
+  }
 
-// TODO: Implementar quando ativar Stripe
-export async function getSubscription(
-  _subscriptionId: string
-): Promise<StripeSubscription | null> {
-  console.log('[Stripe] getSubscription - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-  // const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-  
-  return null
-}
+  if (params.customerId) {
+    baseSession.customer = params.customerId
+  } else {
+    baseSession.customer_email = params.email
+  }
 
-// TODO: Implementar quando ativar Stripe
-export async function cancelSubscription(
-  _subscriptionId: string
-): Promise<boolean> {
-  console.log('[Stripe] cancelSubscription - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-  // await stripe.subscriptions.cancel(subscriptionId)
-  
-  return false
-}
+  if (params.paymentKind === 'card') {
+    const price = monthlyPriceId(params.plan)
+    if (!price) {
+      throw new Error(
+        'Defina STRIPE_PRICE_ESSENTIAL_MONTHLY e STRIPE_PRICE_PRO_MONTHLY no ambiente (preços mensais no Stripe).'
+      )
+    }
+    const session = await stripe.checkout.sessions.create({
+      ...baseSession,
+      mode: 'subscription',
+      line_items: [{ price, quantity: 1 }],
+      subscription_data: {
+        metadata: {
+          supabase_user_id: params.userId,
+          plan_type: params.plan,
+        },
+      },
+    })
+    return { sessionId: session.id, url: session.url }
+  }
 
-// TODO: Implementar quando ativar Stripe
-export async function createBillingPortalSession(
-  _customerId: string,
-  _returnUrl: string
-): Promise<string | null> {
-  console.log('[Stripe] createBillingPortalSession - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-  // const session = await stripe.billingPortal.sessions.create({
-  //   customer: customerId,
-  //   return_url: returnUrl,
-  // })
-  
-  return null
-}
+  const planDef = PLANS[params.plan]
+  const pixCents = Math.round(planDef.price * PIX_ACCESS_MONTHS * 100)
+  const existingPix = pixPriceId(params.plan)
 
-export const STRIPE_PRICE_IDS = {
-  PRO_MONTHLY: process.env.STRIPE_PRICE_PRO_MONTHLY || 'price_pro_monthly',
-  PRO_YEARLY: process.env.STRIPE_PRICE_PRO_YEARLY || 'price_pro_yearly',
-} as const
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = existingPix
+    ? [{ price: existingPix, quantity: 1 }]
+    : [
+        {
+          price_data: {
+            currency: 'brl',
+            unit_amount: pixCents,
+            product_data: {
+              name:
+                PIX_ACCESS_MONTHS === 1
+                  ? `Plify ${planDef.name} — PIX (1 mês)`
+                  : `Plify ${planDef.name} — PIX (${PIX_ACCESS_MONTHS} meses)`,
+              description:
+                PIX_ACCESS_MONTHS === 1
+                  ? 'Pagamento único via PIX — 1 mês de acesso'
+                  : `Pagamento único via PIX — ${PIX_ACCESS_MONTHS} meses de acesso`,
+            },
+          },
+          quantity: 1,
+        },
+      ]
+
+  const session = await stripe.checkout.sessions.create({
+    ...baseSession,
+    mode: 'payment',
+    line_items: lineItems,
+    payment_method_types: ['pix'],
+  })
+
+  return { sessionId: session.id, url: session.url }
+}

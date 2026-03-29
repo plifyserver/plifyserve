@@ -82,14 +82,18 @@ const DialogContent = React.forwardRef<
       <div
         ref={ref}
         role="dialog"
-        className={`fixed left-1/2 top-1/2 z-50 flex w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-4 border border-slate-200 bg-white p-6 shadow-lg sm:rounded-lg ${className}`}
+        className={`fixed left-1/2 top-1/2 z-[200] flex w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-4 border p-6 shadow-lg sm:rounded-lg ${
+          className?.trim()
+            ? className
+            : 'border-slate-200 bg-white text-slate-900'
+        }`}
         onClick={(e) => e.stopPropagation()}
         {...props}
       >
         {children}
         <button
           type="button"
-          className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100"
+          className="absolute right-4 top-4 rounded-sm text-[1.25rem] leading-none opacity-80 hover:opacity-100 text-inherit"
           onClick={() => ctx.onOpenChange(false)}
           aria-label="Fechar"
         >
@@ -113,7 +117,11 @@ const DialogTitle = React.forwardRef<
   HTMLHeadingElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className = '', ...props }, ref) => (
-  <h2 ref={ref} className={`text-lg font-semibold leading-none tracking-tight ${className}`} {...props} />
+  <h2
+    ref={ref}
+    className={`text-lg font-semibold leading-none tracking-tight text-inherit ${className}`}
+    {...props}
+  />
 ))
 DialogTitle.displayName = 'DialogTitle'
 

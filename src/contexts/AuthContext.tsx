@@ -3,6 +3,10 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
+import {
+  effectiveCustomTemplateLimit,
+  resolveEffectivePlan,
+} from '@/lib/plan-entitlements'
 
 export type AccountType = 'admin' | 'socio' | 'usuario'
 export type PlanType = 'free' | 'essential' | 'pro' | 'admin'
@@ -22,6 +26,7 @@ export interface Profile {
   stripe_subscription_id: string | null
   edits_remaining: number
   templates_count: number
+  templates_limit?: number | null
   created_at: string
   updated_at: string
   is_pro?: boolean
@@ -60,7 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ...data,
       account_type: data.account_type || 'usuario',
       templates_count: data.templates_count || 0,
-      is_pro: data.plan === 'pro',
+      is_pro:
+        data.plan === 'pro' ||
+        data.plan_type === 'pro' ||
+        data.account_type === 'admin',
       is_socio: data.account_type === 'socio' || data.account_type === 'admin',
       is_admin: data.account_type === 'admin',
     } as Profile
@@ -119,7 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ...data,
           account_type: data.account_type || 'usuario',
           templates_count: data.templates_count || 0,
-          is_pro: data.plan === 'pro',
+          is_pro:
+            data.plan === 'pro' ||
+            data.plan_type === 'pro' ||
+            data.account_type === 'admin',
           is_socio: data.account_type === 'socio' || data.account_type === 'admin',
           is_admin: data.account_type === 'admin',
         } as Profile
@@ -164,9 +175,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getTemplateLimit = (): number | null => {
     if (!profile) return 0
-    if (profile.plan === 'pro' || profile.is_admin) return null
-    if (profile.plan === 'essential') return 50
-    return 10
+    const eff = resolveEffectivePlan(profile)
+    if (eff === 'pro' || eff === 'admin') return null
+    return effectiveCustomTemplateLimit(eff, profile.templates_limit)
   }
 
   const canCreateTemplate = (): boolean => {

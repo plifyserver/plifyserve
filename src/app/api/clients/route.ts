@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
 import type { ClientStatus } from '@/types'
+import { ESSENTIAL_MAX_CLIENTS, hasUnlimitedQuotas } from '@/lib/plan-entitlements'
+import { getEffectivePlanForUser } from '@/lib/server/get-effective-plan'
 
 export async function GET(request: NextRequest) {
   const userId = await getCurrentUserId()
@@ -61,6 +63,26 @@ export async function POST(request: NextRequest) {
       : null
 
   const supabase = await createClient()
+  const plan = await getEffectivePlanForUser(supabase, userId)
+  if (!hasUnlimitedQuotas(plan)) {
+    const { count, error: countErr } = await supabase
+      .from('clients')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    if (countErr) {
+      return NextResponse.json({ error: countErr.message }, { status: 500 })
+    }
+    if ((count ?? 0) >= ESSENTIAL_MAX_CLIENTS) {
+      return NextResponse.json(
+        {
+          error: 'CLIENT_LIMIT',
+          message: `O plano Essential permite até ${ESSENTIAL_MAX_CLIENTS} clientes. Faça upgrade para o Pro para clientes ilimitados.`,
+        },
+        { status: 403 }
+      )
+    }
+  }
+
   const { data, error } = await supabase
     .from('clients')
     .insert({

@@ -3,6 +3,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { PLANS, type PlanType } from '@/services/billing'
 
+export interface PlanQuotasPayload {
+  clients: { used: number; limit: number }
+  proposalsThisMonth: { used: number; limit: number }
+  contractsThisMonth: { used: number; limit: number }
+  mindMaps: { used: number; limit: number }
+  kanbanBoards: { used: number; limit: number }
+}
+
 interface UsageData {
   planType: PlanType
   planStatus: string
@@ -11,9 +19,14 @@ interface UsageData {
   remaining: number | null
   usagePercentage: number
   isUnlimited: boolean
+  /** Contagens vs limites do Essential; ausente no Pro/Admin. */
+  quotas?: PlanQuotasPayload
   subscriptionId: string | null
   planStartedAt: string | null
   planExpiresAt: string | null
+  /** Acesso ao painel (assinatura ou período pago ativo). */
+  hasActivePaidAccess?: boolean
+  accountType?: string | null
 }
 
 interface CheckLimitData {
@@ -45,7 +58,7 @@ export function useBilling() {
   const usageQuery = useQuery({
     queryKey: BILLING_USAGE_KEY,
     queryFn: fetchUsage,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 2,
   })
 
   const limitQuery = useQuery({
@@ -68,7 +81,7 @@ export function useBilling() {
     canCreateTemplate: limit?.canCreate ?? true,
     isUnlimited: usage?.isUnlimited ?? false,
     templatesUsed: usage?.templatesUsed ?? 0,
-    templatesLimit: usage?.templatesLimit ?? 50,
+    templatesLimit: usage?.templatesLimit ?? 10,
     usagePercentage: usage?.usagePercentage ?? 0,
     remaining: usage?.remaining ?? null,
     refetch: () => {

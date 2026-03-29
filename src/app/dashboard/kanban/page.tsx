@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { ESSENTIAL_MAX_KANBAN_BOARDS, hasUnlimitedQuotas, resolveEffectivePlan } from '@/lib/plan-entitlements'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { GripVertical, Settings, Plus, ArrowLeft, LayoutGrid, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -16,8 +18,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from 'sonner'
+import { PlanQuotaInline } from '@/components/billing/PlanQuotaInline'
+import { useBilling } from '@/hooks/useBilling'
 
-const MAX_BOARDS = 5
 const MAX_STAGES = 15
 
 interface KanbanBoard {
@@ -45,6 +48,11 @@ interface KanbanCard {
 }
 
 export default function KanbanPage() {
+  const { profile } = useAuth()
+  const { refetch: refetchBilling } = useBilling()
+  const plan = resolveEffectivePlan(profile)
+  const MAX_BOARDS = hasUnlimitedQuotas(plan) ? Number.MAX_SAFE_INTEGER : ESSENTIAL_MAX_KANBAN_BOARDS
+
   const [boards, setBoards] = useState<KanbanBoard[]>([])
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null)
   const [stages, setStages] = useState<KanbanStage[]>([])
@@ -101,6 +109,7 @@ export default function KanbanPage() {
       })
       if (res.ok) {
         await fetchBoards()
+        void refetchBilling()
         if (selectedBoard?.id === editingBoard.id) setSelectedBoard((prev) => (prev ? { ...prev, name } : null))
         setBoardDialogOpen(false)
         toast.success('Kanban atualizado.')
@@ -110,7 +119,11 @@ export default function KanbanPage() {
       }
     } else {
       if (boards.length >= MAX_BOARDS) {
-        toast.error(`Você pode criar no máximo ${MAX_BOARDS} Kanbans.`)
+        toast.error(
+          hasUnlimitedQuotas(plan)
+            ? 'Não foi possível criar o Kanban.'
+            : `No Essential você pode criar até ${ESSENTIAL_MAX_KANBAN_BOARDS} Kanbans. Faça upgrade para o Pro para ilimitado.`
+        )
         return
       }
       const res = await fetch('/api/kanban/boards', {
@@ -121,6 +134,7 @@ export default function KanbanPage() {
       })
       if (res.ok) {
         await fetchBoards()
+        void refetchBilling()
         setBoardDialogOpen(false)
         toast.success('Kanban criado.')
       } else {
@@ -134,6 +148,7 @@ export default function KanbanPage() {
     const res = await fetch(`/api/kanban/boards/${id}`, { method: 'DELETE', credentials: 'include' })
     if (res.ok) {
       await fetchBoards()
+      void refetchBilling()
       if (selectedBoard?.id === id) setSelectedBoard(null)
       toast.success('Kanban excluído.')
     }
@@ -479,16 +494,17 @@ export default function KanbanPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Kanban</h1>
           <p className="text-slate-500">Crie seus Kanbans e organize tarefas em etapas. Duplo-clique para abrir.</p>
+          <PlanQuotaInline kind="kanbanBoards" className="mt-2" />
         </div>
         <Button
           onClick={() => openBoardDialog(null)}
           variant="outline"
           className="rounded-xl gap-2"
-          disabled={boards.length >= MAX_BOARDS}
+          disabled={!hasUnlimitedQuotas(plan) && boards.length >= MAX_BOARDS}
         >
           <Plus className="w-4 h-4" />
           Novo Kanban
-          {boards.length >= MAX_BOARDS && ` (máx. ${MAX_BOARDS})`}
+          {!hasUnlimitedQuotas(plan) && boards.length >= MAX_BOARDS && ` (máx. ${ESSENTIAL_MAX_KANBAN_BOARDS})`}
         </Button>
       </div>
 
@@ -497,7 +513,9 @@ export default function KanbanPage() {
           <LayoutGrid className="w-14 h-14 text-slate-300 mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-slate-700 mb-2">Nenhum Kanban ainda</h2>
           <p className="text-slate-500 mb-6 max-w-sm mx-auto">
-            Crie seu primeiro Kanban (você pode ter até {MAX_BOARDS}). Depois, dê dois cliques para abrir e criar etapas e cards.
+            {hasUnlimitedQuotas(plan)
+              ? 'Crie seu primeiro Kanban. Depois, dê dois cliques para abrir e criar etapas e cards.'
+              : `Crie seu primeiro Kanban (até ${ESSENTIAL_MAX_KANBAN_BOARDS} no Essential). Depois, dê dois cliques para abrir e criar etapas e cards.`}
           </p>
           <Button onClick={() => openBoardDialog(null)} className="rounded-xl gap-2">
             <Plus className="w-4 h-4" />

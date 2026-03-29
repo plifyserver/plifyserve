@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 
 type DropdownContextValue = {
   open: boolean
@@ -59,13 +60,7 @@ const DropdownMenuTrigger = React.forwardRef<
   }
 
   return (
-    <button
-      ref={setRef}
-      type="button"
-      className={className}
-      onClick={handleClick}
-      {...props}
-    >
+    <button ref={setRef} type="button" className={className} onClick={handleClick} {...props}>
       {children}
     </button>
   )
@@ -81,6 +76,51 @@ const DropdownMenuContent = React.forwardRef<
 >(({ className = '', align = 'end', children, ...props }, ref) => {
   const ctx = React.useContext(DropdownContext)
   const contentRef = React.useRef<HTMLDivElement | null>(null)
+  const [mounted, setMounted] = React.useState(false)
+  const [pos, setPos] = React.useState({ top: 0, left: 0, right: 0, width: 0 })
+
+  React.useEffect(() => setMounted(true), [])
+
+  const updatePosition = React.useCallback(() => {
+    if (!ctx?.triggerRef.current) return
+    const rect = ctx.triggerRef.current.getBoundingClientRect()
+    const gap = 4
+    if (align === 'end') {
+      setPos({
+        top: rect.bottom + gap,
+        left: 0,
+        right: typeof window !== 'undefined' ? window.innerWidth - rect.right : 0,
+        width: 0,
+      })
+    } else if (align === 'start') {
+      setPos({
+        top: rect.bottom + gap,
+        left: rect.left,
+        right: 0,
+        width: 0,
+      })
+    } else {
+      setPos({
+        top: rect.bottom + gap,
+        left: rect.left + rect.width / 2,
+        right: 0,
+        width: 0,
+      })
+    }
+  }, [ctx?.triggerRef, align])
+
+  React.useLayoutEffect(() => {
+    if (!ctx?.open) return
+    updatePosition()
+    const onScroll = () => updatePosition()
+    const onResize = () => updatePosition()
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [ctx?.open, updatePosition])
 
   React.useEffect(() => {
     const fn = (e: MouseEvent) => {
@@ -103,9 +143,16 @@ const DropdownMenuContent = React.forwardRef<
     }
   }, [ctx?.open])
 
-  if (!ctx || !ctx.open) return null
+  if (!ctx || !ctx.open || !mounted) return null
 
-  return (
+  const style: React.CSSProperties =
+    align === 'end'
+      ? { position: 'fixed', top: pos.top, right: pos.right, zIndex: 10000 }
+      : align === 'start'
+        ? { position: 'fixed', top: pos.top, left: pos.left, zIndex: 10000 }
+        : { position: 'fixed', top: pos.top, left: pos.left, zIndex: 10000, transform: 'translateX(-50%)' }
+
+  const menu = (
     <div
       ref={(r) => {
         contentRef.current = r
@@ -116,18 +163,15 @@ const DropdownMenuContent = React.forwardRef<
           ;(ref as React.MutableRefObject<HTMLDivElement | null>).current = r
         }
       }}
-      className={`absolute z-50 min-w-[8rem] overflow-hidden rounded-md border border-slate-200 bg-white p-1 shadow-md ${
-        align === 'end'
-          ? 'right-0'
-          : align === 'start'
-          ? 'left-0'
-          : 'left-1/2 -translate-x-1/2'
-      } mt-1 ${className}`}
+      style={style}
+      className={`min-w-[10rem] overflow-hidden rounded-md border border-slate-200 bg-white p-1 text-slate-900 shadow-lg ${className}`}
       {...props}
     >
       {children}
     </div>
   )
+
+  return createPortal(menu, document.body)
 })
 
 DropdownMenuContent.displayName = 'DropdownMenuContent'
@@ -142,7 +186,7 @@ const DropdownMenuItem = React.forwardRef<
     <div
       ref={ref}
       role="menuitem"
-      className={`relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-slate-100 focus:bg-slate-100 ${className}`}
+      className={`relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm text-inherit outline-none hover:bg-slate-100 focus:bg-slate-100 ${className}`}
       onClick={(e) => {
         onClick?.(e)
         ctx?.setOpen(false)

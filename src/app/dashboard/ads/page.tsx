@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Plus, Megaphone, DollarSign, Users, Target, MoreHorizontal, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -25,6 +26,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from 'sonner'
 import MetricsCard from '@/components/ads/MetricsCard'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
+import { useAuth } from '@/contexts/AuthContext'
 
 const PLATFORMS = [
   { value: 'meta', label: 'Meta' },
@@ -52,6 +54,9 @@ interface AdCampaign {
 }
 
 export default function AdsPage() {
+  const { profile, loading: authLoading } = useAuth()
+  const canUseAds = !!(profile?.is_pro || profile?.is_admin)
+
   const [campaigns, setCampaigns] = useState<AdCampaign[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -78,8 +83,12 @@ export default function AdsPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !canUseAds) {
+      setLoading(false)
+      return
+    }
     fetchCampaigns().finally(() => setLoading(false))
-  }, [])
+  }, [authLoading, canUseAds])
 
   const totalInvestment = campaigns.reduce((s, c) => s + (Number(c.investment) || 0), 0)
   const totalLeads = campaigns.reduce((s, c) => s + (Number(c.leads) || 0), 0)
@@ -159,6 +168,31 @@ export default function AdsPage() {
       toast.error('Não foi possível excluir a campanha.')
       return false
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className={`flex min-h-[240px] items-center justify-center ${SITE_CONTAINER_LG}`}>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+      </div>
+    )
+  }
+
+  if (!canUseAds) {
+    return (
+      <div className={SITE_CONTAINER_LG}>
+        <div className={`${DASH_SURFACE_CARD} p-8 text-center max-w-lg mx-auto`}>
+          <Megaphone className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-slate-900 mb-2">Gestão de Ads</h1>
+          <p className="text-slate-600 text-sm mb-6">
+            O módulo de anúncios e tráfego pago está disponível no plano <strong>Pro</strong>.
+          </p>
+          <Button asChild className="rounded-xl">
+            <Link href="/dashboard/planos">Ver planos e fazer upgrade</Link>
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

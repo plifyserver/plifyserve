@@ -5,6 +5,8 @@ import { Plus, Search, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-reac
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
+import { PlanQuotaInline, usePlanQuotaFull } from '@/components/billing/PlanQuotaInline'
+import { useBilling } from '@/hooks/useBilling'
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   active: { label: 'Ativo', color: 'bg-emerald-100 text-emerald-700' },
@@ -31,6 +33,9 @@ interface Client {
 }
 
 export default function ClientesPage() {
+  const { refetch: refetchBilling } = useBilling()
+  const clientsQuotaFull = usePlanQuotaFull('clients')
+
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -134,6 +139,7 @@ export default function ClientesPage() {
       })
       if (res.ok) {
         await fetchClients()
+        void refetchBilling()
         closeDialog()
       }
     } finally {
@@ -158,6 +164,7 @@ export default function ClientesPage() {
       const res = await fetch(`/api/clients/${clientToDelete.id}`, { method: 'DELETE', credentials: 'include' })
       if (res.ok) {
         await fetchClients()
+        void refetchBilling()
         closeDeleteDialog()
         if (selected?.id === clientToDelete.id) closeDialog()
       }
@@ -192,10 +199,12 @@ export default function ClientesPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Clientes</h1>
           <p className="text-slate-500">Gerencie sua base de clientes</p>
+          <PlanQuotaInline kind="clients" className="mt-2" />
         </div>
         <button
           onClick={() => openDialog(null)}
-          disabled={saving}
+          disabled={saving || clientsQuotaFull}
+          title={clientsQuotaFull ? 'Limite de 20 clientes no plano Essential. Faça upgrade para o Pro.' : undefined}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ backgroundColor: 'var(--primary-color, #3B82F6)' }}
         >

@@ -25,7 +25,7 @@ export async function GET() {
   const templatesCount = profile.templates_count || 0
 
   const isUnlimited = planType === 'pro' || planType === 'admin' || templatesLimit === null
-  const canCreate = isUnlimited || templatesCount < (templatesLimit || 50)
+  const canCreate = isUnlimited || templatesCount < (templatesLimit ?? 10)
 
   return NextResponse.json({
     canCreate,

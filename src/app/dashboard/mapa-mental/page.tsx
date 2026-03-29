@@ -19,6 +19,8 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useAuth } from '@/contexts/AuthContext'
+import { useBilling } from '@/hooks/useBilling'
+import { PlanQuotaInline } from '@/components/billing/PlanQuotaInline'
 import { Plus, Save, Loader2, FileDown, Trash2, Palette, Type, FileStack, Pencil, Check, X, Menu } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -494,6 +496,7 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onCon
 type HistoryItem = { id: string; name: string; updated_at: string }
 
 function MindMapEditor() {
+  const { refetch: refetchBilling } = useBilling()
   const { user } = useAuth()
   const containerRef = useRef<HTMLDivElement>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
@@ -747,6 +750,7 @@ function MindMapEditor() {
         })
       }
       await fetchHistory()
+      void refetchBilling()
       showToast('Mapa salvo')
     } catch (err) {
       clearTimeout(timeoutId)
@@ -761,7 +765,7 @@ function MindMapEditor() {
     } finally {
       setSaving(false)
     }
-  }, [user, currentMapId, currentMapName, nodes, edges, fetchHistory])
+  }, [user, currentMapId, currentMapName, nodes, edges, fetchHistory, refetchBilling])
 
   const startNewMap = useCallback(() => {
     setCurrentMapId(null)
@@ -835,11 +839,12 @@ function MindMapEditor() {
         startNewMap()
       }
       await fetchHistory()
+      void refetchBilling()
       showToast('Mapa excluído')
     } catch {
       showToast('Erro ao excluir mapa')
     }
-  }, [currentMapId, startNewMap, fetchHistory])
+  }, [currentMapId, startNewMap, fetchHistory, refetchBilling])
 
   const exportPdf = useCallback(async () => {
     if (!containerRef.current) return
@@ -1202,6 +1207,7 @@ export default function MapaMentalPage() {
       <p className="text-gray-500 mb-6">
         Duplo clique no nó = editar. Clique e arraste = mover. Arraste o cantinho verde = redimensionar. Pontos verdes = ligar nós. No histórico, um clique abre o mapa; lápis renomeia (Enter salva, Esc cancela).
       </p>
+      <PlanQuotaInline kind="mindMaps" className="mb-4" />
       <ReactFlowProvider>
         <MindMapEditor />
       </ReactFlowProvider>

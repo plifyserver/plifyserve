@@ -28,6 +28,8 @@ import ContractUploader from '@/components/contracts/ContractUploader'
 import { generateSignedPDF, downloadPDF } from '@/lib/pdf-generator'
 import { useAuth } from '@/contexts/AuthContext'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
+import { PlanQuotaInline, usePlanQuotaFull } from '@/components/billing/PlanQuotaInline'
+import { useBilling } from '@/hooks/useBilling'
 import { toSafeExternalUrl } from '@/lib/urlSafety'
 import { toast } from 'sonner'
 
@@ -84,6 +86,9 @@ function isContractFinalizado(c: Contract): boolean {
 
 export default function DocumentosPage() {
   const { user } = useAuth()
+  const { refetch: refetchBilling } = useBilling()
+  const contractsMonthFull = usePlanQuotaFull('contractsThisMonth')
+
   const [contracts, setContracts] = useState<Contract[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
@@ -219,6 +224,7 @@ export default function DocumentosPage() {
       })
       if (res.ok) {
         await fetchData()
+        void refetchBilling()
         closeDialog()
         toast.success(selected ? 'Contrato atualizado!' : 'Contrato criado!')
       } else {
@@ -234,6 +240,7 @@ export default function DocumentosPage() {
       const res = await fetch(`/api/contracts/${id}`, { method: 'DELETE', credentials: 'include' })
       if (res.ok) {
         await fetchData()
+        void refetchBilling()
         setDeleteContractId(null)
         if (viewContract?.id === id) {
           setViewContractOpen(false)
@@ -497,8 +504,14 @@ export default function DocumentosPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Documentos</h1>
           <p className="text-slate-500">Gerencie contratos e assinaturas digitais.</p>
+          <PlanQuotaInline kind="contractsThisMonth" className="mt-2" />
         </div>
-        <Button onClick={() => openDialog(null)} className="rounded-xl bg-blue-600 hover:bg-blue-700 shrink-0">
+        <Button
+          onClick={() => openDialog(null)}
+          disabled={contractsMonthFull}
+          title={contractsMonthFull ? 'Limite de 5 contratos por mês no Essential.' : undefined}
+          className="rounded-xl bg-blue-600 hover:bg-blue-700 shrink-0"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Criar documento
         </Button>

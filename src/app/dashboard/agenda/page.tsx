@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay, startOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns'
@@ -52,7 +53,8 @@ type EventItem = {
 type ViewType = 'month' | 'week' | 'day' | 'agenda'
 
 export default function AgendaPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const canAgendaIntegrations = !!(profile?.is_pro || profile?.is_admin)
   const [events, setEvents] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
@@ -559,29 +561,53 @@ export default function AgendaPage() {
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            <p className="text-sm text-slate-600 mb-6">
-              Conecte seu calendário ao Google Calendar, Outlook ou outras ferramentas para sincronizar seus eventos automaticamente.
-            </p>
-            <div className="space-y-3 mb-6">
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                  <CalendarIcon className="w-5 h-5 text-blue-500" />
+            {!canAgendaIntegrations ? (
+              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                <p>
+                  Integrações com Google Calendar e outras ferramentas fazem parte do plano <strong>Pro</strong>. No
+                  Essential a agenda funciona normalmente dentro do Plify.
+                </p>
+                <Link
+                  href="/dashboard/planos"
+                  className="mt-3 inline-block font-semibold text-indigo-700 hover:underline"
+                >
+                  Ver planos
+                </Link>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-slate-600 mb-6">
+                  Conecte seu calendário ao Google Calendar, Outlook ou outras ferramentas para sincronizar seus eventos
+                  automaticamente.
+                </p>
+                <div className="space-y-3 mb-6">
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                      <CalendarIcon className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-slate-900 text-sm">Google Calendar</p>
+                      <p className="text-xs text-slate-500">Em breve</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                      <CalendarIcon className="w-5 h-5 text-sky-500" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-slate-900 text-sm">Outlook</p>
+                      <p className="text-xs text-slate-500">Em breve</p>
+                    </div>
+                  </button>
                 </div>
-                <div className="text-left">
-                  <p className="font-medium text-slate-900 text-sm">Google Calendar</p>
-                  <p className="text-xs text-slate-500">Em breve</p>
-                </div>
-              </button>
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                  <CalendarIcon className="w-5 h-5 text-sky-500" />
-                </div>
-                <div className="text-left">
-                  <p className="font-medium text-slate-900 text-sm">Outlook</p>
-                  <p className="text-xs text-slate-500">Em breve</p>
-                </div>
-              </button>
-            </div>
+              </>
+            )}
             <Button variant="outline" className="w-full rounded-xl" onClick={() => setShowIntegrations(false)}>
               Fechar
             </Button>

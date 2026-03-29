@@ -30,6 +30,7 @@ import {
   Moon,
   Sun,
   Calculator,
+  Shield,
 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
@@ -100,7 +101,13 @@ export default function DashboardLayout({
     setSupportMessage('')
   }, [supportName, supportMessage])
 
-  const isPro = profile?.plan === 'pro' || profile?.plan_type === 'pro' || profile?.account_type === 'admin'
+  const isPro = !!(profile?.is_pro || profile?.account_type === 'admin')
+  const navItemsFiltered = navItems.filter((item) => {
+    if (item.href === '/dashboard/ads' || item.href === '/dashboard/personalizacao') {
+      return isPro
+    }
+    return true
+  })
 
   useEffect(() => {
     const closeDropdowns = (e: MouseEvent) => {
@@ -207,7 +214,7 @@ export default function DashboardLayout({
           </button>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
+          {navItemsFiltered.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -225,6 +232,26 @@ export default function DashboardLayout({
               {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
             </Link>
           ))}
+          {profile?.account_type === 'admin' && (
+            <>
+              <div className="my-2 border-t border-white/10" aria-hidden />
+              <Link
+                href="/admin"
+                prefetch
+                onMouseEnter={() => router.prefetch('/admin')}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  pathname.startsWith('/admin')
+                    ? 'text-white'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                }`}
+                style={pathname.startsWith('/admin') ? { backgroundColor: accentColor } : undefined}
+                title={sidebarCollapsed ? 'Painel Admin' : undefined}
+              >
+                <Shield className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && <span className="truncate">Painel Admin</span>}
+              </Link>
+            </>
+          )}
         </nav>
         <div className="p-2 border-t border-white/10 flex flex-col gap-0.5">
           {!sidebarCollapsed ? (
@@ -293,7 +320,7 @@ export default function DashboardLayout({
           </button>
         </div>
         <nav className="p-2 space-y-1">
-          {navItems.map((item) => (
+          {navItemsFiltered.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -309,6 +336,24 @@ export default function DashboardLayout({
               {item.label}
             </Link>
           ))}
+          {profile?.account_type === 'admin' && (
+            <>
+              <div className="my-2 border-t border-white/10" aria-hidden />
+              <Link
+                href="/admin"
+                prefetch={false}
+                onMouseEnter={() => router.prefetch('/admin')}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${
+                  pathname.startsWith('/admin') ? 'text-white' : 'text-white/70'
+                }`}
+                style={pathname.startsWith('/admin') ? { backgroundColor: accentColor } : undefined}
+              >
+                <Shield className="w-5 h-5" />
+                Painel Admin
+              </Link>
+            </>
+          )}
         </nav>
         <div className="p-2 space-y-1">
           <button
@@ -474,23 +519,14 @@ export default function DashboardLayout({
                   Cancelar
                 </button>
                 {isPro ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleSupportEmail}
-                      className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                    >
-                      Enviar e-mail
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSupportWhatsApp}
-                      className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-                      style={{ backgroundColor: accentColor }}
-                    >
-                      Enviar WhatsApp
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={handleSupportWhatsApp}
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: accentColor }}
+                  >
+                    Abrir WhatsApp
+                  </button>
                 ) : (
                   <button
                     type="button"

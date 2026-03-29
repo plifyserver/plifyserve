@@ -46,7 +46,7 @@ const SelectTrigger = React.forwardRef<
       ref={ref}
       type="button"
       onClick={() => ctx.setOpen(!ctx.open)}
-      className={`flex h-9 w-full items-center justify-between rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-400 ${className}`}
+      className={`flex h-9 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-400 ${className}`}
       {...props}
     >
       {children}
@@ -78,7 +78,9 @@ const SelectContent = React.forwardRef<
   return (
     <div
       ref={contentRef}
-      className={`absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-slate-200 bg-white p-1 shadow-md ${className}`}
+      className={`absolute z-[250] mt-1 max-h-60 w-full overflow-auto rounded-md border p-1 shadow-md ${
+        className?.trim() ? className : 'border-slate-200 bg-white text-slate-900'
+      }`}
       {...props}
     >
       {children}

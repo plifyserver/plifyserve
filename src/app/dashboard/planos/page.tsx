@@ -1,34 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import Link from 'next/link'
 import { Check, Star, Loader2 } from 'lucide-react'
 import { useBilling } from '@/hooks/useBilling'
 import type { PlanType } from '@/services/billing'
 import { useAuth } from '@/contexts/AuthContext'
-import { profileService } from '@/lib/services/profile'
 import { SITE_CONTAINER_LG } from '@/lib/siteLayout'
-import { toast } from 'sonner'
 
 const COMPARISON_ROWS: { feature: string; essential: string | 'check' | 'dash'; pro: string | 'check' | 'dash' }[] = [
   { feature: 'Preço', essential: 'R$ 49,90 / mês', pro: 'R$ 89,90 / mês' },
   { feature: 'Clientes', essential: 'Até 20', pro: 'Ilimitados' },
   { feature: 'Propostas por mês', essential: '5', pro: 'Ilimitadas' },
-  { feature: 'Templates de propostas', essential: '1 template', pro: '2 templates' },
   { feature: 'Contratos por mês', essential: '5', pro: 'Ilimitados' },
-  { feature: 'Dashboard', essential: 'Dashboard completo', pro: 'Dashboard completo + personalização' },
-  { feature: 'Agenda', essential: 'Básica (sem integrações)', pro: 'Agenda com integrações' },
-  { feature: 'Gestão de Projetos', essential: 'check', pro: 'check' },
-  { feature: 'Gastos Pessoais', essential: 'check', pro: 'check' },
-  { feature: 'Relatórios', essential: 'Relatórios completos', pro: 'Relatórios completos' },
-  { feature: 'Mapa Mental Estratégico', essential: 'Até 5 mapas', pro: 'Ilimitados' },
-  { feature: 'Gestão de Tarefas', essential: 'check', pro: 'check' },
-  { feature: 'Indicadores de Performance', essential: 'dash', pro: 'check' },
-  { feature: 'Gestão de Ads (Tráfego)', essential: 'dash', pro: 'check' },
-  { feature: 'White Label', essential: 'dash', pro: 'Personalização completa' },
-  { feature: 'Integrações avançadas', essential: 'dash', pro: 'check' },
-  { feature: 'Suporte prioritário', essential: 'dash', pro: 'check' },
-  { feature: 'Atualizações antecipadas', essential: 'dash', pro: 'check' },
-  { feature: 'Novas funcionalidades', essential: 'dash', pro: 'Acesso antecipado' },
+  { feature: 'Modelos de template (proposta)', essential: '1 modelo', pro: '3 modelos (4º em desenvolvimento)' },
+  { feature: 'Templates salvos (meus)', essential: 'Até 10', pro: 'Ilimitados' },
+  { feature: 'Dashboard', essential: 'Padrão', pro: 'Personalizável (cores, logo)' },
+  { feature: 'Agenda', essential: 'Uso normal', pro: 'Integrações (ex.: Google)' },
+  { feature: 'Kanban', essential: 'Até 5 quadros', pro: 'Ilimitado' },
+  { feature: 'Gestão de Projetos e tarefas', essential: 'check', pro: 'check' },
+  { feature: 'Gastos pessoais', essential: 'check', pro: 'check' },
+  { feature: 'Calculadora', essential: 'check', pro: 'check' },
+  { feature: 'Chat IA', essential: 'check', pro: 'check' },
+  { feature: 'Mapa mental', essential: 'Até 5 mapas', pro: 'Ilimitados' },
+  { feature: 'Gestão de Ads (tráfego)', essential: 'dash', pro: 'check' },
+  { feature: 'White Label / marca', essential: 'dash', pro: 'check' },
+  { feature: 'Suporte', essential: 'E-mail', pro: 'WhatsApp' },
 ]
 
 function CellContent({ value }: { value: string | 'check' | 'dash' }) {
@@ -42,27 +38,10 @@ function CellContent({ value }: { value: string | 'check' | 'dash' }) {
 }
 
 export default function PlanosPage() {
-  const { usage, isLoading, refetch } = useBilling()
-  const { profile, refreshProfile } = useAuth()
-  const [upgrading, setUpgrading] = useState<string | null>(null)
+  const { usage, isLoading } = useBilling()
+  const { profile } = useAuth()
 
   const currentPlanType: PlanType = (usage?.planType || profile?.plan || 'essential') as PlanType
-  const canUpgrade = currentPlanType === 'essential'
-
-  const handleUpgrade = async () => {
-    if (!canUpgrade) return
-    setUpgrading('pro')
-    try {
-      await profileService.upgradePlan('pro')
-      await refreshProfile()
-      refetch()
-      toast.success('Seu plano foi atualizado para Pro!')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao processar upgrade')
-    } finally {
-      setUpgrading(null)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -97,16 +76,24 @@ export default function PlanosPage() {
               </span>
             )}
           </div>
-          {canUpgrade && (
-            <button
-              onClick={handleUpgrade}
-              disabled={!!upgrading}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-slate-950 text-sm font-semibold hover:bg-white/90 disabled:opacity-50 transition-colors"
-            >
-              {upgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Fazer upgrade para Pro
-            </button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {currentPlanType === 'essential' && (
+              <Link
+                href="/checkout?plan=pro"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-slate-950 text-sm font-semibold hover:bg-white/90 transition-colors"
+              >
+                Upgrade para Pro (checkout / Stripe)
+              </Link>
+            )}
+            {currentPlanType === 'pro' && (
+              <Link
+                href="/checkout?plan=essential"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/25 bg-white/10 text-white text-sm font-semibold hover:bg-white/15 transition-colors"
+              >
+                Mudar para Essential
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Cards separados (estilo mais “arejado”, mantendo fundo preto) */}
@@ -131,10 +118,11 @@ export default function PlanosPage() {
             <div className="mt-5 space-y-3">
               {[
                 'Até 20 clientes',
-                '5 propostas por mês',
-                '1 template de proposta',
-                'Até 5 mapas mentais',
-                'Dashboard completo',
+                '5 propostas e 5 contratos por mês',
+                '1 modelo de template de proposta',
+                'Até 5 Kanbans e 5 mapas mentais',
+                'Agenda, tarefas, gastos, calculadora e Chat IA',
+                'Suporte por e-mail',
               ].map((item) => (
                 <div key={item} className="flex items-start gap-2 text-sm text-white/80">
                   <Check className="w-4 h-4 text-emerald-300 mt-0.5 flex-shrink-0" />
@@ -169,11 +157,12 @@ export default function PlanosPage() {
             </div>
             <div className="mt-5 space-y-3">
               {[
-                'Clientes ilimitados',
-                'Propostas ilimitadas',
-                'White Label',
-                'Integrações avançadas',
-                'Mapas mentais ilimitados',
+                'Clientes, propostas e contratos ilimitados',
+                '3 modelos de template de proposta',
+                'Dashboard personalizável e White Label',
+                'Agenda com integrações e Ads (tráfego)',
+                'Kanban e mapas mentais ilimitados',
+                'Suporte via WhatsApp',
               ].map((item) => (
                 <div key={item} className="flex items-start gap-2 text-sm text-white/80">
                   <Check className="w-4 h-4 text-emerald-300 mt-0.5 flex-shrink-0" />
@@ -181,15 +170,13 @@ export default function PlanosPage() {
                 </div>
               ))}
             </div>
-            {canUpgrade && (
-              <button
-                onClick={handleUpgrade}
-                disabled={!!upgrading}
-                className="mt-6 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-amber-400 text-slate-950 text-sm font-bold hover:bg-amber-300 disabled:opacity-50 transition-colors"
+            {currentPlanType === 'essential' && (
+              <Link
+                href="/checkout?plan=pro"
+                className="mt-6 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-amber-400 text-slate-950 text-sm font-bold hover:bg-amber-300 transition-colors"
               >
-                {upgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Fazer upgrade para Pro
-              </button>
+                Ir para checkout — Pro
+              </Link>
             )}
           </div>
         </div>
@@ -245,13 +232,15 @@ export default function PlanosPage() {
             <div>
               <p className="font-medium text-white/90">Posso mudar de plano a qualquer momento?</p>
               <p className="text-white/70 mt-1">
-                Sim. Você pode fazer upgrade ou downgrade a qualquer momento. As alterações entram em vigor imediatamente.
+                Sim. Com assinatura no cartão, upgrade e downgrade usam ajuste proporcional na fatura (Stripe). Com PIX,
+                você paga o plano escolhido por períodos avulsos.
               </p>
             </div>
             <div>
               <p className="font-medium text-white/90">Como funciona o pagamento?</p>
               <p className="text-white/70 mt-1">
-                Em breve teremos integração com Stripe para pagamentos automáticos. Por enquanto, entre em contato para ativar seu plano.
+                Pagamentos via Stripe: PIX (pagamento único por período) ou cartão (cobrança mensal). Use a página de
+                checkout para contratar ou alterar plano.
               </p>
             </div>
           </div>

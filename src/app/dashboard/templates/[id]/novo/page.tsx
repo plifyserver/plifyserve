@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
@@ -7,6 +8,8 @@ import { TemplateEditor } from '@/components/TemplateEditor'
 import { ArrowLeft } from 'lucide-react'
 import type { TemplateStructure } from '@/types'
 import { toast } from 'sonner'
+import { canUseProposalPreset, getPresetByIdOrSlug } from '@/config/proposal-presets'
+import { resolveEffectivePlan } from '@/lib/plan-entitlements'
 
 const DEFAULT_STRUCTURE: TemplateStructure = {
   companyName: 'Sua Empresa',
@@ -28,6 +31,17 @@ export default function NovoProposalPage() {
   const templateId = params.id as string
   const isPro = profile?.is_pro ?? false
   const editsRemaining = profile?.edits_remaining ?? 8
+
+  useEffect(() => {
+    if (!profile) return
+    const preset = getPresetByIdOrSlug(templateId)
+    if (!preset) return
+    const plan = resolveEffectivePlan(profile)
+    if (!canUseProposalPreset(plan, templateId)) {
+      toast.error('Este modelo não está disponível no seu plano.')
+      router.replace('/dashboard/templates')
+    }
+  }, [profile, templateId, router])
 
   const handleSave = async (
     content: TemplateStructure,

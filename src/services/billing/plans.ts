@@ -17,15 +17,20 @@ export const PLANS: Record<Exclude<PlanType, 'admin'>, Plan> = {
     id: 'essential',
     name: 'Essential',
     description: 'Ideal para começar',
-    templatesLimit: 50,
+    templatesLimit: 10,
     price: 49.9,
     features: [
       '1 usuário',
       'Até 20 clientes',
       '5 propostas e 5 contratos por mês',
-      'Dashboard completo',
-      'Gestão de projetos e tarefas',
-      'Controle financeiro e relatórios',
+      '1 modelo de template de proposta (3 modelos no Pro)',
+      'Dashboard padrão',
+      'Agenda (sem integrações externas)',
+      'Gestão de projetos, tarefas e Kanban (até 5 quadros)',
+      'Até 5 mapas mentais',
+      'Gastos pessoais e calculadora',
+      'Chat IA',
+      'Suporte por e-mail',
     ],
   },
   pro: {
@@ -38,16 +43,20 @@ export const PLANS: Record<Exclude<PlanType, 'admin'>, Plan> = {
       'Até 5 usuários',
       'Clientes ilimitados',
       'Propostas e contratos ilimitados',
-      'Personalização e White Label',
-      'Agenda com integrações',
-      'Ads, indicadores e suporte prioritário',
+      '3 modelos de template de proposta (4º em desenvolvimento)',
+      'Dashboard personalizável (cores, logo, white label)',
+      'Agenda com integrações (ex.: Google)',
+      'Kanban e mapas mentais ilimitados',
+      'Gestão de Ads (tráfego) e métricas avançadas',
+      'Gastos pessoais, calculadora e Chat IA',
+      'Suporte via WhatsApp',
     ],
     popular: true,
   },
 }
 
 export const PLAN_LIMITS = {
-  essential: 50,
+  essential: 10,
   pro: null,
   admin: null,
 } as const
@@ -58,7 +67,7 @@ export function getPlan(planType: PlanType): Plan | null {
 }
 
 export function getPlanLimit(planType: PlanType): number | null {
-  return PLAN_LIMITS[planType] ?? 50
+  return PLAN_LIMITS[planType] ?? 10
 }
 
 export function isPlanUnlimited(planType: PlanType): boolean {

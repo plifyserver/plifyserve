@@ -25,9 +25,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const uid = data.user?.id
+    if (uid) {
+      try {
+        await supabase.rpc('log_activity', {
+          p_user_id: uid,
+          p_action: 'login',
+          p_resource_type: null,
+          p_resource_id: null,
+          p_metadata: {},
+        })
+      } catch {
+        /* log opcional */
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      userId: data.user?.id,
+      userId: uid,
     })
   } catch {
     return NextResponse.json({ error: 'Erro no login' }, { status: 500 })

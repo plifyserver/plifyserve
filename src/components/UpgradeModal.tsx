@@ -139,20 +139,20 @@ export function UpgradeModal({ open, onClose, type = 'plan' }: UpgradeModalProps
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-1">Essential</h3>
             <p className="text-3xl font-bold text-slate-900 mb-4">
-              R$ 29<span className="text-base font-normal text-slate-500">/mês</span>
+              R$ 49,90<span className="text-base font-normal text-slate-500">/mês</span>
             </p>
             <ul className="space-y-2 text-sm text-slate-600">
               <li className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-indigo-600" />
-                Até 50 templates
+                1 modelo de proposta + até 10 templates salvos
               </li>
               <li className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-indigo-600" />
-                Upload de imagens
+                Limites de clientes e propostas/mês (ver planos)
               </li>
               <li className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-indigo-600" />
-                Suporte por email
+                Suporte por e-mail
               </li>
             </ul>
             {selectedPlan === 'essential' && loading && (
@@ -184,20 +184,20 @@ export function UpgradeModal({ open, onClose, type = 'plan' }: UpgradeModalProps
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-1">Pro</h3>
             <p className="text-3xl font-bold text-slate-900 mb-4">
-              R$ 79<span className="text-base font-normal text-slate-500">/mês</span>
+              R$ 89,90<span className="text-base font-normal text-slate-500">/mês</span>
             </p>
             <ul className="space-y-2 text-sm text-slate-600">
               <li className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-purple-600" />
-                Templates ilimitados
+                3 modelos de proposta + templates salvos ilimitados
               </li>
               <li className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-purple-600" />
-                Upload de imagens ilimitado
+                Personalização, Ads e integrações de agenda
               </li>
               <li className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-purple-600" />
-                Suporte prioritário
+                Suporte via WhatsApp
               </li>
               <li className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-purple-600" />

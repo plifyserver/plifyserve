@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { ESSENTIAL_MAX_MIND_MAPS, hasUnlimitedQuotas } from '@/lib/plan-entitlements'
+import { getEffectivePlanForUser } from '@/lib/server/get-effective-plan'
 
 export async function GET(request: NextRequest) {
   const userId = await getCurrentUserId()
@@ -63,6 +65,36 @@ export async function POST(request: NextRequest) {
   const nodes = body.nodes
   const edges = body.edges
   const now = new Date().toISOString()
+
+  if (!body.id) {
+    const plan = await getEffectivePlanForUser(supabase, userId)
+    if (!hasUnlimitedQuotas(plan)) {
+      const { count, error: cErr } = await supabase
+        .from('mind_maps')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+      if (cErr) {
+        return NextResponse.json(
+          {
+            error:
+              cErr.message === 'relation "mind_maps" does not exist'
+                ? 'Tabela mind_maps não existe. Execute a migration 002_agenda_mindmaps no Supabase.'
+                : cErr.message,
+          },
+          { status: 500 }
+        )
+      }
+      if ((count ?? 0) >= ESSENTIAL_MAX_MIND_MAPS) {
+        return NextResponse.json(
+          {
+            error: 'MIND_MAP_LIMIT',
+            message: `No Essential você pode ter até ${ESSENTIAL_MAX_MIND_MAPS} mapas mentais. Upgrade para o Pro para mapas ilimitados.`,
+          },
+          { status: 403 }
+        )
+      }
+    }
+  }
 
   if (body.id) {
     const { data, error } = await supabase

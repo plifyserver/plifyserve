@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { hasUnlimitedQuotas, resolveEffectivePlan } from '@/lib/plan-entitlements'
 
 export async function GET() {
   const userId = await getCurrentUserId()
@@ -25,6 +26,23 @@ export async function POST(request: NextRequest) {
   }
   const body = await request.json()
   const supabase = await createClient()
+
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('plan_type, plan, account_type')
+    .eq('id', userId)
+    .single()
+  const eff = resolveEffectivePlan(prof)
+  if (!hasUnlimitedQuotas(eff)) {
+    return NextResponse.json(
+      {
+        error: 'PLAN_REQUIRED',
+        message: 'Personalização (cores, logo e white label) está disponível no plano Pro.',
+      },
+      { status: 403 }
+    )
+  }
+
   const { data: existing } = await supabase
     .from('app_settings')
     .select('id')

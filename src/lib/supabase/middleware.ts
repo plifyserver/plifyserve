@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { hasActivePaidAccess, type BillingGateProfile } from '@/lib/billing-access'
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
@@ -44,6 +45,7 @@ export async function updateSession(request: NextRequest) {
   const isAdminPage = pathname.startsWith('/admin')
   const isProtectedPage =
     pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/checkout') ||
     pathname.startsWith('/proposta') ||
     pathname.startsWith('/propostas') ||
     pathname.startsWith('/templates') ||
@@ -52,25 +54,39 @@ export async function updateSession(request: NextRequest) {
     isAdminPage
 
   if (isAuthPage && user) {
+    const redirectParam = request.nextUrl.searchParams.get('redirect')
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    if (
+      redirectParam &&
+      redirectParam.startsWith('/') &&
+      !redirectParam.startsWith('//') &&
+      !redirectParam.includes('://')
+    ) {
+      const parsed = new URL(redirectParam, request.url)
+      url.pathname = parsed.pathname
+      url.search = parsed.search
+    } else {
+      url.pathname = '/dashboard'
+      url.search = ''
+    }
     return NextResponse.redirect(url)
   }
 
   if (isProtectedPage && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    url.searchParams.set('redirect', pathname)
+    const back = `${pathname}${request.nextUrl.search}`
+    url.searchParams.set('redirect', back)
     return NextResponse.redirect(url)
   }
 
   if (user && isProtectedPage) {
-    type ProfileGate = { account_type?: string | null; banned?: boolean | null }
+    type ProfileGate = BillingGateProfile & { banned?: boolean | null }
     let profile: ProfileGate | null = null
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('account_type, banned')
+        .select('account_type, banned, subscription_id, plan_status, plan_expires_at')
         .eq('id', user.id)
         .single()
       profile = (data as ProfileGate | null) ?? null
@@ -87,6 +103,16 @@ export async function updateSession(request: NextRequest) {
     if (isAdminPage && profile?.account_type !== 'admin') {
       const url = request.nextUrl.clone()
       url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+
+    const isCheckoutArea = pathname.startsWith('/checkout')
+    const needsBilling = isProtectedPage && !isCheckoutArea
+    if (needsBilling && !hasActivePaidAccess(profile)) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/checkout'
+      url.search = ''
+      url.searchParams.set('payment_required', '1')
       return NextResponse.redirect(url)
     }
   }

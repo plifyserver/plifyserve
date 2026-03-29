@@ -10,32 +10,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useTemplates } from '@/hooks/useTemplates'
 import { useAuth } from '@/contexts/AuthContext'
 import { UpgradeModal } from '@/components/UpgradeModal'
-import type { TemplateBase } from '@/types'
 import { toast } from 'sonner'
-
-const DEFAULT_TEMPLATES: TemplateBase[] = [
-  {
-    id: 'default-1',
-    name: 'Executive Bold',
-    slug: 'executive-bold',
-    description: 'Design corporativo com cards em perspectiva 3D e efeitos de profundidade',
-    preview_image: '/images/template-executive-bold.png',
-    structure: {
-      companyName: 'Sua Empresa',
-      companyPhone: '(11) 99999-9999',
-      companyEmail: 'contato@empresa.com',
-      proposalType: 'Proposta Comercial',
-      serviceType: 'Consultoria',
-      serviceDescription: 'Descrição do serviço que você oferece',
-      includes: ['Item inclusivo 1', 'Item inclusivo 2', 'Suporte 30 dias'],
-    },
-    created_at: new Date().toISOString(),
-  },
-]
+import { PROPOSAL_PRESETS, canUseProposalPreset, presetBadgeLabel } from '@/config/proposal-presets'
+import { resolveEffectivePlan } from '@/lib/plan-entitlements'
 
 export default function TemplatesPage() {
   const { templates, loading, createTemplate, deleteTemplate, templateLimit, templatesUsed, canCreate } = useTemplates()
   const { profile } = useAuth()
+  const effPlan = resolveEffectivePlan(profile)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -149,7 +131,10 @@ export default function TemplatesPage() {
           )}
           {profile?.plan === 'essential' && (
             <p className="text-xs text-slate-500 mt-2">
-              Plano Essential: máx. 50 templates. <button onClick={() => setShowUpgradeModal(true)} className="text-indigo-600 hover:underline">Upgrade para ilimitado</button>
+              Plano Essential: até {templateLimit ?? 10} templates salvos; 1 modelo padrão de proposta.{' '}
+              <button type="button" onClick={() => setShowUpgradeModal(true)} className="text-indigo-600 hover:underline">
+                Upgrade para o Pro
+              </button>
             </p>
           )}
         </div>
@@ -203,43 +188,71 @@ export default function TemplatesPage() {
             </div>
           )}
 
-          {/* Default Templates */}
+          {/* Modelos padrão de proposta */}
           <div>
-            <h2 className="text-lg font-semibold mb-4 text-slate-900">Templates Padrão</h2>
+            <h2 className="text-lg font-semibold mb-4 text-slate-900">Modelos de proposta</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              No Essential você usa o primeiro modelo. No Pro, os três modelos atuais; o quarto está em
+              desenvolvimento.
+            </p>
             <div className="grid md:grid-cols-2 gap-6">
-              {DEFAULT_TEMPLATES.map((template) => (
-                <div
-                  key={template.id}
-                  className="group relative overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-sm"
-                >
-                  <div className="aspect-video relative overflow-hidden bg-slate-100">
-                    {template.preview_image ? (
-                      <Image
-                        src={template.preview_image}
-                        alt={template.name}
-                        fill
-                        className="object-cover object-top"
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
-                        <FileText className="w-24 h-24 text-emerald-300 group-hover:scale-110 transition-transform" />
-                      </div>
+              {PROPOSAL_PRESETS.map((template) => {
+                const badge = presetBadgeLabel(template, effPlan)
+                const canUse = canUseProposalPreset(effPlan, template.id)
+                return (
+                  <div
+                    key={template.id}
+                    className="group relative overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-sm"
+                  >
+                    {badge === 'pro' && (
+                      <span className="absolute top-3 right-3 z-10 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 border border-amber-200">
+                        Pro
+                      </span>
                     )}
+                    {badge === 'em-breve' && (
+                      <span className="absolute top-3 right-3 z-10 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 border border-slate-200">
+                        Em breve
+                      </span>
+                    )}
+                    <div className="aspect-video relative overflow-hidden bg-slate-100">
+                      {template.preview_image ? (
+                        <Image
+                          src={template.preview_image}
+                          alt={template.name}
+                          fill
+                          className={`object-cover object-top ${!canUse ? 'opacity-50' : ''}`}
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
+                          <FileText className="w-24 h-24 text-emerald-300 group-hover:scale-110 transition-transform" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-xl font-semibold mb-2">{template.name}</h3>
+                      <p className="text-slate-500 text-sm mb-4">{template.description}</p>
+                      {canUse ? (
+                        <Link
+                          href={`/dashboard/templates/${template.id}/novo`}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Usar modelo
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowUpgradeModal(true)}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-medium hover:bg-slate-100"
+                        >
+                          {badge === 'em-breve' ? 'Indisponível' : 'Disponível no Pro'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-semibold mb-2">{template.name}</h3>
-                    <p className="text-slate-500 text-sm mb-4">{template.description}</p>
-                    <Link
-                      href={`/dashboard/templates/${template.id || template.slug}/novo`}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Usar Template
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </>

@@ -1,151 +1,172 @@
-/**
- * Stripe Webhooks - Preparação para integração futura
- * 
- * Este arquivo contém a estrutura base para processar webhooks do Stripe.
- * A implementação real será feita quando o Stripe for ativado.
- */
+import type Stripe from 'stripe'
+import { getStripe } from './stripe'
+import { PIX_ACCESS_MONTHS } from '@/lib/stripe/pix-access-months'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 
-// TODO: Adicionar Stripe SDK quando for implementar
-// import Stripe from 'stripe'
-
-export type StripeWebhookEvent = 
-  | 'checkout.session.completed'
-  | 'customer.subscription.created'
-  | 'customer.subscription.updated'
-  | 'customer.subscription.deleted'
-  | 'invoice.paid'
-  | 'invoice.payment_failed'
-
-export interface WebhookPayload {
-  type: StripeWebhookEvent
-  data: {
-    object: Record<string, unknown>
-  }
+function subscriptionPeriodEndUnix(sub: Stripe.Subscription): number {
+  const first = sub.items?.data?.[0]
+  if (first?.current_period_end) return first.current_period_end
+  return sub.billing_cycle_anchor
 }
 
-// TODO: Implementar quando ativar Stripe
-export async function handleWebhook(
-  payload: WebhookPayload
-): Promise<{ success: boolean; message: string }> {
-  console.log('[Stripe Webhook] Evento recebido:', payload.type)
+function addMonths(date: Date, months: number): Date {
+  const d = new Date(date)
+  d.setMonth(d.getMonth() + months)
+  return d
+}
 
-  switch (payload.type) {
+export async function processStripeEvent(
+  event: Stripe.Event
+): Promise<{ success: boolean; message: string }> {
+  switch (event.type) {
     case 'checkout.session.completed':
-      return handleCheckoutCompleted(payload.data.object)
-    
-    case 'customer.subscription.created':
-      return handleSubscriptionCreated(payload.data.object)
-    
+      return handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session)
     case 'customer.subscription.updated':
-      return handleSubscriptionUpdated(payload.data.object)
-    
+      return handleSubscriptionUpdated(event.data.object as Stripe.Subscription)
     case 'customer.subscription.deleted':
-      return handleSubscriptionDeleted(payload.data.object)
-    
-    case 'invoice.paid':
-      return handleInvoicePaid(payload.data.object)
-    
-    case 'invoice.payment_failed':
-      return handlePaymentFailed(payload.data.object)
-    
+      return handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
     default:
-      console.log('[Stripe Webhook] Evento não tratado:', payload.type)
-      return { success: true, message: 'Evento ignorado' }
+      return { success: true, message: `Evento ignorado: ${event.type}` }
   }
 }
 
-// TODO: Implementar quando ativar Stripe
-async function handleCheckoutCompleted(
-  _data: Record<string, unknown>
+async function handleCheckoutSessionCompleted(
+  session: Stripe.Checkout.Session
 ): Promise<{ success: boolean; message: string }> {
-  console.log('[Stripe] handleCheckoutCompleted - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // 1. Buscar userId dos metadata
-  // 2. Atualizar perfil do usuário com subscription_id
-  // 3. Mudar plan_type para 'pro'
-  // 4. Registrar log de atividade
-  
-  return { success: true, message: 'Checkout processado (stub)' }
+  const userId = session.metadata?.supabase_user_id
+  const planType = session.metadata?.plan_type as 'essential' | 'pro' | undefined
+  if (!userId || !planType) {
+    return { success: false, message: 'Metadata ausente na sessão' }
+  }
+
+  const supabase = createServiceRoleClient()
+  const customerId =
+    typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null
+
+  if (session.mode === 'subscription') {
+    const subId =
+      typeof session.subscription === 'string' ? session.subscription : session.subscription?.id
+    if (!subId) {
+      return { success: false, message: 'Assinatura não encontrada na sessão' }
+    }
+    const stripe = getStripe()
+    const sub = await stripe.subscriptions.retrieve(subId)
+    const periodEnd = new Date(subscriptionPeriodEndUnix(sub) * 1000).toISOString()
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        plan_type: planType,
+        plan: planType === 'pro' ? 'pro' : 'free',
+        templates_limit: planType === 'pro' ? null : 10,
+        plan_status: 'active',
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subId,
+        subscription_id: subId,
+        plan_started_at: new Date().toISOString(),
+        plan_expires_at: periodEnd,
+        payment_provider: 'stripe',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+
+    if (error) {
+      console.error('[Stripe webhook] profiles update:', error)
+      return { success: false, message: error.message }
+    }
+    return { success: true, message: 'Assinatura ativada' }
+  }
+
+  if (session.mode === 'payment') {
+    const expires = addMonths(new Date(), PIX_ACCESS_MONTHS).toISOString()
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        plan_type: planType,
+        plan: planType === 'pro' ? 'pro' : 'free',
+        templates_limit: planType === 'pro' ? null : 10,
+        plan_status: 'active',
+        stripe_customer_id: customerId,
+        stripe_subscription_id: null,
+        subscription_id: null,
+        plan_started_at: new Date().toISOString(),
+        plan_expires_at: expires,
+        payment_provider: 'stripe',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+
+    if (error) {
+      console.error('[Stripe webhook] profiles update (PIX):', error)
+      return { success: false, message: error.message }
+    }
+    return { success: true, message: 'Pagamento PIX registrado' }
+  }
+
+  return { success: true, message: 'Modo de sessão não tratado' }
 }
 
-// TODO: Implementar quando ativar Stripe
-async function handleSubscriptionCreated(
-  _data: Record<string, unknown>
-): Promise<{ success: boolean; message: string }> {
-  console.log('[Stripe] handleSubscriptionCreated - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // 1. Associar subscription ao usuário
-  // 2. Ativar plano Pro
-  
-  return { success: true, message: 'Subscription criada (stub)' }
-}
-
-// TODO: Implementar quando ativar Stripe
 async function handleSubscriptionUpdated(
-  _data: Record<string, unknown>
+  sub: Stripe.Subscription
 ): Promise<{ success: boolean; message: string }> {
-  console.log('[Stripe] handleSubscriptionUpdated - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // 1. Verificar status da assinatura
-  // 2. Atualizar plan_status se necessário
-  
-  return { success: true, message: 'Subscription atualizada (stub)' }
+  const userId = sub.metadata?.supabase_user_id
+  if (!userId) {
+    return { success: true, message: 'Subscription sem user id' }
+  }
+
+  const periodEnd = new Date(subscriptionPeriodEndUnix(sub) * 1000).toISOString()
+  let planStatus: 'active' | 'inactive' | 'trial' | 'cancelled' = 'active'
+  if (sub.status === 'past_due' || sub.status === 'unpaid') planStatus = 'inactive'
+  if (sub.status === 'canceled') planStatus = 'cancelled'
+
+  const metaPlan = sub.metadata?.plan_type as 'essential' | 'pro' | undefined
+
+  const supabase = createServiceRoleClient()
+  const patch: Record<string, unknown> = {
+    plan_status: planStatus,
+    plan_expires_at: periodEnd,
+    updated_at: new Date().toISOString(),
+  }
+  if (metaPlan === 'essential' || metaPlan === 'pro') {
+    patch.plan_type = metaPlan
+    patch.plan = metaPlan === 'pro' ? 'pro' : 'free'
+    patch.templates_limit = metaPlan === 'pro' ? null : 10
+  }
+
+  const { error } = await supabase.from('profiles').update(patch).eq('id', userId)
+
+  if (error) {
+    console.error('[Stripe webhook] subscription updated:', error)
+    return { success: false, message: error.message }
+  }
+  return { success: true, message: 'Assinatura sincronizada' }
 }
 
-// TODO: Implementar quando ativar Stripe
 async function handleSubscriptionDeleted(
-  _data: Record<string, unknown>
+  sub: Stripe.Subscription
 ): Promise<{ success: boolean; message: string }> {
-  console.log('[Stripe] handleSubscriptionDeleted - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // 1. Mudar plan_type para 'essential'
-  // 2. Atualizar plan_status para 'cancelled'
-  // 3. Limpar subscription_id
-  
-  return { success: true, message: 'Subscription cancelada (stub)' }
-}
+  const userId = sub.metadata?.supabase_user_id
+  if (!userId) {
+    return { success: true, message: 'Subscription sem user id' }
+  }
 
-// TODO: Implementar quando ativar Stripe
-async function handleInvoicePaid(
-  _data: Record<string, unknown>
-): Promise<{ success: boolean; message: string }> {
-  console.log('[Stripe] handleInvoicePaid - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // 1. Estender período da assinatura
-  // 2. Garantir plan_status = 'active'
-  
-  return { success: true, message: 'Pagamento registrado (stub)' }
-}
+  const supabase = createServiceRoleClient()
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      plan_type: 'essential',
+      plan: 'free',
+      templates_limit: 10,
+      plan_status: 'cancelled',
+      stripe_subscription_id: null,
+      subscription_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
 
-// TODO: Implementar quando ativar Stripe
-async function handlePaymentFailed(
-  _data: Record<string, unknown>
-): Promise<{ success: boolean; message: string }> {
-  console.log('[Stripe] handlePaymentFailed - não implementado ainda')
-  
-  // TODO: Implementar lógica real
-  // 1. Notificar usuário
-  // 2. Marcar plan_status como 'inactive' se falhar múltiplas vezes
-  
-  return { success: true, message: 'Falha de pagamento registrada (stub)' }
-}
-
-// TODO: Implementar verificação de assinatura do webhook
-export function verifyWebhookSignature(
-  _payload: string,
-  _signature: string,
-  _secret: string
-): boolean {
-  console.log('[Stripe] verifyWebhookSignature - não implementado ainda')
-  
-  // TODO: Implementar verificação real
-  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-  // const event = stripe.webhooks.constructEvent(payload, signature, secret)
-  
-  return false
+  if (error) {
+    console.error('[Stripe webhook] subscription deleted:', error)
+    return { success: false, message: error.message }
+  }
+  return { success: true, message: 'Assinatura cancelada no perfil' }
 }

@@ -20,30 +20,39 @@ export default function SuportePage() {
       </header>
       <main className={`max-w-2xl mx-auto ${SITE_GUTTER_X} py-16`}>
         <h1 className="text-3xl font-bold mb-4">Suporte</h1>
-        <p className="text-gray-500 mb-12">Estamos aqui para ajudar. Escolha uma forma de contato:</p>
+        <p className="text-gray-500 mb-6">
+          Estamos aqui para ajudar. O canal depende do seu plano: <strong>Essential</strong> por e-mail;{' '}
+          <strong>Pro</strong> pelo WhatsApp (também disponível dentro do app, no menu de suporte).
+        </p>
         <div className="space-y-6">
           <a
-            href="mailto:suporte@plify.com.br"
+            href="mailto:plifyserver@gmail.com"
             className="flex items-center gap-4 p-6 rounded-xl bg-white border border-gray-200 hover:border-avocado/50 shadow-sm transition-colors group"
           >
             <div className="w-12 h-12 rounded-lg bg-avocado/20 flex items-center justify-center group-hover:bg-avocado/30 transition-colors">
               <Mail className="w-6 h-6 text-avocado" />
             </div>
             <div>
-              <h2 className="font-semibold text-lg">Email</h2>
-              <p className="text-gray-500 text-sm">suporte@plify.com.br</p>
+              <h2 className="font-semibold text-lg">E-mail (Essential)</h2>
+              <p className="text-gray-500 text-sm">plifyserver@gmail.com</p>
               <p className="text-gray-500 text-sm mt-1">Resposta em até 24 horas úteis</p>
             </div>
           </a>
-          <div className="flex items-center gap-4 p-6 rounded-xl bg-white border border-gray-200 shadow-sm">
-            <div className="w-12 h-12 rounded-lg bg-avocado/20 flex items-center justify-center">
+          <a
+            href="https://wa.me/5543996769373"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 p-6 rounded-xl bg-white border border-gray-200 hover:border-avocado/50 shadow-sm transition-colors group"
+          >
+            <div className="w-12 h-12 rounded-lg bg-avocado/20 flex items-center justify-center group-hover:bg-avocado/30 transition-colors">
               <MessageCircle className="w-6 h-6 text-avocado" />
             </div>
             <div>
-              <h2 className="font-semibold text-lg">Chat</h2>
-              <p className="text-gray-500 text-sm">Em breve</p>
+              <h2 className="font-semibold text-lg">WhatsApp (Pro)</h2>
+              <p className="text-gray-500 text-sm">Atendimento direto para assinantes Pro</p>
+              <p className="text-gray-500 text-sm mt-1">Abrir conversa no WhatsApp</p>
             </div>
-          </div>
+          </a>
         </div>
         <div className="mt-12 p-6 rounded-xl bg-gray-50 border border-gray-200">
           <h3 className="font-semibold mb-2">Dúvidas frequentes</h3>

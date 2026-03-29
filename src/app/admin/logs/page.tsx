@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 interface Log {
   id: string
@@ -33,6 +34,7 @@ const ACTION_COLORS: Record<string, string> = {
   template_create: 'bg-purple-500/20 text-purple-400',
   template_delete: 'bg-red-500/20 text-red-400',
   template_update: 'bg-amber-500/20 text-amber-400',
+  proposal_create: 'bg-emerald-500/20 text-emerald-400',
   image_upload: 'bg-cyan-500/20 text-cyan-400',
   upgrade_plan: 'bg-pink-500/20 text-pink-400',
   upgrade_socio: 'bg-amber-500/20 text-amber-400',
@@ -50,13 +52,10 @@ export default function AdminLogsPage() {
 
   const fetchLogs = useCallback(async () => {
     setLoading(true)
-    
+
     let query = supabase
       .from('activity_logs')
-      .select(`
-        *,
-        user:profiles!activity_logs_user_id_fkey(email, full_name)
-      `, { count: 'exact' })
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE - 1)
 
@@ -66,10 +65,35 @@ export default function AdminLogsPage() {
 
     const { data, count, error } = await query
 
-    if (!error && data) {
-      setLogs(data as Log[])
-      setTotalCount(count || 0)
+    if (error) {
+      toast.error('Erro ao carregar logs')
+      setLogs([])
+      setTotalCount(0)
+      setLoading(false)
+      return
     }
+
+    const rows = (data || []) as Log[]
+    const userIds = [...new Set(rows.map((l) => l.user_id).filter(Boolean))] as string[]
+    const profileById = new Map<string, { email: string | null; full_name: string | null }>()
+
+    if (userIds.length > 0) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, email, full_name')
+        .in('id', userIds)
+      for (const p of profs || []) {
+        profileById.set(p.id, { email: p.email, full_name: p.full_name })
+      }
+    }
+
+    const merged: Log[] = rows.map((l) => ({
+      ...l,
+      user: l.user_id ? profileById.get(l.user_id) : undefined,
+    }))
+
+    setLogs(merged)
+    setTotalCount(count || 0)
     setLoading(false)
   }, [page, actionFilter, supabase])
 
@@ -85,10 +109,16 @@ export default function AdminLogsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Activity Logs</h1>
-          <p className="text-slate-400">{totalCount} eventos registrados</p>
+          <h1 className="text-2xl font-bold text-white">Logs de atividade</h1>
+          <p className="text-slate-400">
+            {totalCount} eventos · novos logins e criação de propostas passam a ser registrados daqui pra frente
+          </p>
         </div>
-        <Button onClick={fetchLogs} variant="outline" className="gap-2 bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
+        <Button
+          onClick={fetchLogs}
+          variant="outline"
+          className="!gap-2 !border-white/25 !bg-slate-600 !text-white hover:!bg-slate-500 hover:!text-white shadow-md"
+        >
           <RefreshCw className="w-4 h-4" />
           Atualizar
         </Button>
@@ -109,6 +139,7 @@ export default function AdminLogsPage() {
               <SelectItem value="register">Registro</SelectItem>
               <SelectItem value="template_create">Criar template</SelectItem>
               <SelectItem value="template_delete">Excluir template</SelectItem>
+              <SelectItem value="proposal_create">Criar proposta</SelectItem>
               <SelectItem value="image_upload">Upload de imagem</SelectItem>
               <SelectItem value="upgrade_plan">Upgrade de plano</SelectItem>
               <SelectItem value="upgrade_socio">Virar sócio</SelectItem>
@@ -210,7 +241,7 @@ export default function AdminLogsPage() {
                 size="sm"
                 onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0}
-                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 disabled:opacity-50"
+                className="!border-white/20 !bg-slate-600 !text-white hover:!bg-slate-500 disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -219,7 +250,7 @@ export default function AdminLogsPage() {
                 size="sm"
                 onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                 disabled={page >= totalPages - 1}
-                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 disabled:opacity-50"
+                className="!border-white/20 !bg-slate-600 !text-white hover:!bg-slate-500 disabled:opacity-50"
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>

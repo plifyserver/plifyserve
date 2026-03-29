@@ -20,8 +20,8 @@ import {
 
 const adminNavItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/admin/users', icon: Users, label: 'Usuários' },
-  { href: '/admin/templates', icon: FileText, label: 'Templates' },
+  { href: '/admin/users', icon: Users, label: 'Gerenciar usuários' },
+  { href: '/admin/templates', icon: FileText, label: 'Propostas' },
   { href: '/admin/logs', icon: Activity, label: 'Logs' },
   { href: '/admin/settings', icon: Settings, label: 'Configurações' },
 ]

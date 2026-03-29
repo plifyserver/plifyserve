@@ -1,183 +1,151 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { 
-  Search, Trash2, RefreshCw, ChevronLeft, ChevronRight, 
-  Loader2, FileText, User, Calendar, ExternalLink
+import {
+  Search,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
-interface Template {
+interface AdminProposal {
   id: string
-  user_id: string
   title: string
-  description: string | null
-  is_public: boolean
+  user_id: string
+  status: string
   created_at: string
-  user?: {
-    email: string | null
-    full_name: string | null
-  }
+  public_slug: string | null
+  slug: string | null
+  user: { email: string | null; full_name: string | null } | null
 }
 
 const ITEMS_PER_PAGE = 20
 
-export default function AdminTemplatesPage() {
-  const [templates, setTemplates] = useState<Template[]>([])
+export default function AdminProposalsPage() {
+  const [proposals, setProposals] = useState<AdminProposal[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
-  const [deleteTemplate, setDeleteTemplate] = useState<Template | null>(null)
-  const [deleting, setDeleting] = useState(false)
 
-  const supabase = createClient()
-
-  const fetchTemplates = useCallback(async () => {
+  const fetchProposals = useCallback(async () => {
     setLoading(true)
-    
-    let query = supabase
-      .from('templates')
-      .select(`
-        *,
-        user:profiles!templates_user_id_fkey(email, full_name)
-      `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE - 1)
-
-    if (search) {
-      query = query.ilike('title', `%${search}%`)
-    }
-
-    const { data, count, error } = await query
-
-    if (!error && data) {
-      setTemplates(data as Template[])
-      setTotalCount(count || 0)
-    }
-    setLoading(false)
-  }, [page, search, supabase])
-
-  useEffect(() => {
-    fetchTemplates()
-  }, [fetchTemplates])
-
-  const handleDelete = async () => {
-    if (!deleteTemplate) return
-    setDeleting(true)
-
     try {
-      await supabase
-        .from('template_images')
-        .delete()
-        .eq('template_id', deleteTemplate.id)
-
-      const { error } = await supabase
-        .from('templates')
-        .delete()
-        .eq('id', deleteTemplate.id)
-
-      if (!error) {
-        await fetchTemplates()
-        setDeleteTemplate(null)
+      const params = new URLSearchParams({ page: String(page) })
+      if (search.trim()) params.set('q', search.trim())
+      const res = await fetch(`/api/admin/proposals?${params}`, { credentials: 'include' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(typeof json.error === 'string' ? json.error : 'Erro ao carregar propostas')
+        setProposals([])
+        setTotalCount(0)
+      } else {
+        setProposals(json.proposals || [])
+        setTotalCount(json.totalCount ?? 0)
       }
     } catch {
-      toast.error('Erro ao excluir template')
-    } finally {
-      setDeleting(false)
+      toast.error('Erro de rede')
+      setProposals([])
+      setTotalCount(0)
     }
-  }
+    setLoading(false)
+  }, [page, search])
+
+  useEffect(() => {
+    void fetchProposals()
+  }, [fetchProposals])
+
+  useEffect(() => {
+    setPage(0)
+  }, [search])
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Templates</h1>
-          <p className="text-slate-400">{totalCount} templates no total</p>
+          <h1 className="text-2xl font-bold text-white">Propostas</h1>
+          <p className="text-slate-400">Todas as propostas criadas no sistema</p>
         </div>
-        <Button onClick={fetchTemplates} variant="outline" className="gap-2 bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
+        <Button
+          onClick={() => void fetchProposals()}
+          variant="outline"
+          className="!gap-2 !border-white/25 !bg-slate-600 !text-white hover:!bg-slate-500 hover:!text-white shadow-md shrink-0"
+        >
           <RefreshCw className="w-4 h-4" />
           Atualizar
         </Button>
       </div>
 
-      {/* Search */}
       <div className="mb-4">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0) }}
-            placeholder="Buscar por título..."
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por título ou cliente…"
             className="pl-10 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
           />
         </div>
       </div>
 
-      {/* Grid */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
         </div>
-      ) : templates.length === 0 ? (
-        <div className="text-center py-20 text-slate-400">
-          Nenhum template encontrado
-        </div>
+      ) : proposals.length === 0 ? (
+        <div className="text-center py-20 text-slate-400">Nenhuma proposta encontrada</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {templates.map((template) => (
-            <div key={template.id} className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-              <div className="aspect-video bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
-                <FileText className="w-12 h-12 text-slate-500" />
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-white mb-1 truncate">{template.title}</h3>
-                <p className="text-sm text-slate-400 mb-3 line-clamp-2">
-                  {template.description || 'Sem descrição'}
-                </p>
-                
-                <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-                  <User className="w-3 h-3" />
-                  <span className="truncate">{template.user?.full_name || template.user?.email || 'Desconhecido'}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-                  <Calendar className="w-3 h-3" />
-                  <span>{new Date(template.created_at).toLocaleDateString('pt-BR')}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
-                    onClick={() => window.open(`/dashboard/templates/${template.id}/editar`, '_blank')}
-                  >
-                    <ExternalLink className="w-3 h-3 mr-1" />
-                    Ver
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setDeleteTemplate(template)}
-                    className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-700 text-left text-slate-400">
+                  <th className="p-3 font-medium">Título</th>
+                  <th className="p-3 font-medium">Usuário</th>
+                  <th className="p-3 font-medium">Status</th>
+                  <th className="p-3 font-medium">Criada</th>
+                  <th className="p-3 font-medium w-24">Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {proposals.map((p) => (
+                  <tr key={p.id} className="border-b border-slate-700/50 hover:bg-slate-700/20">
+                    <td className="p-3 text-white font-medium max-w-[200px] truncate">{p.title}</td>
+                    <td className="p-3 text-slate-300">
+                      <div className="truncate max-w-[180px]">
+                        {p.user?.full_name || p.user?.email || p.user_id.slice(0, 8)}
+                      </div>
+                    </td>
+                    <td className="p-3 text-slate-400">{p.status}</td>
+                    <td className="p-3 text-slate-400 whitespace-nowrap">
+                      {new Date(p.created_at).toLocaleString('pt-BR')}
+                    </td>
+                    <td className="p-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="!border-white/20 !bg-slate-600 !text-white hover:!bg-slate-500"
+                        onClick={() => window.open(`/dashboard/propostas/editar/${p.id}`, '_blank')}
+                        title="Abrir no painel"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6 p-4 bg-slate-800 rounded-xl border border-slate-700">
           <p className="text-sm text-slate-400">
@@ -189,7 +157,7 @@ export default function AdminTemplatesPage() {
               size="sm"
               onClick={() => setPage(Math.max(0, page - 1))}
               disabled={page === 0}
-              className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 disabled:opacity-50"
+              className="!border-white/20 !bg-slate-600 !text-white hover:!bg-slate-500 disabled:opacity-50"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -198,39 +166,13 @@ export default function AdminTemplatesPage() {
               size="sm"
               onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
               disabled={page >= totalPages - 1}
-              className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 disabled:opacity-50"
+              className="!border-white/20 !bg-slate-600 !text-white hover:!bg-slate-500 disabled:opacity-50"
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
       )}
-
-      {/* Delete Modal */}
-      <Dialog open={!!deleteTemplate} onOpenChange={() => setDeleteTemplate(null)}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white">
-          <DialogHeader>
-            <DialogTitle>Excluir Template</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-slate-300">
-              Tem certeza que deseja excluir o template <strong>{deleteTemplate?.title}</strong>?
-            </p>
-            <p className="text-sm text-slate-400 mt-2">
-              Esta ação não pode ser desfeita e todas as imagens associadas serão removidas.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTemplate(null)} className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
-              Cancelar
-            </Button>
-            <Button onClick={handleDelete} disabled={deleting} variant="destructive">
-              {deleting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Excluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
