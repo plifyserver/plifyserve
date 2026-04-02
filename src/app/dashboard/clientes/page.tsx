@@ -28,8 +28,10 @@ interface Client {
   source?: string | null
   payment_type?: 'recorrente' | 'pontual'
   recurring_amount?: number | null
-  recurring_end_date?: string | null
+  billing_due_day?: number | null
   billing_due_date?: string | null
+  installment_count?: number | null
+  down_payment?: number | null
 }
 
 export default function ClientesPage() {
@@ -56,8 +58,10 @@ export default function ClientesPage() {
     responsible: '',
     payment_type: 'pontual' as 'recorrente' | 'pontual',
     recurring_amount: '' as string | number,
-    recurring_end_date: '' as string,
+    billing_due_day: '' as string | number,
     billing_due_date: '' as string,
+    installment_count: '' as string | number,
+    down_payment: '' as string | number,
   })
 
   const fetchClients = async () => {
@@ -82,6 +86,18 @@ export default function ClientesPage() {
   const openDialog = (client: Client | null) => {
     if (client) {
       setSelected(client)
+      const legacyDay =
+        client.payment_type === 'recorrente' &&
+        (client.billing_due_day == null || client.billing_due_day < 1) &&
+        client.billing_due_date
+          ? parseInt(String(client.billing_due_date).slice(8, 10), 10)
+          : NaN
+      const initialDay =
+        client.billing_due_day != null && client.billing_due_day >= 1 && client.billing_due_day <= 31
+          ? client.billing_due_day
+          : Number.isFinite(legacyDay) && legacyDay >= 1 && legacyDay <= 31
+            ? legacyDay
+            : ''
       setForm({
         name: client.name,
         email: client.email || '',
@@ -93,12 +109,35 @@ export default function ClientesPage() {
         responsible: client.responsible || '',
         payment_type: (client.payment_type === 'recorrente' ? 'recorrente' : 'pontual'),
         recurring_amount: client.recurring_amount != null ? client.recurring_amount : '',
-        recurring_end_date: client.recurring_end_date || '',
-        billing_due_date: client.billing_due_date || '',
+        billing_due_day: initialDay === '' ? '' : initialDay,
+        billing_due_date: client.payment_type === 'pontual' ? client.billing_due_date || '' : '',
+        installment_count:
+          client.payment_type === 'recorrente'
+            ? client.installment_count != null && client.installment_count >= 1
+              ? client.installment_count
+              : 1
+            : '',
+        down_payment:
+          client.payment_type === 'recorrente' && client.down_payment != null ? client.down_payment : '',
       })
     } else {
       setSelected(null)
-      setForm({ name: '', email: '', phone: '', company: '', status: 'lead', notes: '', source: '', responsible: '', payment_type: 'pontual', recurring_amount: '', recurring_end_date: '', billing_due_date: '' })
+      setForm({
+        name: '',
+        email: '',
+        phone: '',
+        company: '',
+        status: 'lead',
+        notes: '',
+        source: '',
+        responsible: '',
+        payment_type: 'pontual',
+        recurring_amount: '',
+        billing_due_day: '',
+        billing_due_date: '',
+        installment_count: '',
+        down_payment: '',
+      })
     }
     setDialogOpen(true)
   }
@@ -133,8 +172,23 @@ export default function ClientesPage() {
             (form.payment_type === 'recorrente' || form.payment_type === 'pontual') && form.recurring_amount !== ''
               ? Number(form.recurring_amount)
               : null,
-          recurring_end_date: form.payment_type === 'recorrente' && form.recurring_end_date ? form.recurring_end_date : null,
-          billing_due_date: form.billing_due_date ? form.billing_due_date : null,
+          recurring_end_date: null,
+          billing_due_day:
+            form.payment_type === 'recorrente' && form.billing_due_day !== ''
+              ? Number(form.billing_due_day)
+              : null,
+          billing_due_date:
+            form.payment_type === 'pontual' && form.billing_due_date ? form.billing_due_date : null,
+          installment_count:
+            form.payment_type === 'recorrente'
+              ? form.installment_count !== ''
+                ? Math.min(360, Math.max(1, Math.floor(Number(form.installment_count)) || 1))
+                : 1
+              : null,
+          down_payment:
+            form.payment_type === 'recorrente' && form.down_payment !== ''
+              ? Number(form.down_payment)
+              : null,
         }),
       })
       if (res.ok) {
@@ -257,14 +311,32 @@ export default function ClientesPage() {
                   <td className="px-4 sm:px-5 py-3.5">
                     <div className="min-w-0">
                       <p className="font-medium text-slate-900 break-words">{client.name}</p>
+                      {client.payment_type === 'pontual' && client.recurring_amount != null && (
+                        <p className="text-sm text-slate-500 break-words">
+                          Fatura: R${' '}
+                          {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
                       {client.payment_type === 'recorrente' && client.recurring_amount != null && (
                         <p className="text-sm text-slate-500 break-words">
-                          R$ {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês
-                          {client.recurring_end_date && (
-                            <> · Válido até {format(new Date(client.recurring_end_date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</>
+                          Parcela: R${' '}
+                          {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {client.installment_count != null && client.installment_count >= 1 && (
+                            <> · {client.installment_count} parcela{client.installment_count > 1 ? 's' : ''}</>
+                          )}
+                          {client.billing_due_day != null && client.billing_due_day >= 1 && (
+                            <> · vence dia {client.billing_due_day}</>
                           )}
                         </p>
                       )}
+                      {client.payment_type === 'recorrente' &&
+                        (client.billing_due_day == null || client.billing_due_day < 1) &&
+                        client.billing_due_date && (
+                          <p className="text-xs text-amber-700 mt-0.5">
+                            Legado: data {format(new Date(client.billing_due_date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}{' '}
+                            — defina o dia do vencimento
+                          </p>
+                        )}
                     </div>
                   </td>
                   <td className="px-4 sm:px-5 py-3.5">
@@ -339,7 +411,7 @@ export default function ClientesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
                   <input
                     type="email"
                     value={form.email}
@@ -355,43 +427,41 @@ export default function ClientesPage() {
                     className="w-full px-3 py-2 rounded-xl border border-slate-200"
                   />
                 </div>
-                {form.payment_type === 'recorrente' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor recorrente (R$)</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0,00"
-                        value={form.recurring_amount === '' ? '' : Number(form.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/\D/g, '')
-                          setForm((f) => ({ ...f, recurring_amount: v === '' ? '' : Number(v) / 100 }))
-                        }}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                      />
-                      <p className="text-xs text-slate-500 mt-0.5">Soma na receita mensal do dashboard (clientes ativos)</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Válido até</label>
-                      <input
-                        type="date"
-                        value={form.recurring_end_date}
-                        onChange={(e) => setForm((f) => ({ ...f, recurring_end_date: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                      />
-                      <p className="text-xs text-slate-500 mt-0.5">Até quando esse valor entra no MMR (vazio = sem fim)</p>
-                    </div>
-                  </>
-                )}
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de pagamento</label>
+                  <select
+                    value={form.payment_type}
+                    onChange={(e) => {
+                      const v = e.target.value as 'recorrente' | 'pontual'
+                      setForm((f) => ({
+                        ...f,
+                        payment_type: v,
+                        ...(v === 'recorrente'
+                          ? { billing_due_date: '', installment_count: f.installment_count === '' ? 1 : f.installment_count }
+                          : { billing_due_day: '', installment_count: '', down_payment: '' }),
+                      }))
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
+                  >
+                    <option value="pontual">Pontual</option>
+                    <option value="recorrente">Recorrente</option>
+                  </select>
+                </div>
                 {form.payment_type === 'pontual' && (
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor para receita mensal (R$)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor da fatura (R$)</label>
                     <input
                       type="text"
                       inputMode="decimal"
                       placeholder="0,00"
-                      value={form.recurring_amount === '' ? '' : Number(form.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      value={
+                        form.recurring_amount === ''
+                          ? ''
+                          : Number(form.recurring_amount).toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })
+                      }
                       onChange={(e) => {
                         const v = e.target.value.replace(/\D/g, '')
                         setForm((f) => ({ ...f, recurring_amount: v === '' ? '' : Number(v) / 100 }))
@@ -399,44 +469,108 @@ export default function ClientesPage() {
                       className="w-full px-3 py-2 rounded-xl border border-slate-200"
                     />
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Opcional: valor esperado que entra na receita total mensal do dashboard (igual ao recorrente, para clientes ativos)
+                      Entra na <strong>Receita total mês</strong> do dashboard no mês em que você cadastrar (cliente ativo).
                     </p>
                   </div>
                 )}
+                {form.payment_type === 'recorrente' && (
+                  <>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor da parcela (R$)</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        value={
+                          form.recurring_amount === ''
+                            ? ''
+                            : Number(form.recurring_amount).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, '')
+                          setForm((f) => ({ ...f, recurring_amount: v === '' ? '' : Number(v) / 100 }))
+                        }}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Dia do vencimento (todo mês)</label>
+                      <select
+                        value={form.billing_due_day === '' ? '' : String(form.billing_due_day)}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            billing_due_day: e.target.value === '' ? '' : Number(e.target.value),
+                          }))
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
+                      >
+                        <option value="">— Escolha o dia —</option>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                          <option key={d} value={d}>
+                            Dia {d}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Cada parcela entra no <strong>MMR</strong> e na <strong>Receita total mês</strong> apenas no mês em que
+                        essa data ocorre. Aviso de cobrança no dia anterior e no dia do vencimento.
+                      </p>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Quantidade de parcelas</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={360}
+                        value={form.installment_count === '' ? '' : form.installment_count}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            installment_count: e.target.value === '' ? '' : Math.max(1, Math.min(360, Number(e.target.value) || 1)),
+                          }))
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                      />
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Entrada (R$)</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        value={
+                          form.down_payment === ''
+                            ? ''
+                            : Number(form.down_payment).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, '')
+                          setForm((f) => ({ ...f, down_payment: v === '' ? '' : Number(v) / 100 }))
+                        }}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                      />
+                      <p className="text-xs text-slate-500 mt-0.5">Opcional. Conta no MMR e na receita do mês do cadastro.</p>
+                    </div>
+                  </>
+                )}
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Próxima cobrança / vencimento</label>
-                  <input
-                    type="date"
-                    value={form.billing_due_date}
-                    onChange={(e) => setForm((f) => ({ ...f, billing_due_date: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                  />
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Usamos para avisos no dashboard e em Gastos Pessoais (até 5 dias antes, inclusive hoje e amanhã)
-                  </p>
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
                   <select
                     value={form.status}
                     onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white sm:max-w-xs"
                   >
                     <option value="lead">Lead</option>
                     <option value="active">Ativo</option>
                     <option value="inactive">Inativo</option>
                     <option value="archived">Arquivado</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de pagamento</label>
-                  <select
-                    value={form.payment_type}
-                    onChange={(e) => setForm((f) => ({ ...f, payment_type: e.target.value as 'recorrente' | 'pontual' }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
-                  >
-                    <option value="pontual">Pontual (pagamento único)</option>
-                    <option value="recorrente">Recorrente (pagamento mensal)</option>
                   </select>
                 </div>
                 <div className="col-span-2">

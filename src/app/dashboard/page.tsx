@@ -19,6 +19,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, e
 import { ptBR } from 'date-fns/locale'
 import { chartPaletteFromPrimary } from '@/lib/colorUtils'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
+import { getNextBillingDueDateIso, shouldShowClientBillingReminderFromClient } from '@/lib/clientBillingReminder'
 
 const FALLBACK_PRIMARY = '#dc2626'
 
@@ -231,7 +232,15 @@ export default function DashboardPage() {
   }, [stats?.mmr, period, dateStart, dateEnd])
 
   const clientsBillingSoon = useMemo(() => {
-    type C = { id: string; name: string; billing_due_date?: string | null }
+    type C = {
+      id: string
+      name: string
+      payment_type?: string | null
+      billing_due_day?: number | null
+      billing_due_date?: string | null
+      installment_count?: number | null
+      created_at?: string | null
+    }
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const dayDiff = (dateStr: string) => {
@@ -240,9 +249,12 @@ export default function DashboardPage() {
       return Math.round((d.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
     }
     return (clients as C[])
-      .filter((c) => c.billing_due_date && String(c.billing_due_date).trim() !== '')
-      .map((c) => ({ ...c, days: dayDiff(String(c.billing_due_date)) }))
-      .filter((c) => c.days >= 0 && c.days <= 5)
+      .filter((c) => shouldShowClientBillingReminderFromClient(c, today))
+      .map((c) => {
+        const nextDue = getNextBillingDueDateIso(c, today)!
+        return { ...c, days: dayDiff(nextDue), nextBillingDue: nextDue }
+      })
+      .filter((c) => c.days >= 0 && c.days <= 1)
       .sort((a, b) => a.days - b.days)
   }, [clients])
 
@@ -380,20 +392,18 @@ export default function DashboardPage() {
             <div className="min-w-0 flex-1">
               <p className="font-medium text-amber-950">Cobranças próximas</p>
               <p className="mt-1 text-sm text-amber-900/80">
-                Avisos para data de cobrança cadastrada no cliente: hoje, amanhã ou até 5 dias.
+                Recorrentes: dia do vencimento e &quot;Válido até&quot; em Clientes. O aviso aparece{' '}
+                <strong>no dia anterior</strong> ao vencimento e <strong>no próprio dia</strong>, quando você abre o painel.
+                Pontuais: uma data de cobrança, mesma regra.
               </p>
               <ul className="mt-3 space-y-2 text-sm">
                 {clientsBillingSoon.map((c) => (
                   <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="font-medium text-slate-900">{c.name}</span>
                     <span className="text-amber-800">
-                      {c.days === 0
-                        ? 'Vence hoje'
-                        : c.days === 1
-                          ? 'Amanhã'
-                          : `Em ${c.days} dias`}
-                      {c.billing_due_date
-                        ? ` · ${format(new Date(`${String(c.billing_due_date)}T12:00:00`), 'dd/MM/yyyy', { locale: ptBR })}`
+                      {c.days === 0 ? 'Vence hoje' : 'Vence amanhã'}
+                      {c.nextBillingDue
+                        ? ` · ${format(new Date(`${c.nextBillingDue}T12:00:00`), 'dd/MM/yyyy', { locale: ptBR })}`
                         : ''}
                     </span>
                   </li>
@@ -422,14 +432,14 @@ export default function DashboardPage() {
           title="Receita Total Mês"
           value={`R$ ${(stats.receitaTotalMes ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           icon={TrendingUp}
-          trendValue="Só clientes ativos (recorrente + pontual)"
+          trendValue="Mês atual: pontuais cadastrados + parcelas a vencer no mês + entradas (recorrente)"
           color="#10B981"
         />
         <StatsCard
           title="MMR"
           value={typeof stats.mmr === 'number' ? `R$ ${stats.mmr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : stats.mmr}
           icon={Repeat}
-          trendValue="Recorrente + pontual (sem financeiro)"
+          trendValue="Só recorrente: parcelas do mês + entrada no mês do cadastro"
           color="#8B5CF6"
         />
         <StatsCard

@@ -62,9 +62,32 @@ export async function PUT(
     const val = body.recurring_end_date
     updates.recurring_end_date = val == null || val === '' ? null : String(val).slice(0, 10)
   }
+  if (body.installment_count !== undefined) {
+    const val = body.installment_count
+    if (val == null || val === '') {
+      updates.installment_count = null
+    } else {
+      const n = Math.floor(Number(val))
+      updates.installment_count = Number.isInteger(n) && n >= 1 ? Math.min(360, n) : null
+    }
+  }
+  if (body.down_payment !== undefined) {
+    const val = body.down_payment
+    updates.down_payment =
+      val == null || val === '' || Number.isNaN(Number(val)) ? null : Number(val)
+  }
   if (body.billing_due_date !== undefined) {
     const val = body.billing_due_date
     updates.billing_due_date = val == null || val === '' ? null : String(val).slice(0, 10)
+  }
+  if (body.billing_due_day !== undefined) {
+    const val = body.billing_due_day
+    if (val == null || val === '') {
+      updates.billing_due_day = null
+    } else {
+      const n = Number(val)
+      updates.billing_due_day = Number.isInteger(n) && n >= 1 && n <= 31 ? n : null
+    }
   }
 
   const supabase = await createClient()

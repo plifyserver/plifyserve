@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Mail, Lock, Loader2 } from 'lucide-react'
+import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { AuthSidePanel } from '@/components/AuthSidePanel'
 import { SITE_GUTTER_X } from '@/lib/siteLayout'
@@ -23,17 +23,13 @@ function GoogleIcon() {
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [redirectTo, setRedirectTo] = useState('/dashboard')
   const router = useRouter()
   const supabase = createClient()
-
-  useEffect(() => {
-    supabase.auth.signOut().catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- rodar uma vez ao montar para limpar sessão ao vir do logout
-  }, [])
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get('redirect')
@@ -107,15 +103,24 @@ export default function LoginPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Senha</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Digite sua senha"
                     required
-                    className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
+                    autoComplete="current-password"
+                    className="w-full pl-10 pr-11 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 

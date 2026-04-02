@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, parseISO } from 'date-fns'
+import {
+  getInstallmentDueDatesIso,
+  isYmdInCalendarMonth,
+  isCreatedInCalendarMonth,
+  type ClientInstallmentFields,
+} from '@/lib/clientBillingReminder'
 
 export type PeriodType = 'day' | 'week' | 'month' | 'year' | 'range'
 
@@ -38,6 +44,65 @@ function getPeriodBounds(period: PeriodType, start?: string, end?: string) {
   return { from, to }
 }
 
+type ClientRow = {
+  status?: string | null
+  payment_type?: string | null
+  recurring_amount?: number | null
+  created_at?: string | null
+  billing_due_day?: number | null
+  billing_due_date?: string | null
+  installment_count?: number | null
+  down_payment?: number | null
+}
+
+/** MMR e receita do mês civil corrente (hoje): regras de parcelas + entrada + pontuais cadastrados no mês. */
+function computeMmrAndReceitaForCurrentMonth(clients: ClientRow[]) {
+  const ref = new Date()
+  const refY = ref.getFullYear()
+  const refM = ref.getMonth()
+
+  const active = (c: ClientRow) => (c.status ?? '') === 'active'
+
+  let mmr = 0
+  let receitaTotalMes = 0
+
+  for (const c of clients) {
+    if (!active(c)) continue
+    const pt = c.payment_type === 'recorrente' ? 'recorrente' : 'pontual'
+
+    if (pt === 'pontual') {
+      if (isCreatedInCalendarMonth(c.created_at ?? null, refY, refM)) {
+        receitaTotalMes += Number(c.recurring_amount ?? 0)
+      }
+      continue
+    }
+
+    const dates = getInstallmentDueDatesIso(c as ClientInstallmentFields)
+    let parcelThisMonth = false
+    for (const d of dates) {
+      if (isYmdInCalendarMonth(d, refY, refM)) {
+        parcelThisMonth = true
+        break
+      }
+    }
+    if (parcelThisMonth) {
+      const p = Number(c.recurring_amount ?? 0)
+      mmr += p
+      receitaTotalMes += p
+    }
+
+    if (isCreatedInCalendarMonth(c.created_at ?? null, refY, refM)) {
+      const ent = Number(c.down_payment ?? 0)
+      if (ent > 0) {
+        mmr += ent
+        receitaTotalMes += ent
+      }
+    }
+  }
+
+  return { mmr, receitaTotalMes }
+}
+
 export async function GET(request: NextRequest) {
   const userId = await getCurrentUserId()
   if (!userId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
@@ -54,7 +119,12 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
   const [clientsRes, contractsRes, transactionsRes, proposalsRes] = await Promise.all([
-    supabase.from('clients').select('id, status, payment_type, recurring_amount, recurring_end_date').eq('user_id', userId),
+    supabase
+      .from('clients')
+      .select(
+        'id, status, payment_type, recurring_amount, billing_due_day, billing_due_date, created_at, installment_count, down_payment'
+      )
+      .eq('user_id', userId),
     supabase.from('contracts').select('id, signatories').eq('user_id', userId),
     supabase
       .from('finance_transactions')
@@ -65,31 +135,14 @@ export async function GET(request: NextRequest) {
     supabase.from('proposals').select('id, status').eq('user_id', userId),
   ])
 
-  const clients = clientsRes.data ?? []
+  const clients = (clientsRes.data ?? []) as ClientRow[]
   const contracts = contractsRes.data ?? []
   const transactions = transactionsRes.data ?? []
   const proposals = proposalsRes.data ?? []
 
   const totalClients = clients.length
-  const todayStr = new Date().toISOString().slice(0, 10)
 
-  const activeForMmr = (c: { status?: string | null }) => (c.status ?? '') === 'active'
-
-  const mmrRecorrente = clients
-    .filter(activeForMmr)
-    .filter((c) => (c as { payment_type?: string }).payment_type === 'recorrente')
-    .filter((c) => {
-      const end = (c as { recurring_end_date?: string | null }).recurring_end_date
-      return end == null || end === '' || end >= todayStr
-    })
-    .reduce((s, c) => s + Number((c as { recurring_amount?: number | null }).recurring_amount ?? 0), 0)
-
-  const mmrPontual = clients
-    .filter(activeForMmr)
-    .filter((c) => (c as { payment_type?: string }).payment_type === 'pontual')
-    .reduce((s, c) => s + Number((c as { recurring_amount?: number | null }).recurring_amount ?? 0), 0)
-
-  const mmr = mmrRecorrente + mmrPontual
+  const { mmr, receitaTotalMes } = computeMmrAndReceitaForCurrentMonth(clients)
 
   const isContractFinalizado = (c: { signatories?: unknown[] }) => {
     const sigs = (c.signatories ?? []) as { signed?: boolean; selfie_url?: string | null }[]
@@ -114,11 +167,6 @@ export async function GET(request: NextRequest) {
   const financeBalance = income - expense
 
   const totalProposals = proposals.length
-
-  const periodDays = Math.max(1, Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000)) + 1)
-  const recurringProrated = mmr * (periodDays / 30)
-  /** Receita prevista só a partir de clientes (recorrente + pontual); sem integração com lançamentos financeiros. */
-  const receitaTotalMes = recurringProrated
 
   return NextResponse.json({
     totalClients,

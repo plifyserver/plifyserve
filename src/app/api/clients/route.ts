@@ -53,13 +53,30 @@ export async function POST(request: NextRequest) {
     !Number.isNaN(Number(rawAmount))
       ? Number(rawAmount)
       : null
-  const recurringEndDate =
-    paymentType === 'recorrente' && body.recurring_end_date != null && body.recurring_end_date !== ''
-      ? String(body.recurring_end_date).slice(0, 10)
-      : null
+  let billingDueDay: number | null = null
+  if (paymentType === 'recorrente' && body.billing_due_day != null && body.billing_due_day !== '') {
+    const n = Number(body.billing_due_day)
+    if (Number.isInteger(n) && n >= 1 && n <= 31) billingDueDay = n
+  }
+
   const billingDueDate =
-    body.billing_due_date != null && body.billing_due_date !== ''
+    paymentType === 'pontual' && body.billing_due_date != null && body.billing_due_date !== ''
       ? String(body.billing_due_date).slice(0, 10)
+      : null
+
+  const installmentCount =
+    paymentType === 'recorrente'
+      ? body.installment_count != null && body.installment_count !== ''
+        ? Math.min(360, Math.max(1, Math.floor(Number(body.installment_count)) || 1))
+        : 1
+      : null
+
+  const downPayment =
+    paymentType === 'recorrente' &&
+    body.down_payment != null &&
+    body.down_payment !== '' &&
+    !Number.isNaN(Number(body.down_payment))
+      ? Number(body.down_payment)
       : null
 
   const supabase = await createClient()
@@ -98,8 +115,11 @@ export async function POST(request: NextRequest) {
       kanban_stage: body.kanban_stage ?? 'lead',
       payment_type: paymentType,
       recurring_amount: recurringAmount,
-      recurring_end_date: recurringEndDate,
+      recurring_end_date: null,
+      billing_due_day: billingDueDay,
       billing_due_date: billingDueDate,
+      installment_count: installmentCount,
+      down_payment: downPayment,
     })
     .select()
     .single()

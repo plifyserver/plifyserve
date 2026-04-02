@@ -363,16 +363,32 @@ export default function DocumentosPage() {
     toast.success(signatory ? `WhatsApp aberto para ${signatory.name}` : 'WhatsApp aberto')
   }
 
-  const sendContractByEmail = (contract: Contract, signatory?: Signatory) => {
-    const base = `${typeof window !== 'undefined' ? window.location.origin : ''}/contrato/${contract.id}/assinar`
-    const url = signatory ? `${base}?email=${encodeURIComponent(signatory.email)}` : base
-    const to = signatory?.email || contract.signatories?.[0]?.email || ''
-    const subject = encodeURIComponent(`Assinatura: ${contract.title}`)
-    const body = encodeURIComponent(
-      `Olá${signatory ? ` ${signatory.name}` : ''},\n\nSegue o link exclusivo para você assinar o documento "${contract.title}":\n\n${url}\n\nAo abrir o link, informe seu CPF e data de nascimento para liberar o campo de assinatura.\n\nAtenciosamente.`
-    )
-    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`
-    toast.success(signatory ? `E-mail aberto para ${signatory.name}` : 'Cliente de e-mail aberto.')
+  const sendContractByEmail = async (contract: Contract, signatory?: Signatory) => {
+    const to = (signatory?.email || contract.signatories?.[0]?.email || '').trim()
+    if (!to) {
+      toast.error('E-mail do signatário é obrigatório.')
+      return
+    }
+    const toastId = 'contract-email-send'
+    toast.loading('A enviar e-mail…', { id: toastId })
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}/send-sign-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ signatoryEmail: to }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      toast.dismiss(toastId)
+      if (!res.ok) {
+        toast.error(data.error || 'Não foi possível enviar o e-mail.')
+        return
+      }
+      toast.success(signatory?.name ? `E-mail enviado para ${signatory.name}` : 'E-mail enviado ao signatário.')
+    } catch {
+      toast.dismiss(toastId)
+      toast.error('Erro de rede ao enviar e-mail.')
+    }
   }
 
   const sendContract = async (contract: Contract) => {

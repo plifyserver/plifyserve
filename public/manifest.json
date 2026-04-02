@@ -1,7 +1,7 @@
 {
-  "name": "Docfy - Propostas Comerciais",
-  "short_name": "Docfy",
-  "description": "Crie propostas comerciais em 3D e converta mais clientes",
+  "name": "Plify - Gestão e Propostas",
+  "short_name": "Plify",
+  "description": "Sistema completo de gestão: clientes, propostas, projetos, agenda, ads e mais.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0f1a",

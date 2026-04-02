@@ -47,6 +47,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { getNextBillingDueDateIso, shouldShowClientBillingReminderFromClient } from '@/lib/clientBillingReminder'
 
 type FinanceType = 'income' | 'expense'
 
@@ -69,7 +70,11 @@ interface Transaction {
 interface Client {
   id: string
   name: string
+  payment_type?: string | null
+  billing_due_day?: number | null
   billing_due_date?: string | null
+  installment_count?: number | null
+  created_at?: string | null
 }
 
 interface Project {
@@ -218,9 +223,12 @@ export default function FinanceiroPage() {
       return Math.round((d.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
     }
     return clients
-      .filter((c) => c.billing_due_date && String(c.billing_due_date).trim() !== '')
-      .map((c) => ({ ...c, days: dayDiff(String(c.billing_due_date)) }))
-      .filter((c) => c.days >= 0 && c.days <= 5)
+      .filter((c) => shouldShowClientBillingReminderFromClient(c, today))
+      .map((c) => {
+        const nextDue = getNextBillingDueDateIso(c, today)!
+        return { ...c, days: dayDiff(nextDue), nextBillingDue: nextDue }
+      })
+      .filter((c) => c.days >= 0 && c.days <= 1)
       .sort((a, b) => a.days - b.days)
   }, [clients])
 
@@ -394,17 +402,17 @@ export default function FinanceiroPage() {
             <div>
               <p className="font-semibold text-amber-950">Lembretes: cobrar clientes</p>
               <p className="mt-1 text-sm text-amber-900/85">
-                Datas cadastradas em Clientes → &quot;Próxima cobrança / vencimento&quot;. Avisos para hoje, amanhã ou
-                até 5 dias.
+                Cadastro em Clientes: recorrentes (dia do mês + válido até) ou pontuais (data única). Aviso só{' '}
+                <strong>no dia anterior</strong> ao vencimento e <strong>no dia do vencimento</strong>, ao abrir o painel.
               </p>
               <ul className="mt-2 space-y-1.5 text-sm text-amber-950">
                 {billingReminders.map((c) => (
                   <li key={c.id}>
                     <span className="font-medium">{c.name}</span>
                     {' — '}
-                    {c.days === 0 ? 'Hoje' : c.days === 1 ? 'Amanhã' : `Em ${c.days} dias`}
-                    {c.billing_due_date
-                      ? ` (${format(parseISO(String(c.billing_due_date)), 'dd/MM/yyyy', { locale: ptBR })})`
+                    {c.days === 0 ? 'Vence hoje' : 'Vence amanhã'}
+                    {c.nextBillingDue
+                      ? ` (${format(parseISO(String(c.nextBillingDue)), 'dd/MM/yyyy', { locale: ptBR })})`
                       : ''}
                   </li>
                 ))}
