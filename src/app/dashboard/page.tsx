@@ -432,14 +432,14 @@ export default function DashboardPage() {
           title="Receita Total Mês"
           value={`R$ ${(stats.receitaTotalMes ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           icon={TrendingUp}
-          trendValue="Mês atual: pontuais (vencimento ou cadastro) + parcelas recorrentes no mês + entradas"
+          trendValue="Mês atual: pontual/parcela após vencimento; entrada recorrente após o cadastro (fuso SP)"
           color="#10B981"
         />
         <StatsCard
           title="MMR"
           value={typeof stats.mmr === 'number' ? `R$ ${stats.mmr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : stats.mmr}
           icon={Repeat}
-          trendValue="Só recorrente: parcelas do mês + entrada no mês do cadastro"
+          trendValue="Só parcelas recorrentes do mês após o vencimento; entrada não entra no MMR (só na receita)"
           color="#8B5CF6"
         />
         <StatsCard

@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, parseISO } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import {
   getInstallmentDueDatesIso,
   isYmdInCalendarMonth,
-  isCreatedInCalendarMonth,
+  appCalendarYearMonthFromInstant,
+  APP_BUSINESS_TIMEZONE,
+  isoInstantToAppCalendarYmd,
   type ClientInstallmentFields,
 } from '@/lib/clientBillingReminder'
 
@@ -55,19 +58,26 @@ type ClientRow = {
   down_payment?: number | null
 }
 
-/** MMR e receita do mês civil corrente (hoje): parcelas recorrentes com vencimento no mês + entrada no mês do cadastro + pontuais (vencimento no mês ou, sem data, cadastro no mês). */
+/**
+ * MMR e receita “neste mês” no fuso do app: só contam valores quando a data relevante já chegou (hoje ≥ vencimento ou ≥ dia do cadastro).
+ * Recorrente: entrada só na receita do mês (não é MMR); parcela no MMR e na receita a partir do dia de vencimento no mês.
+ */
 function computeMmrAndReceitaForCurrentMonth(clients: ClientRow[]) {
-  const ref = new Date()
-  const refY = ref.getFullYear()
-  const refM = ref.getMonth()
+  const now = new Date()
+  const { year: refY, monthIndex: refM } = appCalendarYearMonthFromInstant(now)
+  const todayYmd = formatInTimeZone(now, APP_BUSINESS_TIMEZONE, 'yyyy-MM-dd')
 
-  const active = (c: ClientRow) => (c.status ?? '') === 'active'
+  /** Ativo e Lead entram na receita/MMR; Inativo e Arquivado ficam de fora. */
+  const countsTowardRevenue = (c: ClientRow) => {
+    const s = String(c.status ?? '').toLowerCase()
+    return s === 'active' || s === 'lead'
+  }
 
   let mmr = 0
   let receitaTotalMes = 0
 
   for (const c of clients) {
-    if (!active(c)) continue
+    if (!countsTowardRevenue(c)) continue
     const pt = c.payment_type === 'recorrente' ? 'recorrente' : 'pontual'
 
     if (pt === 'pontual') {
@@ -75,33 +85,39 @@ function computeMmrAndReceitaForCurrentMonth(clients: ClientRow[]) {
       const dueRaw = c.billing_due_date ? String(c.billing_due_date).slice(0, 10) : ''
       const dueInMonth =
         dueRaw.length >= 10 && isYmdInCalendarMonth(dueRaw, refY, refM)
-      const createdInMonth = isCreatedInCalendarMonth(c.created_at ?? null, refY, refM)
-      if (dueInMonth || (!dueRaw && createdInMonth)) {
+      const cadastroYmd = isoInstantToAppCalendarYmd(c.created_at ?? null)
+      const createdInMonth =
+        cadastroYmd != null && isYmdInCalendarMonth(cadastroYmd, refY, refM)
+      if (dueRaw.length >= 10 && dueInMonth && dueRaw <= todayYmd) {
+        receitaTotalMes += amount
+      } else if (!dueRaw && createdInMonth && cadastroYmd != null && cadastroYmd <= todayYmd) {
         receitaTotalMes += amount
       }
       continue
     }
 
     const dates = getInstallmentDueDatesIso(c as ClientInstallmentFields)
-    let parcelThisMonth = false
+    let parcelCounts = false
     for (const d of dates) {
-      if (isYmdInCalendarMonth(d, refY, refM)) {
-        parcelThisMonth = true
+      if (isYmdInCalendarMonth(d, refY, refM) && d <= todayYmd) {
+        parcelCounts = true
         break
       }
     }
-    if (parcelThisMonth) {
+    if (parcelCounts) {
       const p = Number(c.recurring_amount ?? 0)
       mmr += p
       receitaTotalMes += p
     }
 
-    if (isCreatedInCalendarMonth(c.created_at ?? null, refY, refM)) {
+    const cadastroYmd = isoInstantToAppCalendarYmd(c.created_at ?? null)
+    if (
+      cadastroYmd &&
+      isYmdInCalendarMonth(cadastroYmd, refY, refM) &&
+      cadastroYmd <= todayYmd
+    ) {
       const ent = Number(c.down_payment ?? 0)
-      if (ent > 0) {
-        mmr += ent
-        receitaTotalMes += ent
-      }
+      if (ent > 0) receitaTotalMes += ent
     }
   }
 

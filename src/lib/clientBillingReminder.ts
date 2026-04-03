@@ -1,4 +1,5 @@
-import { format, startOfDay, isBefore, parseISO, addMonths } from 'date-fns'
+import { format, startOfDay, isBefore, parseISO } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 
 export type ClientBillingFields = {
   payment_type?: string | null
@@ -10,6 +11,9 @@ export type ClientInstallmentFields = ClientBillingFields & {
   installment_count?: number | null
   created_at?: string | null
 }
+
+/** Fuso usado em receita/MMR do dashboard e datas de cadastro/vencimento (evita divergência com UTC do servidor). */
+export const APP_BUSINESS_TIMEZONE = 'America/Sao_Paulo'
 
 function clampDayToMonth(year: number, monthIndex: number, desiredDay: number): number {
   const last = new Date(year, monthIndex + 1, 0).getDate()
@@ -53,31 +57,93 @@ function parseInstallmentCount(raw: unknown): number {
   return Math.min(n, ONGOING_INSTALLMENT_MONTHS)
 }
 
+/** yyyy-MM-dd do instante no fuso do app (ex.: cadastro no Supabase em UTC). */
+export function isoInstantToAppCalendarYmd(iso: string | null | undefined): string | null {
+  if (!iso || typeof iso !== 'string') return null
+  const d = parseISO(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return formatInTimeZone(d, APP_BUSINESS_TIMEZONE, 'yyyy-MM-dd')
+}
+
+/** @deprecated use isoInstantToAppCalendarYmd */
+export const utcIsoToLocalCalendarYmd = isoInstantToAppCalendarYmd
+
+/** Ano e mês civil no fuso do app (alinhado ao dashboard). */
+export function appCalendarYearMonthFromInstant(now: Date = new Date()): { year: number; monthIndex: number } {
+  const ymd = formatInTimeZone(now, APP_BUSINESS_TIMEZONE, 'yyyy-MM-dd')
+  const [y, m] = ymd.split('-').map(Number)
+  return { year: y, monthIndex: m - 1 }
+}
+
+/** Último dia do mês (m1 = 1–12). */
+function daysInCalendarMonth(y: number, m1: number): number {
+  return new Date(y, m1, 0).getDate()
+}
+
+/** Primeiro vencimento no dia `dom` (1–31), ≥ cadastroYmd; avança mês a mês se preciso. */
+function firstInstallmentYmdOnOrAfterCadastro(cadastroYmd: string, dom: number): string {
+  const [cy, cm] = cadastroYmd.split('-').map(Number)
+  let y = cy
+  let m1 = cm
+  for (let guard = 0; guard < 48; guard++) {
+    const last = daysInCalendarMonth(y, m1)
+    const d = Math.min(dom, last)
+    const ymd = `${y}-${String(m1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    if (ymd >= cadastroYmd) return ymd
+    if (m1 === 12) {
+      y += 1
+      m1 = 1
+    } else {
+      m1 += 1
+    }
+  }
+  const last = daysInCalendarMonth(y, m1)
+  const d = Math.min(dom, last)
+  return `${y}-${String(m1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+/** Soma meses mantendo o dia (com clamp ao fim do mês). */
+function addMonthsToYmd(ymd: string, deltaMonths: number): string {
+  const [y0, m1, d0] = ymd.split('-').map(Number)
+  let y = y0
+  let m = m1 + deltaMonths
+  while (m > 12) {
+    m -= 12
+    y += 1
+  }
+  while (m < 1) {
+    m += 12
+    y -= 1
+  }
+  const last = daysInCalendarMonth(y, m)
+  const d = Math.min(d0, last)
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
 /**
  * Datas de vencimento de cada parcela (yyyy-MM-dd), na ordem.
- * Recorrente: 1.ª parcela = próximo dia de vencimento em ou após o cadastro; demais = +1 mês cada.
+ * Recorrente: 1.ª parcela = primeiro dia de vencimento em ou após o cadastro (fuso app); demais = +1 mês cada.
  */
 export function getInstallmentDueDatesIso(client: ClientInstallmentFields): string[] {
   if (client.payment_type !== 'recorrente') return []
-  const created = client.created_at?.slice(0, 10)
-  if (!created) return []
+  const createdYmd = isoInstantToAppCalendarYmd(client.created_at ?? null)
+  if (!createdYmd) return []
 
   const n = parseInstallmentCount(client.installment_count)
   const dayNum = parseBillingDay(client.billing_due_day)
 
   if (dayNum != null) {
-    const from = parseISO(`${created}T12:00:00`)
-    const first = nextBillingDateFromDayOfMonth(dayNum, from)
+    const first = firstInstallmentYmdOnOrAfterCadastro(createdYmd, dayNum)
     const out: string[] = []
     for (let i = 0; i < n; i++) {
-      out.push(format(addMonths(first, i), 'yyyy-MM-dd'))
+      out.push(i === 0 ? first : addMonthsToYmd(first, i))
     }
     return out
   }
 
   if (client.billing_due_date && String(client.billing_due_date).trim() !== '') {
     const fixed = String(client.billing_due_date).slice(0, 10)
-    const d0 = fixed >= created ? fixed : created
+    const d0 = fixed >= createdYmd ? fixed : createdYmd
     return [d0]
   }
 
@@ -88,7 +154,7 @@ export function getInstallmentDueDatesIso(client: ClientInstallmentFields): stri
 export function getNextInstallmentDueIso(client: ClientInstallmentFields, today: Date = new Date()): string | null {
   const dates = getInstallmentDueDatesIso(client)
   if (!dates.length) return null
-  const todayStr = format(startOfDay(today), 'yyyy-MM-dd')
+  const todayStr = formatInTimeZone(today, APP_BUSINESS_TIMEZONE, 'yyyy-MM-dd')
   return dates.find((d) => d >= todayStr) ?? null
 }
 
@@ -114,7 +180,7 @@ export function shouldShowClientBillingReminder(
 ): boolean {
   if (!billingDueDate || String(billingDueDate).trim() === '') return false
   const due = String(billingDueDate).slice(0, 10)
-  const todayStr = format(startOfDay(today), 'yyyy-MM-dd')
+  const todayStr = formatInTimeZone(today, APP_BUSINESS_TIMEZONE, 'yyyy-MM-dd')
   if (due < todayStr) return false
   const days = Math.round(
     (new Date(due + 'T12:00:00').getTime() - new Date(todayStr + 'T12:00:00').getTime()) / (24 * 60 * 60 * 1000)
@@ -137,9 +203,9 @@ export function isYmdInCalendarMonth(ymd: string, year: number, monthIndex: numb
   return y === year && m - 1 === monthIndex
 }
 
-/** created_at ISO: cadastro neste mês civil? */
+/** Cadastro neste mês civil (fuso do app)? Usado para entrada na receita/MMR. */
 export function isCreatedInCalendarMonth(createdIso: string | null | undefined, year: number, monthIndex: number): boolean {
-  if (!createdIso) return false
-  const d = String(createdIso).slice(0, 10)
+  const d = isoInstantToAppCalendarYmd(createdIso ?? null)
+  if (!d) return false
   return isYmdInCalendarMonth(d, year, monthIndex)
 }

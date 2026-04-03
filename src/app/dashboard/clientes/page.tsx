@@ -52,7 +52,7 @@ export default function ClientesPage() {
     email: '',
     phone: '',
     company: '',
-    status: 'lead',
+    status: 'active',
     notes: '',
     source: '',
     responsible: '',
@@ -127,7 +127,7 @@ export default function ClientesPage() {
         email: '',
         phone: '',
         company: '',
-        status: 'lead',
+        status: 'active',
         notes: '',
         source: '',
         responsible: '',
@@ -437,7 +437,11 @@ export default function ClientesPage() {
                         ...f,
                         payment_type: v,
                         ...(v === 'recorrente'
-                          ? { billing_due_date: '', installment_count: f.installment_count === '' ? '' : f.installment_count }
+                          ? {
+                              billing_due_date: '',
+                              installment_count:
+                                f.installment_count === '' ? '1' : f.installment_count,
+                            }
                           : { billing_due_day: '', installment_count: '', down_payment: '' }),
                       }))
                     }}
@@ -572,11 +576,14 @@ export default function ClientesPage() {
                     onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white sm:max-w-xs"
                   >
-                    <option value="lead">Lead</option>
                     <option value="active">Ativo</option>
+                    <option value="lead">Lead</option>
                     <option value="inactive">Inativo</option>
                     <option value="archived">Arquivado</option>
                   </select>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Receita e MMR do dashboard consideram apenas <strong>Ativo</strong> e <strong>Lead</strong>.
+                  </p>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Origem</label>
