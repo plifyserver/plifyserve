@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { pushNewEventToConnectedCalendars } from '@/lib/calendar/pushEventToConnectedCalendars'
 
 export async function GET() {
   const userId = await getCurrentUserId()
@@ -58,5 +59,18 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  void pushNewEventToConnectedCalendars(supabase, {
+    id: data.id,
+    user_id: userId,
+    title: data.title,
+    description: data.description,
+    location: data.location,
+    start_at: data.start_at,
+    end_at: data.end_at,
+    all_day: data.all_day,
+    google_event_id: (data as { google_event_id?: string | null }).google_event_id,
+  })
+
   return NextResponse.json(data)
 }

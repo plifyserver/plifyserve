@@ -1,13 +1,32 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay, startOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { useAuth } from '@/contexts/AuthContext'
-import { X, Loader2, Link2, Plus, Search, ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Clock, FileText, Trash2 } from 'lucide-react'
+import {
+  X,
+  Loader2,
+  Link2,
+  Plus,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  MapPin,
+  Clock,
+  FileText,
+  Trash2,
+  Copy,
+  Smartphone,
+  Unplug,
+  RefreshCw,
+  ExternalLink,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -52,7 +71,17 @@ type EventItem = {
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda'
 
-export default function AgendaPage() {
+type CalendarIntegrationInfo = {
+  allowed: boolean
+  google: boolean
+  googleEmail?: string | null
+  icsUrl: string | null
+  webcalUrl: string | null
+}
+
+function AgendaPageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, profile } = useAuth()
   const canAgendaIntegrations = !!(profile?.is_pro || profile?.is_admin)
   const [events, setEvents] = useState<EventItem[]>([])
@@ -65,7 +94,90 @@ export default function AgendaPage() {
   const [view, setView] = useState<ViewType>('month')
   const [form, setForm] = useState({ title: '', description: '', location: '', start: '', end: '', all_day: false, type: 'default' as EventItem['type'], color: '#6366F1' })
   const [showIntegrations, setShowIntegrations] = useState(false)
+  const [calendarIntegration, setCalendarIntegration] = useState<CalendarIntegrationInfo | null>(null)
+  const [calendarIntegrationLoading, setCalendarIntegrationLoading] = useState(false)
+  const [regeneratingIcs, setRegeneratingIcs] = useState(false)
   const [peopleSearch, setPeopleSearch] = useState('')
+
+  useEffect(() => {
+    const connected = searchParams.get('calendar_connected')
+    const err = searchParams.get('calendar_error')
+    if (connected === 'google') toast.success('Google Calendar conectado.')
+    if (err) {
+      const map: Record<string, string> = {
+        google_denied: 'Conexão com o Google foi cancelada.',
+        google_config: 'Google Calendar: configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET no servidor.',
+        google_token: 'Não foi possível validar o token do Google.',
+        google_save: 'Não foi possível salvar a integração com o Google.',
+        google_state: 'Sessão de autorização inválida. Tente conectar de novo.',
+        pro_required: 'Integração disponível no plano Pro.',
+      }
+      toast.error(map[err] ?? 'Não foi possível conectar o calendário.')
+    }
+    if (connected || err) {
+      router.replace('/dashboard/agenda', { scroll: false })
+    }
+  }, [searchParams, router])
+
+  const loadCalendarIntegrations = useCallback(async () => {
+    setCalendarIntegrationLoading(true)
+    try {
+      const res = await fetch('/api/calendar/integrations', { credentials: 'include' })
+      const data = (await res.json().catch(() => ({}))) as CalendarIntegrationInfo
+      if (res.ok) setCalendarIntegration(data)
+      else setCalendarIntegration(null)
+    } catch {
+      setCalendarIntegration(null)
+    } finally {
+      setCalendarIntegrationLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (showIntegrations && canAgendaIntegrations) void loadCalendarIntegrations()
+  }, [showIntegrations, canAgendaIntegrations, loadCalendarIntegrations])
+
+  const disconnectGoogleCalendar = async () => {
+    const res = await fetch('/api/calendar/integrations/google', { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) {
+      toast.error('Não foi possível desconectar.')
+      return
+    }
+    toast.success('Google Calendar desconectado.')
+    void loadCalendarIntegrations()
+  }
+
+  const regenerateIcs = async () => {
+    setRegeneratingIcs(true)
+    try {
+      const res = await fetch('/api/calendar/integrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ regenerateIcs: true }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string; icsUrl?: string | null; webcalUrl?: string | null }
+      if (!res.ok) {
+        toast.error(data.error ?? 'Erro ao gerar novo link.')
+        return
+      }
+      toast.success('Novo link gerado. Reassine no calendário do celular se precisar.')
+      setCalendarIntegration((prev) =>
+        prev ? { ...prev, icsUrl: data.icsUrl ?? null, webcalUrl: data.webcalUrl ?? null } : prev
+      )
+    } finally {
+      setRegeneratingIcs(false)
+    }
+  }
+
+  const copyCalendarLink = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success(`${label} copiado.`)
+    } catch {
+      toast.error('Não foi possível copiar.')
+    }
+  }
 
   const fetchEvents = useCallback(async () => {
     if (!user) return
@@ -564,7 +676,7 @@ export default function AgendaPage() {
             {!canAgendaIntegrations ? (
               <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
                 <p>
-                  Integrações com Google Calendar e outras ferramentas fazem parte do plano <strong>Pro</strong>. No
+                  Integração com Google Calendar e feed para o celular fazem parte do plano <strong>Pro</strong>. No
                   Essential a agenda funciona normalmente dentro do Plify.
                 </p>
                 <Link
@@ -576,36 +688,139 @@ export default function AgendaPage() {
               </div>
             ) : (
               <>
-                <p className="text-sm text-slate-600 mb-6">
-                  Conecte seu calendário ao Google Calendar, Outlook ou outras ferramentas para sincronizar seus eventos
-                  automaticamente.
+                <p className="text-sm text-slate-600 mb-4">
+                  Novos eventos no Plify podem ser enviados ao Google Calendar. No iPhone e Android, use o link de
+                  assinatura (ICS/WebCal) no app Calendário ou Google Calendar.
                 </p>
-                <div className="space-y-3 mb-6">
-                  <button
-                    type="button"
-                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                      <CalendarIcon className="w-5 h-5 text-blue-500" />
+                {calendarIntegrationLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                  </div>
+                ) : (
+                  <div className="space-y-4 mb-6 max-h-[55vh] overflow-y-auto pr-1">
+                    <div className="rounded-xl border border-slate-200 p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                        <CalendarIcon className="w-4 h-4 text-blue-500" />
+                        Google Calendar
+                      </div>
+                      {calendarIntegration?.google ? (
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <p className="text-xs text-slate-600 flex-1 truncate">
+                            Conectado{calendarIntegration.googleEmail ? ` · ${calendarIntegration.googleEmail}` : ''}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-lg gap-1.5 shrink-0"
+                            onClick={() => void disconnectGoogleCalendar()}
+                          >
+                            <Unplug className="w-3.5 h-3.5" />
+                            Desconectar
+                          </Button>
+                        </div>
+                      ) : (
+                        <a
+                          href="/api/calendar/oauth/google"
+                          className="inline-flex items-center justify-center w-full py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                        >
+                          Conectar com Google
+                        </a>
+                      )}
                     </div>
-                    <div className="text-left">
-                      <p className="font-medium text-slate-900 text-sm">Google Calendar</p>
-                      <p className="text-xs text-slate-500">Em breve</p>
+
+                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                        <Smartphone className="w-4 h-4 text-indigo-600" />
+                        Calendário no telemóvel
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Um toque abre o fluxo do sistema para <strong>subscrever</strong> a agenda do Plify. Os eventos
+                        passam a aparecer no Calendário (iOS) ou no Google Agenda (Android). A sincronização é feita pelo
+                        telemóvel (não é instantâneo como o Google ligado no site).
+                      </p>
+                      {calendarIntegration?.icsUrl && calendarIntegration.webcalUrl ? (
+                        <>
+                          <div className="grid grid-cols-1 gap-2">
+                            <a
+                              href={calendarIntegration.webcalUrl}
+                              className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm"
+                            >
+                              <ExternalLink className="w-4 h-4 shrink-0 opacity-90" />
+                              Integrar no iPhone ou iPad
+                            </a>
+                            <a
+                              href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarIntegration.icsUrl)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-[#1a73e8] text-white text-sm font-semibold hover:bg-[#1557b0] transition-colors shadow-sm"
+                            >
+                              <ExternalLink className="w-4 h-4 shrink-0 opacity-90" />
+                              Integrar no Android (Google Agenda)
+                            </a>
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-snug">
+                            <span className="font-medium text-slate-600">iOS:</span> use Safari no telemóvel se estiver
+                            noutro browser; confirme <strong>Subscrever</strong> no Calendário.{' '}
+                            <span className="font-medium text-slate-600">Android:</span> precisa de conta Google e do app
+                            Google Agenda; Samsung ou outras apps podem exigir colar o link manualmente abaixo.
+                          </p>
+                          <details className="rounded-xl border border-slate-200 bg-white/90 text-xs group open:pb-2">
+                            <summary className="cursor-pointer select-none font-medium text-slate-700 px-3 py-2.5 flex items-center gap-2 hover:bg-slate-50 rounded-xl list-none [&::-webkit-details-marker]:hidden">
+                              <ChevronRight className="w-3.5 h-3.5 shrink-0 transition-transform group-open:rotate-90 text-slate-400" />
+                              Copiar link manualmente (outras apps)
+                            </summary>
+                            <div className="px-3 pb-2 space-y-2 border-t border-slate-100 pt-2">
+                              <div className="flex gap-2">
+                                <input
+                                  readOnly
+                                  value={calendarIntegration.icsUrl}
+                                  className="flex-1 min-w-0 text-xs px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-700"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="shrink-0 rounded-lg h-9 w-9"
+                                  onClick={() => void copyCalendarLink(calendarIntegration.icsUrl!, 'Link')}
+                                  aria-label="Copiar link"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="w-full rounded-lg text-xs"
+                                onClick={() => void copyCalendarLink(calendarIntegration.webcalUrl!, 'Link WebCal')}
+                              >
+                                Copiar link WebCal
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="w-full rounded-lg text-xs text-slate-600 gap-1.5 h-9"
+                                disabled={regeneratingIcs}
+                                onClick={() => void regenerateIcs()}
+                              >
+                                {regeneratingIcs ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                )}
+                                Gerar novo link (invalida o anterior)
+                              </Button>
+                            </div>
+                          </details>
+                        </>
+                      ) : (
+                        <p className="text-xs text-amber-800">Defina NEXT_PUBLIC_APP_URL para gerar o link do feed.</p>
+                      )}
                     </div>
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                      <CalendarIcon className="w-5 h-5 text-sky-500" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-medium text-slate-900 text-sm">Outlook</p>
-                      <p className="text-xs text-slate-500">Em breve</p>
-                    </div>
-                  </button>
-                </div>
+                  </div>
+                )}
               </>
             )}
             <Button variant="outline" className="w-full rounded-xl" onClick={() => setShowIntegrations(false)}>
@@ -816,5 +1031,19 @@ export default function AgendaPage() {
         loading={deleting}
       />
     </div>
+  )
+}
+
+export default function AgendaPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+        </div>
+      }
+    >
+      <AgendaPageContent />
+    </Suspense>
   )
 }
