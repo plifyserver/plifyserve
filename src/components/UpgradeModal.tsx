@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { profileService } from '@/lib/services/profile'
 import { Sparkles, Crown, Zap, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { PLAN_BULLETS_ESSENTIAL, PLAN_BULLETS_PRO, PLAN_TAGLINE } from '@/lib/planMarketingCopy'
 
 interface UpgradeModalProps {
   open: boolean
@@ -114,8 +115,8 @@ export function UpgradeModal({ open, onClose, type = 'plan' }: UpgradeModalProps
       <DialogContent className="sm:max-w-2xl rounded-2xl">
         <DialogHeader className="text-center">
           <DialogTitle className="text-2xl">Escolha seu Plano</DialogTitle>
-          <DialogDescription className="text-slate-600">
-            Selecione o plano ideal para suas necessidades.
+          <DialogDescription className="text-slate-600 text-sm">
+            Essential com limites · Pro ilimitado com marca e agenda no Google/celular.
           </DialogDescription>
         </DialogHeader>
 
@@ -138,23 +139,19 @@ export function UpgradeModal({ open, onClose, type = 'plan' }: UpgradeModalProps
               <Sparkles className="w-6 h-6 text-indigo-600" />
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-1">Essential</h3>
+            <p className="text-xs text-slate-500 mb-2 leading-snug">{PLAN_TAGLINE.essential}</p>
             <p className="text-3xl font-bold text-slate-900 mb-4">
               R$ 49,90<span className="text-base font-normal text-slate-500">/mês</span>
             </p>
-            <ul className="space-y-2 text-sm text-slate-600">
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-indigo-600" />
-                1 modelo de proposta + até 10 templates salvos
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-indigo-600" />
-                Limites de clientes e propostas/mês (ver planos)
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-indigo-600" />
-                Suporte por e-mail
-              </li>
+            <ul className="space-y-1.5 text-xs sm:text-sm text-slate-600">
+              {PLAN_BULLETS_ESSENTIAL.slice(0, 4).map((line) => (
+                <li key={line} className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <span>{line}</span>
+                </li>
+              ))}
             </ul>
+            <p className="text-[11px] text-slate-400 mt-2">Ver lista completa em Planos.</p>
             {selectedPlan === 'essential' && loading && (
               <div className="absolute inset-0 bg-white/80 rounded-2xl flex items-center justify-center">
                 <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
@@ -183,26 +180,17 @@ export function UpgradeModal({ open, onClose, type = 'plan' }: UpgradeModalProps
               <Zap className="w-6 h-6 text-purple-600" />
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-1">Pro</h3>
+            <p className="text-xs text-slate-500 mb-2 leading-snug">{PLAN_TAGLINE.pro}</p>
             <p className="text-3xl font-bold text-slate-900 mb-4">
               R$ 89,90<span className="text-base font-normal text-slate-500">/mês</span>
             </p>
-            <ul className="space-y-2 text-sm text-slate-600">
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-purple-600" />
-                3 modelos de proposta + templates salvos ilimitados
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-purple-600" />
-                Personalização, Ads e integrações de agenda
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-purple-600" />
-                Suporte via WhatsApp
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-purple-600" />
-                Recursos exclusivos
-              </li>
+            <ul className="space-y-1.5 text-xs sm:text-sm text-slate-600">
+              {PLAN_BULLETS_PRO.map((line) => (
+                <li key={line} className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                  <span>{line}</span>
+                </li>
+              ))}
             </ul>
             {selectedPlan === 'pro' && loading && (
               <div className="absolute inset-0 bg-white/80 rounded-2xl flex items-center justify-center">

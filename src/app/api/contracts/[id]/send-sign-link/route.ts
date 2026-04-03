@@ -1,24 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { getPublicBaseUrl } from '@/lib/publicBaseUrl'
 import {
   sendContractSignLinkEmail,
   ContractSmtpNotConfiguredError,
 } from '@/lib/mail/sendContractSignLinkEmail'
-
-function getPublicBaseUrl(request: NextRequest): string | null {
-  const env = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '')
-  if (env) return env
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL.replace(/\/$/, '')}`
-  const origin = request.headers.get('origin')
-  if (origin?.startsWith('http')) return origin.replace(/\/$/, '')
-  const host = request.headers.get('host')
-  if (host) {
-    const proto = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
-    return `${proto}://${host}`.replace(/\/$/, '')
-  }
-  return null
-}
 
 type SignatoryRow = { name?: string; email?: string }
 
@@ -66,7 +53,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json(
       {
         error:
-          'Não foi possível montar o link público. Defina NEXT_PUBLIC_APP_URL (ex.: https://seudominio.com) no ambiente do servidor.',
+          'Não foi possível montar o link do contrato. Defina NEXT_PUBLIC_APP_URL na Vercel com o seu domínio público (ex.: https://www.plify360.com.br). Evite links em *.vercel.app nos e-mails — o cliente pode ver o login da Vercel em vez da assinatura.',
       },
       { status: 503 }
     )

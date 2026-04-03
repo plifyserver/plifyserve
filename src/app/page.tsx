@@ -21,6 +21,7 @@ import { LOGO_PRETO, LOGO_BRANCO } from '@/lib/logo'
 import { chartPaletteFromPrimary } from '@/lib/colorUtils'
 import { SITE_GUTTER_X } from '@/lib/siteLayout'
 import { cn } from '@/lib/utils'
+import { PLAN_BULLETS_ESSENTIAL, PLAN_BULLETS_PRO, PLAN_TAGLINE } from '@/lib/planMarketingCopy'
 
 const STATS = [
   { target: 500, suffix: '+', label: 'Usuários ativos' },
@@ -433,24 +434,13 @@ export default function LandingPage() {
             {/* Essential */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm flex flex-col">
               <h3 className="text-xl font-bold text-slate-900">Plify Essential</h3>
-              <p className="text-slate-600 text-sm mt-2 mb-6">
-                Para quem está começando. Gestão de clientes, propostas, contratos e projetos em um só lugar.
-              </p>
+              <p className="text-slate-600 text-sm mt-2 mb-6">{PLAN_TAGLINE.essential}</p>
               <div className="mb-6">
                 <span className="text-3xl font-bold text-slate-900">R$ 49,90</span>
                 <span className="text-slate-500 text-sm">/mês</span>
               </div>
-              <ul className="space-y-3 flex-1">
-                {[
-                  'Até 20 clientes',
-                  '5 propostas e 5 contratos por mês',
-                  '1 modelo de template de proposta',
-                  'Até 5 quadros Kanban e 5 mapas mentais',
-                  'Dashboard padrão',
-                  'Agenda (sem integrações externas)',
-                  'Projetos, tarefas, gastos pessoais, calculadora e Chat IA',
-                  'Suporte por e-mail',
-                ].map((item, i) => (
+              <ul className="space-y-2.5 flex-1">
+                {PLAN_BULLETS_ESSENTIAL.map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                     <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: ACCENT }} />
                     {item}
@@ -473,24 +463,13 @@ export default function LandingPage() {
                 </span>
               </div>
               <h3 className="text-xl font-bold text-slate-900">Plify Pro</h3>
-              <p className="text-slate-600 text-sm mt-2 mb-6">
-                Plano completo para crescer. Personalização e recursos avançados.
-              </p>
+              <p className="text-slate-600 text-sm mt-2 mb-6">{PLAN_TAGLINE.pro}</p>
               <div className="mb-6">
                 <span className="text-3xl font-bold text-slate-900">R$ 89,90</span>
                 <span className="text-slate-500 text-sm">/mês</span>
               </div>
-              <ul className="space-y-3 flex-1">
-                {[
-                  'Clientes, propostas e contratos ilimitados',
-                  '3 modelos de template de proposta (4º em desenvolvimento)',
-                  'Dashboard personalizável (cores, logo, white label)',
-                  'Agenda com integrações (ex.: Google)',
-                  'Kanban e mapas mentais ilimitados',
-                  'Gestão de Ads (tráfego) e métricas avançadas',
-                  'Projetos, tarefas, gastos, calculadora e Chat IA',
-                  'Suporte via WhatsApp',
-                ].map((item, i) => (
+              <ul className="space-y-2.5 flex-1">
+                {PLAN_BULLETS_PRO.map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                     <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: ACCENT }} />
                     {item}

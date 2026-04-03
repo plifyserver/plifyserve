@@ -14,8 +14,7 @@ export type ProposalPresetDef = {
 }
 
 /**
- * 4 modelos: os 3 primeiros liberados no Pro; Essential só o primeiro.
- * O quarto fica “em desenvolvimento” para todos.
+ * 4 modelos de proposta: Essential só o primeiro; Pro (e admin) acessa os quatro.
  */
 export const PROPOSAL_PRESETS: ProposalPresetDef[] = [
   {
@@ -49,10 +48,10 @@ export const PROPOSAL_PRESETS: ProposalPresetDef[] = [
     id: 'default-4',
     slug: 'studio-next',
     name: 'Studio Next',
-    description: 'Novo modelo em desenvolvimento — em breve para todos os planos elegíveis',
+    description: 'Layout editorial com foco em portfólio e storytelling visual',
     preview_image: '/images/template-executive-bold.png',
-    released: false,
-    proOnly: false,
+    released: true,
+    proOnly: true,
   },
 ]
 

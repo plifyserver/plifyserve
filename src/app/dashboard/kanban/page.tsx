@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { ESSENTIAL_MAX_KANBAN_BOARDS, hasUnlimitedQuotas, resolveEffectivePlan } from '@/lib/plan-entitlements'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { GripVertical, Settings, Plus, ArrowLeft, LayoutGrid, Pencil, Trash2 } from 'lucide-react'
+import { GripVertical, Settings, Plus, ArrowLeft, LayoutGrid, Pencil, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -68,6 +68,12 @@ export default function KanbanPage() {
   const [newCardStageId, setNewCardStageId] = useState<string | null>(null)
   const [newCardTitle, setNewCardTitle] = useState('')
   const [cardToDeleteId, setCardToDeleteId] = useState<string | null>(null)
+  const [boardSaving, setBoardSaving] = useState(false)
+  const [stageSaving, setStageSaving] = useState(false)
+  const [addingCard, setAddingCard] = useState(false)
+  const boardSaveLockRef = useRef(false)
+  const stageSaveLockRef = useRef(false)
+  const addCardLockRef = useRef(false)
 
   const fetchBoards = async () => {
     const res = await fetch('/api/kanban/boards', { credentials: 'include' })
@@ -99,48 +105,56 @@ export default function KanbanPage() {
 
   const saveBoard = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (boardSaveLockRef.current || boardSaving) return
     const name = boardFormName.trim() || 'Novo Kanban'
-    if (editingBoard) {
-      const res = await fetch(`/api/kanban/boards/${editingBoard.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name }),
-      })
-      if (res.ok) {
-        await fetchBoards()
-        void refetchBilling()
-        if (selectedBoard?.id === editingBoard.id) setSelectedBoard((prev) => (prev ? { ...prev, name } : null))
-        setBoardDialogOpen(false)
-        toast.success('Kanban atualizado.')
+    if (!editingBoard && boards.length >= MAX_BOARDS) {
+      toast.error(
+        hasUnlimitedQuotas(plan)
+          ? 'Não foi possível criar o Kanban.'
+          : `No Essential você pode criar até ${ESSENTIAL_MAX_KANBAN_BOARDS} Kanbans. Faça upgrade para o Pro para ilimitado.`
+      )
+      return
+    }
+    boardSaveLockRef.current = true
+    setBoardSaving(true)
+    try {
+      if (editingBoard) {
+        const res = await fetch(`/api/kanban/boards/${editingBoard.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name }),
+        })
+        if (res.ok) {
+          await fetchBoards()
+          void refetchBilling()
+          if (selectedBoard?.id === editingBoard.id) setSelectedBoard((prev) => (prev ? { ...prev, name } : null))
+          setBoardDialogOpen(false)
+          toast.success('Kanban atualizado.')
+        } else {
+          const data = await res.json()
+          toast.error(data.error ?? 'Erro ao salvar')
+        }
       } else {
-        const data = await res.json()
-        toast.error(data.error ?? 'Erro ao salvar')
+        const res = await fetch('/api/kanban/boards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name }),
+        })
+        if (res.ok) {
+          await fetchBoards()
+          void refetchBilling()
+          setBoardDialogOpen(false)
+          toast.success('Kanban criado.')
+        } else {
+          const data = await res.json()
+          toast.error(data.error ?? 'Erro ao criar')
+        }
       }
-    } else {
-      if (boards.length >= MAX_BOARDS) {
-        toast.error(
-          hasUnlimitedQuotas(plan)
-            ? 'Não foi possível criar o Kanban.'
-            : `No Essential você pode criar até ${ESSENTIAL_MAX_KANBAN_BOARDS} Kanbans. Faça upgrade para o Pro para ilimitado.`
-        )
-        return
-      }
-      const res = await fetch('/api/kanban/boards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name }),
-      })
-      if (res.ok) {
-        await fetchBoards()
-        void refetchBilling()
-        setBoardDialogOpen(false)
-        toast.success('Kanban criado.')
-      } else {
-        const data = await res.json()
-        toast.error(data.error ?? 'Erro ao criar')
-      }
+    } finally {
+      boardSaveLockRef.current = false
+      setBoardSaving(false)
     }
   }
 
@@ -163,42 +177,50 @@ export default function KanbanPage() {
   const saveStage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedBoard) return
-    if (editingStage) {
-      const res = await fetch(`/api/kanban/stages/${editingStage.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name: stageForm.name, color: stageForm.color }),
-      })
-      if (res.ok) {
-        await fetchStagesAndCards(selectedBoard.id)
-        setStageDialogOpen(false)
-        toast.success('Etapa atualizada.')
-      }
-    } else {
-      if (stages.length >= MAX_STAGES) {
-        toast.error(`Cada Kanban pode ter no máximo ${MAX_STAGES} etapas.`)
-        return
-      }
-      const res = await fetch('/api/kanban/stages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          board_id: selectedBoard.id,
-          name: stageForm.name,
-          color: stageForm.color,
-          order: stages.length,
-        }),
-      })
-      if (res.ok) {
-        await fetchStagesAndCards(selectedBoard.id)
-        setStageDialogOpen(false)
-        toast.success('Etapa criada.')
+    if (stageSaveLockRef.current || stageSaving) return
+    if (!editingStage && stages.length >= MAX_STAGES) {
+      toast.error(`Cada Kanban pode ter no máximo ${MAX_STAGES} etapas.`)
+      return
+    }
+    stageSaveLockRef.current = true
+    setStageSaving(true)
+    try {
+      if (editingStage) {
+        const res = await fetch(`/api/kanban/stages/${editingStage.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name: stageForm.name, color: stageForm.color }),
+        })
+        if (res.ok) {
+          await fetchStagesAndCards(selectedBoard.id)
+          setStageDialogOpen(false)
+          toast.success('Etapa atualizada.')
+        }
       } else {
-        const data = await res.json()
-        toast.error(data.error ?? 'Erro ao criar etapa')
+        const res = await fetch('/api/kanban/stages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            board_id: selectedBoard.id,
+            name: stageForm.name,
+            color: stageForm.color,
+            order: stages.length,
+          }),
+        })
+        if (res.ok) {
+          await fetchStagesAndCards(selectedBoard.id)
+          setStageDialogOpen(false)
+          toast.success('Etapa criada.')
+        } else {
+          const data = await res.json()
+          toast.error(data.error ?? 'Erro ao criar etapa')
+        }
       }
+    } finally {
+      stageSaveLockRef.current = false
+      setStageSaving(false)
     }
   }
 
@@ -219,17 +241,25 @@ export default function KanbanPage() {
   const addCard = async (stageId: string) => {
     const title = newCardTitle.trim()
     if (!title || !selectedBoard) return
-    const res = await fetch('/api/kanban/cards', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ board_id: selectedBoard.id, stage_id: stageId, title }),
-    })
-    if (res.ok) {
-      await fetchStagesAndCards(selectedBoard.id)
-      setNewCardTitle('')
-      setNewCardStageId(null)
-      toast.success('Card adicionado.')
+    if (addCardLockRef.current || addingCard) return
+    addCardLockRef.current = true
+    setAddingCard(true)
+    try {
+      const res = await fetch('/api/kanban/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ board_id: selectedBoard.id, stage_id: stageId, title }),
+      })
+      if (res.ok) {
+        await fetchStagesAndCards(selectedBoard.id)
+        setNewCardTitle('')
+        setNewCardStageId(null)
+        toast.success('Card adicionado.')
+      }
+    } finally {
+      addCardLockRef.current = false
+      setAddingCard(false)
     }
   }
 
@@ -375,14 +405,23 @@ export default function KanbanPage() {
                               value={newCardTitle}
                               onChange={(e) => setNewCardTitle(e.target.value)}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') addCard(stage.id)
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  void addCard(stage.id)
+                                }
                                 if (e.key === 'Escape') setNewCardStageId(null)
                               }}
                               className="rounded-lg text-sm"
                               autoFocus
                             />
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" className="rounded-lg" onClick={() => addCard(stage.id)}>
+                              <Button
+                                size="sm"
+                                className="rounded-lg gap-1.5"
+                                disabled={addingCard}
+                                onClick={() => void addCard(stage.id)}
+                              >
+                                {addingCard && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                                 Adicionar
                               </Button>
                               <Button size="sm" variant="ghost" onClick={() => setNewCardStageId(null)}>
@@ -443,7 +482,13 @@ export default function KanbanPage() {
                 </div>
               </div>
               <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setStageDialogOpen(false)} className="rounded-xl">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStageDialogOpen(false)}
+                  className="rounded-xl"
+                  disabled={stageSaving}
+                >
                   Cancelar
                 </Button>
                 {editingStage && (
@@ -454,12 +499,14 @@ export default function KanbanPage() {
                       setStageToDeleteId(editingStage.id)
                     }}
                     className="rounded-xl"
+                    disabled={stageSaving}
                   >
                     Excluir
                   </Button>
                 )}
-                <Button type="submit" className="rounded-xl">
-                  Salvar
+                <Button type="submit" className="rounded-xl gap-2" disabled={stageSaving}>
+                  {stageSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {stageSaving ? 'A guardar…' : 'Salvar'}
                 </Button>
               </DialogFooter>
             </form>
@@ -587,11 +634,18 @@ export default function KanbanPage() {
               />
             </div>
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setBoardDialogOpen(false)} className="rounded-xl">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBoardDialogOpen(false)}
+                className="rounded-xl"
+                disabled={boardSaving}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" className="rounded-xl">
-                {editingBoard ? 'Salvar' : 'Criar'}
+              <Button type="submit" className="rounded-xl gap-2" disabled={boardSaving}>
+                {boardSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {boardSaving ? 'A guardar…' : editingBoard ? 'Salvar' : 'Criar'}
               </Button>
             </DialogFooter>
           </form>

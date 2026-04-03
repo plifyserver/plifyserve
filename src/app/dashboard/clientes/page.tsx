@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, Search, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -41,6 +41,8 @@ export default function ClientesPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const saveClientLockRef = useRef(false)
+  const deleteClientLockRef = useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -149,7 +151,8 @@ export default function ClientesPage() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (saving) return
+    if (saveClientLockRef.current || saving) return
+    saveClientLockRef.current = true
     setSaving(true)
     try {
       const url = selected ? `/api/clients/${selected.id}` : '/api/clients'
@@ -197,6 +200,7 @@ export default function ClientesPage() {
         closeDialog()
       }
     } finally {
+      saveClientLockRef.current = false
       setSaving(false)
     }
   }
@@ -212,7 +216,8 @@ export default function ClientesPage() {
   }
 
   const deleteClient = async () => {
-    if (!clientToDelete) return
+    if (!clientToDelete || deleteClientLockRef.current || saving) return
+    deleteClientLockRef.current = true
     setSaving(true)
     try {
       const res = await fetch(`/api/clients/${clientToDelete.id}`, { method: 'DELETE', credentials: 'include' })
@@ -223,6 +228,7 @@ export default function ClientesPage() {
         if (selected?.id === clientToDelete.id) closeDialog()
       }
     } finally {
+      deleteClientLockRef.current = false
       setSaving(false)
     }
   }

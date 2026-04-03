@@ -6,26 +6,12 @@ import { useBilling } from '@/hooks/useBilling'
 import type { PlanType } from '@/services/billing'
 import { useAuth } from '@/contexts/AuthContext'
 import { SITE_CONTAINER_LG } from '@/lib/siteLayout'
-
-const COMPARISON_ROWS: { feature: string; essential: string | 'check' | 'dash'; pro: string | 'check' | 'dash' }[] = [
-  { feature: 'Preço', essential: 'R$ 49,90 / mês', pro: 'R$ 89,90 / mês' },
-  { feature: 'Clientes', essential: 'Até 20', pro: 'Ilimitados' },
-  { feature: 'Propostas por mês', essential: '5', pro: 'Ilimitadas' },
-  { feature: 'Contratos por mês', essential: '5', pro: 'Ilimitados' },
-  { feature: 'Modelos de template (proposta)', essential: '1 modelo', pro: '3 modelos (4º em desenvolvimento)' },
-  { feature: 'Templates salvos (meus)', essential: 'Até 10', pro: 'Ilimitados' },
-  { feature: 'Dashboard', essential: 'Padrão', pro: 'Personalizável (cores, logo)' },
-  { feature: 'Agenda', essential: 'Uso normal', pro: 'Integrações (ex.: Google)' },
-  { feature: 'Kanban', essential: 'Até 5 quadros', pro: 'Ilimitado' },
-  { feature: 'Gestão de Projetos e tarefas', essential: 'check', pro: 'check' },
-  { feature: 'Gastos pessoais', essential: 'check', pro: 'check' },
-  { feature: 'Calculadora', essential: 'check', pro: 'check' },
-  { feature: 'Chat IA', essential: 'check', pro: 'check' },
-  { feature: 'Mapa mental', essential: 'Até 5 mapas', pro: 'Ilimitados' },
-  { feature: 'Gestão de Ads (tráfego)', essential: 'dash', pro: 'check' },
-  { feature: 'White Label / marca', essential: 'dash', pro: 'check' },
-  { feature: 'Suporte', essential: 'E-mail', pro: 'WhatsApp' },
-]
+import {
+  PLAN_BULLETS_ESSENTIAL,
+  PLAN_BULLETS_PRO,
+  PLAN_COMPARISON_ROWS,
+  PLAN_TAGLINE,
+} from '@/lib/planMarketingCopy'
 
 function CellContent({ value }: { value: string | 'check' | 'dash' }) {
   if (value === 'check') {
@@ -56,7 +42,10 @@ export default function PlanosPage() {
       <div className="rounded-3xl bg-slate-950 border border-white/10 p-4 sm:p-6 lg:p-8 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.75)]">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-white">Planos</h1>
-          <p className="text-white/70">Escolha o plano ideal e compare recursos</p>
+          <p className="text-white/70 text-sm max-w-2xl">
+            <span className="text-white/90 font-medium">Essential</span> — no Plify, com limites.{' '}
+            <span className="text-white/90 font-medium">Pro</span> — ilimitado + marca + Google Calendar e telemóvel.
+          </p>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -103,7 +92,7 @@ export default function PlanosPage() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-wider text-white/60">Plify Essential</p>
-                <h2 className="text-xl font-semibold text-white mt-1">Essencial para começar</h2>
+                <h2 className="text-xl font-semibold text-white mt-1 leading-snug">{PLAN_TAGLINE.essential}</h2>
               </div>
               {currentPlanType === 'essential' && (
                 <span className="text-xs px-2.5 py-1 rounded-full bg-white/10 text-white border border-white/10">
@@ -115,15 +104,8 @@ export default function PlanosPage() {
               <span className="text-3xl font-bold text-white">R$ 49,90</span>
               <span className="text-sm text-white/60 mb-1">/mês</span>
             </div>
-            <div className="mt-5 space-y-3">
-              {[
-                'Até 20 clientes',
-                '5 propostas e 5 contratos por mês',
-                '1 modelo de template de proposta',
-                'Até 5 Kanbans e 5 mapas mentais',
-                'Agenda, tarefas, gastos, calculadora e Chat IA',
-                'Suporte por e-mail',
-              ].map((item) => (
+            <div className="mt-5 space-y-2.5">
+              {PLAN_BULLETS_ESSENTIAL.map((item) => (
                 <div key={item} className="flex items-start gap-2 text-sm text-white/80">
                   <Check className="w-4 h-4 text-emerald-300 mt-0.5 flex-shrink-0" />
                   <span className="min-w-0">{item}</span>
@@ -143,7 +125,7 @@ export default function PlanosPage() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-wider text-white/60">Plify Pro</p>
-                <h2 className="text-xl font-semibold text-white mt-1">Completo para crescer</h2>
+                <h2 className="text-xl font-semibold text-white mt-1 leading-snug">{PLAN_TAGLINE.pro}</h2>
               </div>
               {currentPlanType === 'pro' && (
                 <span className="text-xs px-2.5 py-1 rounded-full bg-white text-slate-950 border border-white/10">
@@ -155,15 +137,8 @@ export default function PlanosPage() {
               <span className="text-3xl font-bold text-white">R$ 89,90</span>
               <span className="text-sm text-white/60 mb-1">/mês</span>
             </div>
-            <div className="mt-5 space-y-3">
-              {[
-                'Clientes, propostas e contratos ilimitados',
-                '3 modelos de template de proposta',
-                'Dashboard personalizável e White Label',
-                'Agenda com integrações e Ads (tráfego)',
-                'Kanban e mapas mentais ilimitados',
-                'Suporte via WhatsApp',
-              ].map((item) => (
+            <div className="mt-5 space-y-2.5">
+              {PLAN_BULLETS_PRO.map((item) => (
                 <div key={item} className="flex items-start gap-2 text-sm text-white/80">
                   <Check className="w-4 h-4 text-emerald-300 mt-0.5 flex-shrink-0" />
                   <span className="min-w-0">{item}</span>
@@ -184,8 +159,8 @@ export default function PlanosPage() {
         {/* Comparativo detalhado (mantido), com mais respiro */}
         <div className="mt-6 rounded-2xl border border-white/10 overflow-hidden bg-slate-900/30">
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-white">Comparativo detalhado</p>
-            <p className="text-xs text-white/60">Essential vs Pro</p>
+            <p className="text-sm font-semibold text-white">Comparativo rápido</p>
+            <p className="text-xs text-white/60">Essential × Pro</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[720px]">
@@ -206,7 +181,7 @@ export default function PlanosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
-                {COMPARISON_ROWS.map((row, idx) => (
+                {PLAN_COMPARISON_ROWS.map((row, idx) => (
                   <tr key={idx} className="hover:bg-white/5 transition-colors">
                     <td className="p-4 text-sm text-white/75">{row.feature}</td>
                     <td className="p-4 text-sm text-center">
@@ -227,22 +202,15 @@ export default function PlanosPage() {
         </div>
 
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
-          <h3 className="font-semibold text-white mb-4">Perguntas frequentes</h3>
-          <div className="space-y-4 text-sm">
-            <div>
-              <p className="font-medium text-white/90">Posso mudar de plano a qualquer momento?</p>
-              <p className="text-white/70 mt-1">
-                Sim. Com assinatura no cartão, upgrade e downgrade usam ajuste proporcional na fatura (Stripe). Com PIX,
-                você paga o plano escolhido por períodos avulsos.
-              </p>
-            </div>
-            <div>
-              <p className="font-medium text-white/90">Como funciona o pagamento?</p>
-              <p className="text-white/70 mt-1">
-                Pagamentos via Stripe: PIX (pagamento único por período) ou cartão (cobrança mensal). Use a página de
-                checkout para contratar ou alterar plano.
-              </p>
-            </div>
+          <h3 className="font-semibold text-white mb-3 text-sm">Dúvidas rápidas</h3>
+          <div className="space-y-3 text-sm text-white/75">
+            <p>
+              <span className="text-white/90 font-medium">Mudar de plano?</span> Sim — pelo checkout; no cartão o Stripe
+              ajusta a fatura (upgrade/downgrade).
+            </p>
+            <p>
+              <span className="text-white/90 font-medium">Pagamento?</span> Stripe: PIX por período ou cartão mensal.
+            </p>
           </div>
         </div>
       </div>

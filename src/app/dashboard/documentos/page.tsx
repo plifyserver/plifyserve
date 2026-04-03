@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle, Search, Mail, MessageCircle, Globe, Monitor } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, FileText, MoreHorizontal, Edit, Trash2, PenLine, Download, Eye, MapPin, Calendar, Clock, User, Link2, CheckCircle, Send, Copy, ExternalLink, AlertTriangle, Search, Mail, MessageCircle, Globe, Monitor, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -92,6 +92,8 @@ export default function DocumentosPage() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
+  const [savingContract, setSavingContract] = useState(false)
+  const saveContractLockRef = useRef(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [signDialogOpen, setSignDialogOpen] = useState(false)
   const [placementOpen, setPlacementOpen] = useState(false)
@@ -184,11 +186,14 @@ export default function DocumentosPage() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!form.title.trim()) {
       toast.error('Informe o título do contrato')
       return
     }
+    if (saveContractLockRef.current || savingContract) return
+    saveContractLockRef.current = true
+    setSavingContract(true)
 
     const url = selected ? `/api/contracts/${selected.id}` : '/api/contracts'
     const method = selected ? 'PUT' : 'POST'
@@ -232,6 +237,9 @@ export default function DocumentosPage() {
       }
     } catch {
       toast.error('Erro ao salvar contrato')
+    } finally {
+      saveContractLockRef.current = false
+      setSavingContract(false)
     }
   }
 
@@ -971,11 +979,18 @@ export default function DocumentosPage() {
               </div>
             </div>
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={closeDialog} className="rounded-xl">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeDialog}
+                className="rounded-xl"
+                disabled={savingContract}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" className="rounded-xl">
-                Salvar
+              <Button type="submit" className="rounded-xl gap-2" disabled={savingContract}>
+                {savingContract && <Loader2 className="w-4 h-4 animate-spin" />}
+                {savingContract ? 'A guardar…' : 'Salvar'}
               </Button>
             </DialogFooter>
           </form>

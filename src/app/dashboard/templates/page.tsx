@@ -192,8 +192,7 @@ export default function TemplatesPage() {
           <div>
             <h2 className="text-lg font-semibold mb-4 text-slate-900">Modelos de proposta</h2>
             <p className="text-sm text-slate-500 mb-4">
-              No Essential você usa o primeiro modelo. No Pro, os três modelos atuais; o quarto está em
-              desenvolvimento.
+              No Essential você usa o primeiro modelo. No Pro, os quatro modelos de proposta.
             </p>
             <div className="grid md:grid-cols-2 gap-6">
               {PROPOSAL_PRESETS.map((template) => {
