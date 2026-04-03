@@ -36,6 +36,14 @@ import {
   mergeModernPage8,
 } from '@/types/modernProposal'
 import { mergeModernSurfaceTheme } from '@/components/proposals/modernProposalSurface'
+import {
+  mergeExecutivePage1,
+  mergeExecutivePage2,
+  mergeExecutivePage3,
+  mergeExecutivePage4,
+  mergeExecutivePage5,
+  mergeExecutivePage6,
+} from '@/types/executiveProposal'
 import type { Proposal } from '@/types'
 
 const defaultPalette: ColorPalette = {
@@ -113,6 +121,12 @@ function buildProposalData(proposal: Proposal): ProposalData {
     modernPage8: c.template === 'modern' ? mergeModernPage8(c.modernPage8, company) : undefined,
     modernSurfaceTheme:
       c.template === 'modern' ? mergeModernSurfaceTheme((c as { modernSurfaceTheme?: unknown }).modernSurfaceTheme) : undefined,
+    executivePage1: c.template === 'executive' ? mergeExecutivePage1((c as { executivePage1?: unknown }).executivePage1) : undefined,
+    executivePage2: c.template === 'executive' ? mergeExecutivePage2((c as { executivePage2?: unknown }).executivePage2) : undefined,
+    executivePage3: c.template === 'executive' ? mergeExecutivePage3((c as { executivePage3?: unknown }).executivePage3) : undefined,
+    executivePage4: c.template === 'executive' ? mergeExecutivePage4((c as { executivePage4?: unknown }).executivePage4) : undefined,
+    executivePage5: c.template === 'executive' ? mergeExecutivePage5((c as { executivePage5?: unknown }).executivePage5) : undefined,
+    executivePage6: c.template === 'executive' ? mergeExecutivePage6((c as { executivePage6?: unknown }).executivePage6) : undefined,
   }
 }
 
@@ -127,7 +141,8 @@ export default function VisualizarProposalPage() {
   const previewFullBleed =
     proposalData?.template === 'empresarial' ||
     proposalData?.template === 'simple' ||
-    proposalData?.template === 'modern'
+    proposalData?.template === 'modern' ||
+    proposalData?.template === 'executive'
   const acceptanceComment = useMemo(
     () => (proposal ? getAcceptanceClientComment(proposal.content) : null),
     [proposal]

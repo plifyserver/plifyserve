@@ -29,9 +29,18 @@ import type {
   ModernPage7,
   ModernPage8,
 } from '@/types/modernProposal'
+import type {
+  ExecutivePage1,
+  ExecutivePage2,
+  ExecutivePage3,
+  ExecutivePage4,
+  ExecutivePage5,
+  ExecutivePage6,
+} from '@/types/executiveProposal'
 import { ProposalEmpresarialLayout } from '@/components/proposals/ProposalEmpresarialLayout'
 import { ProposalCleanLayout } from '@/components/proposals/ProposalCleanLayout'
 import { ProposalModernLayout } from '@/components/proposals/ProposalModernLayout'
+import { ProposalExecutiveLayout } from '@/components/proposals/ProposalExecutiveLayout'
 import { ProposalCommerceSections } from '@/components/proposals/ProposalCommerceSections'
 
 export interface ProposalData {
@@ -85,6 +94,18 @@ export interface ProposalData {
   modernPage7?: ModernPage7
   /** Modelo Moderno — página 8 (rodapé: redes, links, contato). */
   modernPage8?: ModernPage8
+  /** Modelo Executiva — capa neon + carrossel de marcas */
+  executivePage1?: ExecutivePage1
+  /** Modelo Executiva — clientes / depoimentos (pág. 2) */
+  executivePage2?: ExecutivePage2
+  /** Modelo Executiva — planos escuros (pág. 3) */
+  executivePage3?: ExecutivePage3
+  /** Modelo Executiva — FAQ (pág. 4) */
+  executivePage4?: ExecutivePage4
+  /** Modelo Executiva — por que nos escolher (pág. 5) */
+  executivePage5?: ExecutivePage5
+  /** Modelo Executiva — contato + rodapé (pág. 6) */
+  executivePage6?: ExecutivePage6
 }
 
 export interface ContentBlock {
@@ -159,6 +180,18 @@ export function ProposalPreview({
         data={data}
         className={cn(!className?.includes('rounded-none') && 'rounded-2xl', className)}
         commerceStyles={{ sectionRadius: '1rem', cardShadow: 'shadow-md' }}
+        selectedPlanId={selectedPlanId}
+        onSelectPlan={onSelectPlan}
+        onOpenPlanAccept={onOpenPlanAccept}
+      />
+    )
+  }
+
+  if (template === 'executive') {
+    return (
+      <ProposalExecutiveLayout
+        data={data}
+        className={cn(!className?.includes('rounded-none') && 'rounded-2xl', className)}
         selectedPlanId={selectedPlanId}
         onSelectPlan={onSelectPlan}
         onOpenPlanAccept={onOpenPlanAccept}

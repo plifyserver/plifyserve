@@ -37,10 +37,11 @@ const OPTIONS: {
   },
   {
     id: 'executive',
-    label: 'Executivo',
-    description: 'Tom formal, ideal para B2B e contratos de maior valor.',
+    label: 'Executiva',
+    description:
+      'Capa escura com neon (azul, laranja, vermelho ou branco), logos em carrossel e botões NOSSOS PRODUTOS / CONTATO + planos.',
     icon: Briefcase,
-    enabled: false,
+    enabled: true,
   },
 ]
 
@@ -66,8 +67,7 @@ export function TemplateSelector({ open, onClose, onSelect }: TemplateSelectorPr
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Nova proposta</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Empresarial (landing completa), Clean (portfolio / divulgação) ou Moderno (hero escuro + proposta). Executivo
-              em breve.
+              Empresarial, Clean, Moderno ou Executiva (capa neon + carrossel de marcas). Escolha o modelo e personalize.
             </p>
           </div>
           <button type="button" onClick={onClose} className="shrink-0 rounded-xl p-2 transition-colors hover:bg-slate-100">

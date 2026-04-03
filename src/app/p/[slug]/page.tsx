@@ -37,6 +37,14 @@ import {
   mergeModernPage8,
 } from '@/types/modernProposal'
 import { mergeModernSurfaceTheme } from '@/components/proposals/modernProposalSurface'
+import {
+  mergeExecutivePage1,
+  mergeExecutivePage2,
+  mergeExecutivePage3,
+  mergeExecutivePage4,
+  mergeExecutivePage5,
+  mergeExecutivePage6,
+} from '@/types/executiveProposal'
 import { planBillingSuffix } from '@/components/proposals/PlanCard'
 import { fireProposalConfetti } from '@/lib/proposalConfetti'
 import { toast } from 'sonner'
@@ -82,6 +90,12 @@ interface Proposal {
     modernPage6?: unknown
     modernPage7?: unknown
     modernPage8?: unknown
+    executivePage1?: unknown
+    executivePage2?: unknown
+    executivePage3?: unknown
+    executivePage4?: unknown
+    executivePage5?: unknown
+    executivePage6?: unknown
     paymentType?: ProposalData['paymentType']
     singlePrice?: number
     acceptedPlanId?: string | null
@@ -150,6 +164,12 @@ function buildProposalData(proposal: Proposal): ProposalData {
     modernPage8: c.template === 'modern' ? mergeModernPage8(c.modernPage8, company) : undefined,
     modernSurfaceTheme:
       c.template === 'modern' ? mergeModernSurfaceTheme((c as { modernSurfaceTheme?: unknown }).modernSurfaceTheme) : undefined,
+    executivePage1: c.template === 'executive' ? mergeExecutivePage1(c.executivePage1) : undefined,
+    executivePage2: c.template === 'executive' ? mergeExecutivePage2(c.executivePage2) : undefined,
+    executivePage3: c.template === 'executive' ? mergeExecutivePage3(c.executivePage3) : undefined,
+    executivePage4: c.template === 'executive' ? mergeExecutivePage4(c.executivePage4) : undefined,
+    executivePage5: c.template === 'executive' ? mergeExecutivePage5(c.executivePage5) : undefined,
+    executivePage6: c.template === 'executive' ? mergeExecutivePage6(c.executivePage6) : undefined,
   }
 }
 
@@ -173,7 +193,8 @@ export default function PublicProposalPage() {
   const isEmpresarial = proposalData?.template === 'empresarial'
   const isClean = proposalData?.template === 'simple'
   const isModern = proposalData?.template === 'modern'
-  const fullBleedPublic = isEmpresarial || isClean || isModern
+  const isExecutive = proposalData?.template === 'executive'
+  const fullBleedPublic = isEmpresarial || isClean || isModern || isExecutive
 
   const planCount = proposalData?.plans?.length ?? 0
   /** Inclui propostas com planos no JSON mesmo se paymentType vier vazio (default no build é 'plans'). */

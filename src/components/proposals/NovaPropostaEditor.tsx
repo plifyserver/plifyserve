@@ -28,6 +28,8 @@ import {
   Info,
   Users,
   PanelBottom,
+  CircleHelp,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -136,6 +138,39 @@ import {
   type ModernPage8SocialLink,
   type ModernPage8SocialPlatform,
 } from '@/types/modernProposal'
+import {
+  DEFAULT_EXECUTIVE_PAGE1,
+  DEFAULT_EXECUTIVE_PAGE2,
+  DEFAULT_EXECUTIVE_PAGE3,
+  DEFAULT_EXECUTIVE_PAGE4,
+  DEFAULT_EXECUTIVE_PAGE5,
+  DEFAULT_EXECUTIVE_PAGE6,
+  EXECUTIVE_CONTACT_TRUST_LINES,
+  EXECUTIVE_FAQ_SLOTS,
+  EXECUTIVE_TESTIMONIAL_SLOTS,
+  EXECUTIVE_WHY_CARD_SLOTS,
+  executiveFaqSlotsForEditor,
+  executiveWhyCardsForEditor,
+  executiveBrandLogosFromSlots,
+  executiveBrandSlots,
+  executiveTestimonialSlotsForEditor,
+  mergeExecutivePage1,
+  mergeExecutivePage2,
+  mergeExecutivePage3,
+  mergeExecutivePage4,
+  mergeExecutivePage5,
+  mergeExecutivePage6,
+  type ExecutiveNeonAccent,
+  type ExecutivePage1,
+  type ExecutivePage2,
+  type ExecutivePage3,
+  type ExecutivePage4,
+  type ExecutivePage5,
+  type ExecutivePage6,
+  type ExecutiveFaqItem,
+  type ExecutiveTestimonial,
+  type ExecutiveWhyCard,
+} from '@/types/executiveProposal'
 
 const MODERN8_SOCIAL_OPTIONS: { value: ModernPage8SocialPlatform; label: string }[] = [
   { value: 'instagram', label: 'Instagram' },
@@ -151,7 +186,10 @@ const MODERN8_SOCIAL_OPTIONS: { value: ModernPage8SocialPlatform; label: string 
   { value: 'other', label: 'Outro' },
 ]
 
-type EmpresarialIconPickTarget = { kind: 'page1'; index: number } | { kind: 'page4'; index: number }
+type EmpresarialIconPickTarget =
+  | { kind: 'page1'; index: number }
+  | { kind: 'page4'; index: number }
+  | { kind: 'executive5'; index: number }
 type ProposalStatus = 'draft' | 'published' | 'accepted'
 
 const colorPalettes: { name: string; colors: ColorPalette }[] = [
@@ -389,6 +427,12 @@ const getDefaultProposalData = (template: TemplateType): ProposalData => ({
   modernPage6: template === 'modern' ? mergeModernPage6(undefined) : undefined,
   modernPage7: template === 'modern' ? mergeModernPage7(undefined) : undefined,
   modernPage8: template === 'modern' ? mergeModernPage8(undefined, undefined) : undefined,
+  executivePage1: template === 'executive' ? { ...DEFAULT_EXECUTIVE_PAGE1, brandLogos: [] } : undefined,
+  executivePage2: template === 'executive' ? mergeExecutivePage2(DEFAULT_EXECUTIVE_PAGE2) : undefined,
+  executivePage3: template === 'executive' ? mergeExecutivePage3(DEFAULT_EXECUTIVE_PAGE3) : undefined,
+  executivePage4: template === 'executive' ? mergeExecutivePage4(DEFAULT_EXECUTIVE_PAGE4) : undefined,
+  executivePage5: template === 'executive' ? mergeExecutivePage5(DEFAULT_EXECUTIVE_PAGE5) : undefined,
+  executivePage6: template === 'executive' ? mergeExecutivePage6(DEFAULT_EXECUTIVE_PAGE6) : undefined,
 })
 
 export function NovaPropostaEditor({
@@ -411,6 +455,7 @@ export function NovaPropostaEditor({
     if (t === 'empresarial') return 'empresarial'
     if (t === 'simple') return 'clean1'
     if (t === 'modern') return 'modernHero'
+    if (t === 'executive') return 'executiveHero'
     return 'company'
   })
   const [showPreview, setShowPreview] = useState(true)
@@ -487,6 +532,18 @@ export function NovaPropostaEditor({
         { id: 'modern6' as const, label: 'Página 6 · equipa ou produtos', icon: Users },
         { id: 'modern7' as const, label: 'Página 7 · recomendações', icon: MessageSquareQuote },
         { id: 'modern8' as const, label: 'Página 8 · rodapé', icon: PanelBottom },
+        PROPOSTA_BASE_SECTIONS[2],
+      ]
+    }
+    if (proposalData.template === 'executive') {
+      return [
+        ...PROPOSTA_BASE_SECTIONS.slice(0, 2),
+        { id: 'executiveHero' as const, label: 'Capa · Executiva (neon)', icon: LayoutTemplate },
+        { id: 'executive2' as const, label: 'Clientes · pág. 2', icon: MessageSquareQuote },
+        { id: 'executive3' as const, label: 'Planos · pág. 3', icon: CreditCard },
+        { id: 'executive4' as const, label: 'FAQ · pág. 4', icon: CircleHelp },
+        { id: 'executive5' as const, label: 'Por que nos escolher · pág. 5', icon: Sparkles },
+        { id: 'executive6' as const, label: 'Contato · pág. 6', icon: Phone },
         PROPOSTA_BASE_SECTIONS[2],
       ]
     }
@@ -598,6 +655,48 @@ export function NovaPropostaEditor({
     setProposalData((prev) => {
       const cur = mergeModernPage1(prev.modernPage1)
       return { ...prev, modernPage1: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchExecutivePage1 = useCallback((patch: Partial<ExecutivePage1>) => {
+    setProposalData((prev) => {
+      const cur = mergeExecutivePage1(prev.executivePage1)
+      return { ...prev, executivePage1: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchExecutivePage2 = useCallback((patch: Partial<ExecutivePage2>) => {
+    setProposalData((prev) => {
+      const cur = mergeExecutivePage2(prev.executivePage2)
+      return { ...prev, executivePage2: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchExecutivePage3 = useCallback((patch: Partial<ExecutivePage3>) => {
+    setProposalData((prev) => {
+      const cur = mergeExecutivePage3(prev.executivePage3)
+      return { ...prev, executivePage3: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchExecutivePage4 = useCallback((patch: Partial<ExecutivePage4>) => {
+    setProposalData((prev) => {
+      const cur = mergeExecutivePage4(prev.executivePage4)
+      return { ...prev, executivePage4: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchExecutivePage5 = useCallback((patch: Partial<ExecutivePage5>) => {
+    setProposalData((prev) => {
+      const cur = mergeExecutivePage5(prev.executivePage5)
+      return { ...prev, executivePage5: { ...cur, ...patch } }
+    })
+  }, [])
+
+  const patchExecutivePage6 = useCallback((patch: Partial<ExecutivePage6>) => {
+    setProposalData((prev) => {
+      const cur = mergeExecutivePage6(prev.executivePage6)
+      return { ...prev, executivePage6: { ...cur, ...patch } }
     })
   }, [])
 
@@ -907,6 +1006,12 @@ export function NovaPropostaEditor({
             modernPage6?: unknown
             modernPage7?: unknown
             modernPage8?: unknown
+            executivePage1?: unknown
+            executivePage2?: unknown
+            executivePage3?: unknown
+            executivePage4?: unknown
+            executivePage5?: unknown
+            executivePage6?: unknown
             paymentType?: ProposalData['paymentType']
             singlePrice?: number
           }
@@ -998,6 +1103,12 @@ export function NovaPropostaEditor({
           modernPage6: c.template === 'modern' ? mergeModernPage6(c.modernPage6) : undefined,
           modernPage7: c.template === 'modern' ? mergeModernPage7(c.modernPage7) : undefined,
           modernPage8: c.template === 'modern' ? mergeModernPage8(c.modernPage8, company) : undefined,
+          executivePage1: c.template === 'executive' ? mergeExecutivePage1(c.executivePage1) : undefined,
+          executivePage2: c.template === 'executive' ? mergeExecutivePage2(c.executivePage2) : undefined,
+          executivePage3: c.template === 'executive' ? mergeExecutivePage3(c.executivePage3) : undefined,
+          executivePage4: c.template === 'executive' ? mergeExecutivePage4(c.executivePage4) : undefined,
+          executivePage5: c.template === 'executive' ? mergeExecutivePage5(c.executivePage5) : undefined,
+          executivePage6: c.template === 'executive' ? mergeExecutivePage6(c.executivePage6) : undefined,
         })
         setActiveSection(
           c.template === 'empresarial'
@@ -1006,7 +1117,9 @@ export function NovaPropostaEditor({
               ? 'clean1'
               : c.template === 'modern'
                 ? 'modernHero'
-                : 'company'
+                : c.template === 'executive'
+                  ? 'executiveHero'
+                  : 'company'
         )
       } finally {
         if (!cancelled) setLoadingEdit(false)
@@ -1058,6 +1171,17 @@ export function NovaPropostaEditor({
     ) {
       setActiveSection('company')
     }
+    if (
+      proposalData.template !== 'executive' &&
+      (activeSection === 'executiveHero' ||
+        activeSection === 'executive2' ||
+        activeSection === 'executive3' ||
+        activeSection === 'executive4' ||
+        activeSection === 'executive5' ||
+        activeSection === 'executive6')
+    ) {
+      setActiveSection('company')
+    }
     if (activeSection === 'style') {
       setActiveSection(
         proposalData.template === 'empresarial'
@@ -1066,7 +1190,9 @@ export function NovaPropostaEditor({
             ? 'clean1'
             : proposalData.template === 'modern'
               ? 'modernHero'
-              : 'planos'
+              : proposalData.template === 'executive'
+                ? 'executiveHero'
+                : 'planos'
       )
     }
     if (activeSection === 'delivery' || activeSection === 'content') {
@@ -1077,7 +1203,9 @@ export function NovaPropostaEditor({
             ? 'clean1'
             : proposalData.template === 'modern'
               ? 'modernHero'
-              : 'planos'
+              : proposalData.template === 'executive'
+                ? 'executiveHero'
+                : 'planos'
       )
     }
     if (activeSection === 'payment') {
@@ -1099,7 +1227,9 @@ export function NovaPropostaEditor({
             ? 'clean1'
             : proposalData.template === 'modern'
               ? 'modernHero'
-              : 'planos'
+              : proposalData.template === 'executive'
+                ? 'executiveHero'
+                : 'planos'
       )
     }
   }, [proposalData.template, activeSection])
@@ -1189,6 +1319,24 @@ export function NovaPropostaEditor({
             modernSurfaceTheme: mergeModernSurfaceTheme(proposalData.modernSurfaceTheme),
           }
         : {}),
+      ...(proposalData.template === 'executive' && proposalData.executivePage1
+        ? { executivePage1: mergeExecutivePage1(proposalData.executivePage1) }
+        : {}),
+      ...(proposalData.template === 'executive' && proposalData.executivePage2
+        ? { executivePage2: mergeExecutivePage2(proposalData.executivePage2) }
+        : {}),
+      ...(proposalData.template === 'executive' && proposalData.executivePage3
+        ? { executivePage3: mergeExecutivePage3(proposalData.executivePage3) }
+        : {}),
+      ...(proposalData.template === 'executive' && proposalData.executivePage4
+        ? { executivePage4: mergeExecutivePage4(proposalData.executivePage4) }
+        : {}),
+      ...(proposalData.template === 'executive' && proposalData.executivePage5
+        ? { executivePage5: mergeExecutivePage5(proposalData.executivePage5) }
+        : {}),
+      ...(proposalData.template === 'executive' && proposalData.executivePage6
+        ? { executivePage6: mergeExecutivePage6(proposalData.executivePage6) }
+        : {}),
     },
   })
 
@@ -1243,7 +1391,9 @@ export function NovaPropostaEditor({
             ? 'clean1'
             : proposalData.template === 'modern'
               ? 'modernHero'
-              : 'company'
+              : proposalData.template === 'executive'
+                ? 'executiveHero'
+                : 'company'
       )
       return
     }
@@ -1341,7 +1491,12 @@ export function NovaPropostaEditor({
               <h3 className="text-lg font-semibold text-slate-900 mb-1">Dados do Cliente</h3>
               <p className="text-sm text-slate-500">
                 Opcional. O nome da sua empresa (obrigatório para publicar) fica no{' '}
-                {proposalData.template === 'empresarial' ? 'Hero · pág. 1' : 'separador Empresa'}.
+                {proposalData.template === 'empresarial'
+                  ? 'Hero · pág. 1'
+                  : proposalData.template === 'executive'
+                    ? 'Capa · Executiva'
+                    : 'separador Empresa'}
+                .
               </p>
             </div>
             <div>
@@ -1545,6 +1700,677 @@ export function NovaPropostaEditor({
                 >
                   Tema claro
                 </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case 'executiveHero': {
+        const e1 = mergeExecutivePage1(proposalData.executivePage1)
+        const six = executiveBrandSlots(e1.brandLogos)
+        const setBrandSlot = (index: number, url: string | undefined) => {
+          const nextSix = [...six]
+          nextSix[index] = url
+          patchExecutivePage1({ brandLogos: executiveBrandLogosFromSlots(nextSix) })
+        }
+        const neonOptions: { id: ExecutiveNeonAccent; label: string; swatch: string }[] = [
+          { id: 'blue', label: 'Azul neon', swatch: '#00D1FF' },
+          { id: 'orange', label: 'Laranja', swatch: '#FF7A3D' },
+          { id: 'red', label: 'Vermelho', swatch: '#FF4757' },
+          { id: 'white', label: 'Branco', swatch: '#FFFFFF' },
+        ]
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Capa · Executiva (neon)</h3>
+              <p className="text-sm text-slate-500">
+                Fundo escuro com estrelas e brilho neon na base. O <strong>logo</strong> e o <strong>nome da empresa</strong>{' '}
+                vêm da secção Empresa — sem logo, o nome aparece como título principal. Os botões são{' '}
+                <strong>NOSSOS PRODUTOS</strong> e <strong>CONTATO</strong> (links configuráveis abaixo).
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <p className="mb-3 text-sm font-medium text-slate-800">Cor do neon e do botão principal</p>
+              <div className="flex flex-wrap gap-2">
+                {neonOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => patchExecutivePage1({ neonAccent: opt.id })}
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all',
+                      e1.neonAccent === opt.id
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    )}
+                  >
+                    <span
+                      className="h-4 w-4 shrink-0 rounded-full border border-slate-200 shadow-inner"
+                      style={{ backgroundColor: opt.swatch }}
+                    />
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Avaliação (ex.: 4.9/5)</label>
+              <Input
+                value={e1.ratingLabel}
+                onChange={(e) => patchExecutivePage1({ ratingLabel: e.target.value })}
+                placeholder="4.9/5"
+                className="max-w-xs rounded-xl border-slate-200"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Texto abaixo do logo / nome</label>
+              <Textarea
+                value={e1.heroDescription}
+                onChange={(e) => patchExecutivePage1({ heroDescription: e.target.value })}
+                rows={5}
+                className="rounded-xl border-slate-200"
+                placeholder="Parágrafo de apresentação..."
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Texto acima das marcas (trusted by)</label>
+              <Textarea
+                value={e1.trustedByText}
+                onChange={(e) => patchExecutivePage1({ trustedByText: e.target.value })}
+                rows={3}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Link · NOSSOS PRODUTOS</label>
+                <Input
+                  value={e1.productsButtonUrl}
+                  onChange={(e) => patchExecutivePage1({ productsButtonUrl: e.target.value })}
+                  placeholder="https://… ou #executive-proposta-corpo"
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+                <p className="mt-1 text-xs text-slate-500">Vazio = rola para o conteúdo da proposta (planos e texto).</p>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Link · CONTATO</label>
+                <Input
+                  value={e1.contactButtonUrl}
+                  onChange={(e) => patchExecutivePage1({ contactButtonUrl: e.target.value })}
+                  placeholder="mailto:…, https://… ou vazio = e-mail da empresa"
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+              </div>
+            </div>
+
+            <ProposalColorPalettePicker
+              selected={proposalData.colorPalette}
+              onSelect={(colors) => updateField('colorPalette', colors)}
+              hint="Cores dos planos e blocos claros abaixo da capa (primária, secundária, destaque, etc.)."
+            />
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-slate-800">Logos no carrossel (até 6)</h4>
+              <p className="text-xs text-slate-500">
+                Carrossel minimalista em fade; opcional. Recomendamos PNG/SVG com fundo transparente.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {six.map((url, i) => (
+                  <ImageUploader
+                    key={i}
+                    label={`Marca ${i + 1}`}
+                    value={url}
+                    onChange={(u) => setBrandSlot(i, u || undefined)}
+                    aspectRatio="video"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case 'executive2': {
+        const e2 = mergeExecutivePage2(proposalData.executivePage2)
+        const slots = executiveTestimonialSlotsForEditor(e2.testimonials)
+        const patchT = (idx: number, patch: Partial<ExecutiveTestimonial>) => {
+          const next = [...slots]
+          next[idx] = { ...next[idx], ...patch }
+          patchExecutivePage2({ testimonials: next })
+        }
+        return (
+          <div className="space-y-8">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Clientes · pág. 2</h3>
+              <p className="text-sm text-slate-500">
+                Linha tipo Trustpilot, título com gradiente (usa a mesma cor neon da capa), texto de apoio e até{' '}
+                <strong>8 depoimentos</strong>. Posições <strong>ímpares (1, 3, 5, 7)</strong> ficam na coluna esquerda
+                (marquee para cima); <strong>pares (2, 4, 6, 8)</strong> na direita (marquee para baixo).
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Início da linha</label>
+                <Input
+                  value={e2.reviewsLead}
+                  onChange={(e) => patchExecutivePage2({ reviewsLead: e.target.value })}
+                  placeholder="Veja nossas"
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Quantidade / número</label>
+                <Input
+                  value={e2.reviewsCount}
+                  onChange={(e) => patchExecutivePage2({ reviewsCount: e.target.value })}
+                  placeholder="436"
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Após o número</label>
+                <Input
+                  value={e2.reviewsTrail}
+                  onChange={(e) => patchExecutivePage2({ reviewsTrail: e.target.value })}
+                  placeholder="avaliações no"
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+            </div>
+
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={e2.showTrustpilotBadge}
+                onChange={(ev) => patchExecutivePage2({ showTrustpilotBadge: ev.target.checked })}
+                className="rounded border-slate-300"
+              />
+              Mostrar selo verde Trustpilot após a linha
+            </label>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título principal</label>
+              <Textarea
+                value={e2.sectionTitle}
+                onChange={(e) => patchExecutivePage2({ sectionTitle: e.target.value })}
+                rows={2}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Descrição</label>
+              <Textarea
+                value={e2.sectionDescription}
+                onChange={(e) => patchExecutivePage2({ sectionDescription: e.target.value })}
+                rows={4}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={e2.showBackToTop}
+                onChange={(ev) => patchExecutivePage2({ showBackToTop: ev.target.checked })}
+                className="rounded border-slate-300"
+              />
+              Botão flutuante “voltar ao topo” (seta)
+            </label>
+
+            <div className="space-y-6 border-t border-slate-200 pt-6">
+              <h4 className="text-sm font-semibold text-slate-800">Depoimentos (8 posições)</h4>
+              <p className="text-xs text-slate-500">
+                Preencha pelo menos o nome ou o texto do depoimento para o cartão aparecer. Esquerda: 1, 3, 5, 7 · Direita:
+                2, 4, 6, 8.
+              </p>
+              {Array.from({ length: EXECUTIVE_TESTIMONIAL_SLOTS }, (_, idx) => {
+                const t = slots[idx]
+                return (
+                  <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-slate-800">Cliente {idx + 1}</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Estrelas (1–5)</label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={5}
+                          value={t.starCount}
+                          onChange={(e) => {
+                            const n = Number(e.target.value)
+                            patchT(idx, { starCount: Number.isFinite(n) ? n : 5 })
+                          }}
+                          className="rounded-xl border-slate-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Nota (ex.: 4.9/5)</label>
+                        <Input
+                          value={t.ratingLabel}
+                          onChange={(e) => patchT(idx, { ratingLabel: e.target.value })}
+                          className="rounded-xl border-slate-200"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">Depoimento</label>
+                      <Textarea
+                        value={t.quote}
+                        onChange={(e) => patchT(idx, { quote: e.target.value })}
+                        rows={3}
+                        className="rounded-xl border-slate-200"
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Nome</label>
+                        <Input
+                          value={t.name}
+                          onChange={(e) => patchT(idx, { name: e.target.value })}
+                          className="rounded-xl border-slate-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">Cargo / empresa</label>
+                        <Input
+                          value={t.role}
+                          onChange={(e) => patchT(idx, { role: e.target.value })}
+                          placeholder="CEO da …"
+                          className="rounded-xl border-slate-200"
+                        />
+                      </div>
+                    </div>
+                    <ImageUploader
+                      label="Foto do cliente"
+                      value={t.photoUrl || undefined}
+                      onChange={(url) => patchT(idx, { photoUrl: url || null })}
+                      aspectRatio="square"
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      }
+
+      case 'executive3': {
+        const e3 = mergeExecutivePage3(proposalData.executivePage3)
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Planos · pág. 3 (fundo escuro)</h3>
+              <p className="text-sm text-slate-500">
+                Título e texto introdutório da secção de preços. O <strong>neon de fundo</strong> segue a cor escolhida na
+                capa Executiva. Os cartões usam os planos da secção <strong>Planos</strong> (nome, descrição, valor, tipo
+                único/mensal/anual, benefícios, destaque). O botão <strong>Selecionar plano</strong> no link público abre
+                o comentário opcional e <strong>Aceitar proposta</strong>.
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título da secção</label>
+              <Textarea
+                value={e3.sectionTitle}
+                onChange={(e) => patchExecutivePage3({ sectionTitle: e.target.value })}
+                rows={2}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Descrição abaixo do título</label>
+              <Textarea
+                value={e3.sectionDescription}
+                onChange={(e) => patchExecutivePage3({ sectionDescription: e.target.value })}
+                rows={4}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Texto do link (abaixo do botão)</label>
+                <Input
+                  value={e3.yearlyBillingLabel}
+                  onChange={(e) => patchExecutivePage3({ yearlyBillingLabel: e.target.value })}
+                  placeholder="Ver cobrança anual"
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">URL do link (opcional)</label>
+                <Input
+                  value={e3.yearlyBillingUrl}
+                  onChange={(e) => patchExecutivePage3({ yearlyBillingUrl: e.target.value })}
+                  placeholder="https://… ou #âncora"
+                  className="rounded-xl border-slate-200 text-sm"
+                />
+                <p className="mt-1 text-xs text-slate-500">Vazio = o link não aparece nos cartões.</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm text-indigo-950">
+              <p className="font-medium">Editar valores e benefícios</p>
+              <p className="mt-1 text-xs text-indigo-900/85">
+                Use o separador <strong>Planos</strong> para nomes, preço atual, <strong>preço riscado (opcional)</strong>,
+                tipo de cobrança e lista do que inclui. Marque um plano como <strong>recomendado</strong> para o efeito
+                neon central do print.
+              </p>
+            </div>
+          </div>
+        )
+      }
+
+      case 'executive4': {
+        const e4 = mergeExecutivePage4(proposalData.executivePage4)
+        const faqSlots = executiveFaqSlotsForEditor(e4.faqItems)
+        const patchFaq = (idx: number, patch: Partial<ExecutiveFaqItem>) => {
+          const next = [...faqSlots]
+          next[idx] = { ...next[idx], ...patch }
+          patchExecutivePage4({ faqItems: next })
+        }
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">FAQ · pág. 4</h3>
+              <p className="text-sm text-slate-500">
+                Até <strong>5 perguntas</strong> em acordeão (+ abre, − fecha). O botão usa o <strong>neon da capa</strong>{' '}
+                e abre o <strong>WhatsApp</strong> (número abaixo ou, se vazio, o telefone da empresa).
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título</label>
+              <Input
+                value={e4.sectionTitle}
+                onChange={(e) => patchExecutivePage4({ sectionTitle: e.target.value })}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Subtítulo</label>
+              <Textarea
+                value={e4.sectionSubtitle}
+                onChange={(e) => patchExecutivePage4({ sectionSubtitle: e.target.value })}
+                rows={3}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Texto do botão (WhatsApp)</label>
+              <Input
+                value={e4.ctaButtonLabel}
+                onChange={(e) => patchExecutivePage4({ ctaButtonLabel: e.target.value })}
+                placeholder="AINDA TEM DÚVIDAS?"
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">WhatsApp (só números, com DDI)</label>
+              <Input
+                value={e4.whatsappPhone}
+                onChange={(e) => patchExecutivePage4({ whatsappPhone: e.target.value.replace(/\D/g, '') })}
+                placeholder="Ex.: 5511999998888 — vazio usa o telefone da empresa"
+                className="rounded-xl border-slate-200"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Se ficar vazio, o link usa o campo <strong>Telefone</strong> da secção Empresa (apenas dígitos).
+              </p>
+            </div>
+            <div className="space-y-4 border-t border-slate-200 pt-6">
+              <h4 className="text-sm font-semibold text-slate-800">Perguntas e respostas</h4>
+              {Array.from({ length: EXECUTIVE_FAQ_SLOTS }, (_, idx) => (
+                <div key={idx} className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                  <p className="text-xs font-semibold text-slate-700">Pergunta {idx + 1}</p>
+                  <Input
+                    value={faqSlots[idx].question}
+                    onChange={(e) => patchFaq(idx, { question: e.target.value })}
+                    placeholder="Texto da pergunta (vazio = não aparece)"
+                    className="rounded-xl border-slate-200"
+                  />
+                  <Textarea
+                    value={faqSlots[idx].answer}
+                    onChange={(e) => patchFaq(idx, { answer: e.target.value })}
+                    placeholder="Resposta exibida ao expandir"
+                    rows={3}
+                    className="rounded-xl border-slate-200"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+
+      case 'executive5': {
+        const e5 = mergeExecutivePage5(proposalData.executivePage5)
+        const whySlots = executiveWhyCardsForEditor(e5.cards)
+        const patchCard = (idx: number, patch: Partial<ExecutiveWhyCard>) => {
+          const next = [...whySlots]
+          next[idx] = { ...next[idx], ...patch }
+          patchExecutivePage5({ cards: next })
+        }
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Por que nos escolher · pág. 5</h3>
+              <p className="text-sm text-slate-500">
+                Até <strong>8 cards</strong> em grelha (4 colunas no desktop). O brilho de fundo usa a <strong>cor neon da
+                capa</strong>. Escolha o ícone em milhares de opções Lucide; deixe título e texto vazios para ocultar o
+                card na proposta.
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título da secção</label>
+              <Input
+                value={e5.sectionTitle}
+                onChange={(e) => patchExecutivePage5({ sectionTitle: e.target.value })}
+                placeholder="POR QUE NOS ESCOLHER?"
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div className="space-y-4 border-t border-slate-200 pt-6">
+              <h4 className="text-sm font-semibold text-slate-800">Cards</h4>
+              {Array.from({ length: EXECUTIVE_WHY_CARD_SLOTS }, (_, idx) => (
+                <div key={idx} className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-700">Card {idx + 1}</p>
+                    <button
+                      type="button"
+                      onClick={() => setIconPickTarget({ kind: 'executive5', index: idx })}
+                      className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <span className="text-xs text-slate-500">Ícone:</span>
+                      <code className="max-w-[140px] truncate text-xs">{whySlots[idx].iconKey}</code>
+                    </button>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Título</label>
+                    <Input
+                      value={whySlots[idx].title}
+                      onChange={(e) => patchCard(idx, { title: e.target.value })}
+                      placeholder="Título do card (vazio + texto vazio = não aparece)"
+                      className="rounded-xl border-slate-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Subtítulo / descrição</label>
+                    <Textarea
+                      value={whySlots[idx].description}
+                      onChange={(e) => patchCard(idx, { description: e.target.value })}
+                      placeholder="Texto de apoio"
+                      rows={3}
+                      className="rounded-xl border-slate-200"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+
+      case 'executive6': {
+        const e6 = mergeExecutivePage6(proposalData.executivePage6)
+        const patchTrust = (idx: number, value: string) => {
+          const next = [...e6.trustLines] as [string, string, string]
+          next[idx] = value
+          patchExecutivePage6({ trustLines: next })
+        }
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Contato · pág. 6</h3>
+              <p className="text-sm text-slate-500">
+                Logo da <strong>Empresa</strong> com brilho neon (cor da capa). O botão principal leva à{' '}
+                <strong>secção de planos</strong> (<code className="text-xs">#executive-planos</code>) ou ao conteúdo da
+                proposta se não houver planos. O segundo abre o <strong>WhatsApp</strong> (número abaixo ou telefone da
+                empresa). Rodapé com redes, endereço e CNPJ — campos vazios usam dados da secção Empresa quando existirem.
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Título</label>
+              <Input
+                value={e6.title}
+                onChange={(e) => patchExecutivePage6({ title: e.target.value })}
+                placeholder="FALE CONOSCO"
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Texto</label>
+              <Textarea
+                value={e6.subtitle}
+                onChange={(e) => patchExecutivePage6({ subtitle: e.target.value })}
+                rows={4}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Botão → planos (rótulo)</label>
+                <Input
+                  value={e6.plansButtonLabel}
+                  onChange={(e) => patchExecutivePage6({ plansButtonLabel: e.target.value })}
+                  placeholder="VER PLANOS"
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Botão → WhatsApp (rótulo)</label>
+                <Input
+                  value={e6.whatsappButtonLabel}
+                  onChange={(e) => patchExecutivePage6({ whatsappButtonLabel: e.target.value })}
+                  placeholder="WHATSAPP"
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">WhatsApp (só números, com DDI)</label>
+              <Input
+                value={e6.whatsappPhone}
+                onChange={(e) => patchExecutivePage6({ whatsappPhone: e.target.value.replace(/\D/g, '') })}
+                placeholder="Vazio = usa o telefone da Empresa"
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+            <div className="space-y-3 border-t border-slate-200 pt-6">
+              <h4 className="text-sm font-semibold text-slate-800">Três frases (com ✓ na proposta)</h4>
+              {Array.from({ length: EXECUTIVE_CONTACT_TRUST_LINES }, (_, idx) => (
+                <div key={idx}>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Frase {idx + 1}</label>
+                  <Input
+                    value={e6.trustLines[idx]}
+                    onChange={(e) => patchTrust(idx, e.target.value)}
+                    className="rounded-xl border-slate-200"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="space-y-4 border-t border-slate-200 pt-6">
+              <h4 className="text-sm font-semibold text-slate-800">Rodapé</h4>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Linha curta (sob o nome)</label>
+                <Textarea
+                  value={e6.footerTagline}
+                  onChange={(e) => patchExecutivePage6({ footerTagline: e.target.value })}
+                  rows={2}
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Endereço (opcional)</label>
+                <Textarea
+                  value={e6.footerAddress}
+                  onChange={(e) => patchExecutivePage6({ footerAddress: e.target.value })}
+                  rows={2}
+                  placeholder="Vazio = usa o endereço da Empresa"
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">CNPJ (opcional)</label>
+                <Input
+                  value={e6.footerCnpj}
+                  onChange={(e) => patchExecutivePage6({ footerCnpj: e.target.value })}
+                  placeholder="Vazio = usa o documento da Empresa"
+                  className="rounded-xl border-slate-200"
+                />
+              </div>
+              <p className="text-xs text-slate-500">E-mail e telefone no rodapé vêm sempre da secção Empresa.</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Instagram (URL)</label>
+                  <Input
+                    value={e6.socialInstagram}
+                    onChange={(e) => patchExecutivePage6({ socialInstagram: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Facebook (URL)</label>
+                  <Input
+                    value={e6.socialFacebook}
+                    onChange={(e) => patchExecutivePage6({ socialFacebook: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">LinkedIn (URL)</label>
+                  <Input
+                    value={e6.socialLinkedin}
+                    onChange={(e) => patchExecutivePage6({ socialLinkedin: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">YouTube (URL)</label>
+                  <Input
+                    value={e6.socialYoutube}
+                    onChange={(e) => patchExecutivePage6({ socialYoutube: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">X / Twitter (URL)</label>
+                  <Input
+                    value={e6.socialTwitter}
+                    onChange={(e) => patchExecutivePage6({ socialTwitter: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Site (URL)</label>
+                  <Input
+                    value={e6.socialWebsite}
+                    onChange={(e) => patchExecutivePage6({ socialWebsite: e.target.value })}
+                    className="rounded-xl border-slate-200 text-sm"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -3658,7 +4484,9 @@ export function NovaPropostaEditor({
                 hint={
                   proposalData.template === 'modern'
                     ? 'Paleta completa no modelo Moderno: primária, secundária, destaque, fundo e texto (capa, planos, sobre, equipa, rodapé).'
-                    : 'Cores da proposta (planos, destaques e elementos do layout).'
+                    : proposalData.template === 'executive'
+                      ? 'Cores do bloco claro abaixo da capa Executiva (planos, descrição e rodapé). O neon da capa é definido em Capa · Executiva.'
+                      : 'Cores da proposta (planos, destaques e elementos do layout).'
                 }
               />
             ) : null}
@@ -3888,17 +4716,30 @@ export function NovaPropostaEditor({
               if (row[target.index]) row[target.index] = { ...row[target.index], iconKey }
               return { ...prev, empresarialPage1: { ...p1, bottomRow: row } }
             })
-          } else {
+          } else if (target.kind === 'page4') {
             setProposalData((prev) => {
               const p4 = mergeEmpresarialPage4(prev.empresarialPage4)
               const quads = [...p4.quadrants]
               if (quads[target.index]) quads[target.index] = { ...quads[target.index], iconKey }
               return { ...prev, empresarialPage4: { ...p4, quadrants: quads } }
             })
+          } else {
+            setProposalData((prev) => {
+              const p5 = mergeExecutivePage5(prev.executivePage5)
+              const cards = [...executiveWhyCardsForEditor(p5.cards)]
+              if (cards[target.index]) cards[target.index] = { ...cards[target.index], iconKey }
+              return { ...prev, executivePage5: { ...p5, cards } }
+            })
           }
           setIconPickTarget(null)
         }}
-        title={iconPickTarget?.kind === 'page4' ? 'Ícone do quadrante' : 'Ícone da faixa inferior'}
+        title={
+          iconPickTarget?.kind === 'page4'
+            ? 'Ícone do quadrante'
+            : iconPickTarget?.kind === 'executive5'
+              ? 'Ícone do card'
+              : 'Ícone da faixa inferior'
+        }
       />
 
       <Dialog open={showPublishModal} onOpenChange={setShowPublishModal}>

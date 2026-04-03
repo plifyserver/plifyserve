@@ -18,6 +18,8 @@ export interface Plan {
   highlighted?: boolean
   /** Imagem opcional (ex.: vitrine na página 3 empresarial) */
   image?: string | null
+  /** Preço “de” (riscado), opcional — ex.: template Executiva pág. 3 */
+  compareAtPrice?: number
 }
 
 export function planBillingSuffix(priceType: string | undefined): string {
@@ -179,7 +181,27 @@ export function PlanCard({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Valor (R$)</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Preço anterior (R$, riscado · opcional)</label>
+            <Input
+              type="number"
+              value={plan.compareAtPrice != null && plan.compareAtPrice > 0 ? plan.compareAtPrice : ''}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '') {
+                  const { compareAtPrice: _c, ...rest } = plan
+                  onChange(rest as Plan)
+                  return
+                }
+                updateField('compareAtPrice', Number(v))
+              }}
+              placeholder="Ex.: valor antes da promoção"
+              min={0}
+              step={0.01}
+              className="rounded-xl border-slate-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Valor atual (R$)</label>
             <Input
               type="number"
               value={plan.price || ''}
@@ -190,8 +212,11 @@ export function PlanCard({
               className="rounded-xl border-slate-200"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Tipo</label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2 sm:col-span-1">
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Tipo de cobrança</label>
             <select
               value={plan.priceType}
               onChange={(e) => updateField('priceType', e.target.value as PlanPriceType)}

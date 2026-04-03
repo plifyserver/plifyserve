@@ -209,3 +209,37 @@ html.dark .public-marketing-page .text-slate-600 {
 html.dark .public-marketing-page .text-slate-500 {
   color: #64748b !important;
 }
+
+/* Executiva · página 2 — colunas de depoimentos em marquee */
+@keyframes executiva-marquee-up {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes executiva-marquee-down {
+  0% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.executiva-marquee-track-up {
+  animation: executiva-marquee-up var(--executiva-marquee-dur, 42s) linear infinite;
+}
+
+.executiva-marquee-track-down {
+  animation: executiva-marquee-down var(--executiva-marquee-dur, 42s) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .executiva-marquee-track-up,
+  .executiva-marquee-track-down {
+    animation: none !important;
+  }
+}
