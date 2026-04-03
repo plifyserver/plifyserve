@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     paymentType === 'recorrente'
       ? body.installment_count != null && body.installment_count !== ''
         ? Math.min(360, Math.max(1, Math.floor(Number(body.installment_count)) || 1))
-        : 1
+        : null
       : null
 
   const downPayment =

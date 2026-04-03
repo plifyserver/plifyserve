@@ -55,7 +55,7 @@ type ClientRow = {
   down_payment?: number | null
 }
 
-/** MMR e receita do mês civil corrente (hoje): regras de parcelas + entrada + pontuais cadastrados no mês. */
+/** MMR e receita do mês civil corrente (hoje): parcelas recorrentes com vencimento no mês + entrada no mês do cadastro + pontuais (vencimento no mês ou, sem data, cadastro no mês). */
 function computeMmrAndReceitaForCurrentMonth(clients: ClientRow[]) {
   const ref = new Date()
   const refY = ref.getFullYear()
@@ -71,8 +71,13 @@ function computeMmrAndReceitaForCurrentMonth(clients: ClientRow[]) {
     const pt = c.payment_type === 'recorrente' ? 'recorrente' : 'pontual'
 
     if (pt === 'pontual') {
-      if (isCreatedInCalendarMonth(c.created_at ?? null, refY, refM)) {
-        receitaTotalMes += Number(c.recurring_amount ?? 0)
+      const amount = Number(c.recurring_amount ?? 0)
+      const dueRaw = c.billing_due_date ? String(c.billing_due_date).slice(0, 10) : ''
+      const dueInMonth =
+        dueRaw.length >= 10 && isYmdInCalendarMonth(dueRaw, refY, refM)
+      const createdInMonth = isCreatedInCalendarMonth(c.created_at ?? null, refY, refM)
+      if (dueInMonth || (!dueRaw && createdInMonth)) {
+        receitaTotalMes += amount
       }
       continue
     }

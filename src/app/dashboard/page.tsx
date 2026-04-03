@@ -432,7 +432,7 @@ export default function DashboardPage() {
           title="Receita Total Mês"
           value={`R$ ${(stats.receitaTotalMes ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           icon={TrendingUp}
-          trendValue="Mês atual: pontuais cadastrados + parcelas a vencer no mês + entradas (recorrente)"
+          trendValue="Mês atual: pontuais (vencimento ou cadastro) + parcelas recorrentes no mês + entradas"
           color="#10B981"
         />
         <StatsCard

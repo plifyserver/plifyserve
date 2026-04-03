@@ -115,7 +115,7 @@ export default function ClientesPage() {
           client.payment_type === 'recorrente'
             ? client.installment_count != null && client.installment_count >= 1
               ? client.installment_count
-              : 1
+              : ''
             : '',
         down_payment:
           client.payment_type === 'recorrente' && client.down_payment != null ? client.down_payment : '',
@@ -183,7 +183,7 @@ export default function ClientesPage() {
             form.payment_type === 'recorrente'
               ? form.installment_count !== ''
                 ? Math.min(360, Math.max(1, Math.floor(Number(form.installment_count)) || 1))
-                : 1
+                : null
               : null,
           down_payment:
             form.payment_type === 'recorrente' && form.down_payment !== ''
@@ -437,7 +437,7 @@ export default function ClientesPage() {
                         ...f,
                         payment_type: v,
                         ...(v === 'recorrente'
-                          ? { billing_due_date: '', installment_count: f.installment_count === '' ? 1 : f.installment_count }
+                          ? { billing_due_date: '', installment_count: f.installment_count === '' ? '' : f.installment_count }
                           : { billing_due_day: '', installment_count: '', down_payment: '' }),
                       }))
                     }}
@@ -469,7 +469,8 @@ export default function ClientesPage() {
                       className="w-full px-3 py-2 rounded-xl border border-slate-200"
                     />
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Entra na <strong>Receita total mês</strong> do dashboard no mês em que você cadastrar (cliente ativo).
+                      Entra na <strong>Receita total mês</strong> do dashboard no mês da <strong>data de vencimento</strong>{' '}
+                      (se preenchida) ou no mês do cadastro, para clientes ativos.
                     </p>
                   </div>
                 )}
@@ -526,6 +527,7 @@ export default function ClientesPage() {
                         type="number"
                         min={1}
                         max={360}
+                        placeholder="Contínuo"
                         value={form.installment_count === '' ? '' : form.installment_count}
                         onChange={(e) =>
                           setForm((f) => ({
@@ -535,6 +537,9 @@ export default function ClientesPage() {
                         }
                         className="w-full px-3 py-2 rounded-xl border border-slate-200"
                       />
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Vazio = mensal contínuo (receita conta todo mês com vencimento, até 360 meses no cálculo).
+                      </p>
                     </div>
                     <div className="col-span-2 sm:col-span-1">
                       <label className="block text-sm font-medium text-slate-700 mb-1">Entrada (R$)</label>

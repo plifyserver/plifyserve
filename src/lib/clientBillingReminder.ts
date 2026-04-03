@@ -43,10 +43,14 @@ function parseBillingDay(d: unknown): number | null {
   return n
 }
 
+/** Sem valor = assinatura mensal contínua (teto de 360 meses nos cálculos de dashboard / lembretes). */
+const ONGOING_INSTALLMENT_MONTHS = 360
+
 function parseInstallmentCount(raw: unknown): number {
+  if (raw == null || raw === '') return ONGOING_INSTALLMENT_MONTHS
   const n = typeof raw === 'string' ? parseInt(raw, 10) : Number(raw)
-  if (!Number.isInteger(n) || n < 1) return 1
-  return Math.min(n, 360)
+  if (!Number.isInteger(n) || n < 1) return ONGOING_INSTALLMENT_MONTHS
+  return Math.min(n, ONGOING_INSTALLMENT_MONTHS)
 }
 
 /**
