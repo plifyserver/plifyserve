@@ -64,21 +64,6 @@ export async function POST(request: NextRequest) {
       ? String(body.billing_due_date).slice(0, 10)
       : null
 
-  const installmentCount =
-    paymentType === 'recorrente'
-      ? body.installment_count != null && body.installment_count !== ''
-        ? Math.min(360, Math.max(1, Math.floor(Number(body.installment_count)) || 1))
-        : null
-      : null
-
-  const downPayment =
-    paymentType === 'recorrente' &&
-    body.down_payment != null &&
-    body.down_payment !== '' &&
-    !Number.isNaN(Number(body.down_payment))
-      ? Number(body.down_payment)
-      : null
-
   const supabase = await createClient()
   const plan = await getEffectivePlanForUser(supabase, userId)
   if (!hasUnlimitedQuotas(plan)) {
@@ -118,8 +103,6 @@ export async function POST(request: NextRequest) {
       recurring_end_date: null,
       billing_due_day: billingDueDay,
       billing_due_date: billingDueDate,
-      installment_count: installmentCount,
-      down_payment: downPayment,
     })
     .select()
     .single()

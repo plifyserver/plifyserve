@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { SITE_CONTAINER_LG, SITE_GUTTER_X } from '@/lib/siteLayout'
+import { SITE_CONTAINER_LG } from '@/lib/siteLayout'
 
 type Mode = 'basica' | 'juros' | 'parcelas'
 type InterestMode = 'simples' | 'composto'
@@ -197,25 +197,25 @@ export default function CalculadoraPage() {
   const amort = useMemo(() => buildAmort(), [parcelas])
 
   return (
-    <div className={cn('min-h-screen bg-transparent', SITE_GUTTER_X)}>
-      <div className={cn(SITE_CONTAINER_LG, 'py-6')}>
-        <div className="rounded-2xl border border-white/10 bg-[#121212] shadow-sm overflow-hidden">
-          <div className="relative border-b border-white/10 bg-[radial-gradient(900px_380px_at_20%_20%,rgba(59,130,246,.26),transparent_55%),radial-gradient(800px_340px_at_90%_10%,rgba(16,185,129,.16),transparent_60%),linear-gradient(180deg,#161616,#0f0f10)] px-5 py-6 sm:px-6">
+    <div className="min-h-screen w-full max-w-full min-w-0 bg-transparent">
+      <div className={cn(SITE_CONTAINER_LG, 'py-6 w-full min-w-0')}>
+        <div className="rounded-2xl border border-white/10 bg-[#121212] shadow-sm overflow-hidden max-w-full min-w-0">
+          <div className="relative border-b border-white/10 bg-[radial-gradient(900px_380px_at_20%_20%,rgba(59,130,246,.26),transparent_55%),radial-gradient(800px_340px_at_90%_10%,rgba(16,185,129,.16),transparent_60%),linear-gradient(180deg,#161616,#0f0f10)] px-4 py-5 sm:px-6 sm:py-6">
             <div className="absolute inset-0 opacity-[0.10] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,.9)_1px,transparent_0)] [background-size:18px_18px]" />
             <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-2xl font-bold text-slate-50 tracking-tight">Calculadora</h1>
                 <p className="text-sm text-slate-300">
                   Básica, juros e simulação de parcelas — rápida para decisões no dia a dia.
                 </p>
               </div>
 
-              <div className="inline-flex w-full sm:w-auto rounded-2xl border border-white/10 bg-white/5 p-1 shadow-sm">
+              <div className="flex w-full min-w-0 gap-1 rounded-2xl border border-white/10 bg-white/5 p-1 shadow-sm sm:w-auto sm:shrink-0">
                 <button
                   type="button"
                   onClick={() => setMode('basica')}
                   className={cn(
-                    'px-4 py-2 text-sm font-semibold rounded-2xl transition-colors',
+                    'min-w-0 flex-1 px-2 py-2 text-center text-xs font-semibold leading-tight rounded-xl transition-colors sm:flex-none sm:px-4 sm:text-sm sm:rounded-2xl',
                     mode === 'basica'
                       ? 'bg-white text-slate-900 shadow-sm'
                       : 'text-slate-200 hover:bg-white/10'
@@ -227,7 +227,7 @@ export default function CalculadoraPage() {
                   type="button"
                   onClick={() => setMode('juros')}
                   className={cn(
-                    'px-4 py-2 text-sm font-semibold rounded-2xl transition-colors',
+                    'min-w-0 flex-1 px-2 py-2 text-center text-xs font-semibold leading-tight rounded-xl transition-colors sm:flex-none sm:px-4 sm:text-sm sm:rounded-2xl',
                     mode === 'juros'
                       ? 'bg-white text-slate-900 shadow-sm'
                       : 'text-slate-200 hover:bg-white/10'
@@ -239,7 +239,7 @@ export default function CalculadoraPage() {
                   type="button"
                   onClick={() => setMode('parcelas')}
                   className={cn(
-                    'px-4 py-2 text-sm font-semibold rounded-2xl transition-colors',
+                    'min-w-0 flex-1 px-2 py-2 text-center text-xs font-semibold leading-tight rounded-xl transition-colors sm:flex-none sm:px-4 sm:text-sm sm:rounded-2xl',
                     mode === 'parcelas'
                       ? 'bg-white text-slate-900 shadow-sm'
                       : 'text-slate-200 hover:bg-white/10'
@@ -252,7 +252,7 @@ export default function CalculadoraPage() {
           </div>
 
           {mode === 'basica' && (
-            <div className="px-5 sm:px-6 py-7 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
+            <div className="px-4 py-6 sm:px-6 sm:py-7 grid gap-5 w-full min-w-0 max-w-full lg:grid-cols-[1.1fr_.9fr]">
               <Card className="rounded-2xl border border-white/10 bg-white/5 shadow-none">
                 <CardContent className="p-5">
                   <div className="space-y-4">
@@ -369,16 +369,18 @@ export default function CalculadoraPage() {
           )}
 
           {mode === 'juros' && (
-            <div className="px-5 sm:px-6 py-6 grid gap-4 lg:grid-cols-[.95fr_1.05fr]">
-              <Card className="rounded-2xl border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,.08)] dark:border-slate-800/80 dark:bg-slate-900/60 dark:shadow-none">
-                <CardContent className="px-5 pt-7 pb-5 space-y-4">
-                  <div className="inline-flex w-full rounded-2xl border border-slate-200/70 bg-slate-50/60 p-1 dark:border-slate-800/80 dark:bg-slate-900/30">
+            <div className="px-4 py-5 sm:px-6 sm:py-6 grid gap-4 w-full min-w-0 max-w-full lg:grid-cols-[.95fr_1.05fr] [color-scheme:light] dark:[color-scheme:dark]">
+              <Card className="rounded-2xl border-slate-200 bg-white text-slate-900 shadow-[0_12px_34px_rgba(15,23,42,.08)] min-w-0 dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-50 dark:shadow-none">
+                <CardContent className="px-4 pt-6 pb-5 sm:px-5 sm:pt-7 space-y-4">
+                  <div className="inline-flex w-full rounded-2xl border border-slate-200/70 bg-slate-50/60 p-1 text-slate-900 dark:border-slate-800/80 dark:bg-slate-900/30 dark:text-slate-50">
                     <Button
                       type="button"
                       variant={interestMode === 'composto' ? 'default' : 'outline'}
                       className={cn(
-                        'rounded-2xl flex-1',
-                        interestMode === 'composto' ? '' : 'border-slate-200/70 bg-transparent hover:bg-white'
+                        'min-w-0 flex-1 rounded-2xl text-xs sm:text-sm',
+                        interestMode === 'composto'
+                          ? ''
+                          : 'border-slate-200/70 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:bg-slate-800'
                       )}
                       onClick={() => setInterestMode('composto')}
                     >
@@ -388,8 +390,10 @@ export default function CalculadoraPage() {
                       type="button"
                       variant={interestMode === 'simples' ? 'default' : 'outline'}
                       className={cn(
-                        'rounded-2xl flex-1',
-                        interestMode === 'simples' ? '' : 'border-slate-200/70 bg-transparent hover:bg-white'
+                        'min-w-0 flex-1 rounded-2xl text-xs sm:text-sm',
+                        interestMode === 'simples'
+                          ? ''
+                          : 'border-slate-200/70 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:bg-slate-800'
                       )}
                       onClick={() => setInterestMode('simples')}
                     >
@@ -425,8 +429,8 @@ export default function CalculadoraPage() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-2xl border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,.08)] dark:border-slate-800/80 dark:bg-slate-900/60 dark:shadow-none">
-                <CardContent className="px-5 pt-7 pb-5">
+              <Card className="rounded-2xl border-slate-200 bg-white text-slate-900 shadow-[0_12px_34px_rgba(15,23,42,.08)] min-w-0 dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-50 dark:shadow-none">
+                <CardContent className="px-4 pt-6 pb-5 sm:px-5 sm:pt-7 min-w-0">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,.06)] dark:border-slate-800/80 dark:bg-slate-900/40 dark:shadow-none">
                       <p className="text-xs text-slate-500 dark:text-slate-400">Montante final</p>
@@ -469,27 +473,27 @@ export default function CalculadoraPage() {
           )}
 
           {mode === 'parcelas' && (
-            <div className="px-5 sm:px-6 py-6 grid gap-4 lg:grid-cols-[.95fr_1.05fr]">
-              <Card className="rounded-2xl border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,.08)] dark:border-slate-800/80 dark:bg-slate-900/60 dark:shadow-none">
-                <CardContent className="px-5 pt-7 pb-5 space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
+            <div className="px-4 py-5 sm:px-6 sm:py-6 grid gap-4 w-full min-w-0 max-w-full lg:grid-cols-[.95fr_1.05fr] [color-scheme:light] dark:[color-scheme:dark]">
+              <Card className="rounded-2xl border-slate-200 bg-white text-slate-900 shadow-[0_12px_34px_rgba(15,23,42,.08)] min-w-0 dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-50 dark:shadow-none">
+                <CardContent className="px-4 pt-6 pb-5 sm:px-5 sm:pt-7 space-y-4 min-w-0">
+                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                    <div className="min-w-0">
                       <label className="block text-sm font-medium text-slate-700 mb-2 dark:text-slate-200">Valor financiado (R$)</label>
                       <Input className="rounded-xl border-slate-200" value={pv} onChange={(e) => setPv(e.target.value)} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <label className="block text-sm font-medium text-slate-700 mb-2 dark:text-slate-200">Taxa (% ao mês)</label>
                       <Input className="rounded-xl border-slate-200" value={rateFinPct} onChange={(e) => setRateFinPct(e.target.value)} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <label className="block text-sm font-medium text-slate-700 mb-2 dark:text-slate-200">Nº de parcelas</label>
                       <Input className="rounded-xl border-slate-200" value={nper} onChange={(e) => setNper(e.target.value)} />
                     </div>
-                    <div className="flex items-end gap-2 sm:col-span-2">
+                    <div className="flex items-end gap-2 sm:col-span-2 min-w-0">
                       <Button
                         type="button"
                         variant="outline"
-                        className="rounded-xl border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-700/70 dark:bg-slate-900/40 dark:text-slate-100 dark:hover:bg-slate-900"
+                        className="rounded-xl border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700/70 dark:bg-slate-900/40 dark:text-slate-100 dark:hover:bg-slate-900"
                         onClick={() => {
                           setPv('10000')
                           setRateFinPct('2.5')
@@ -512,9 +516,9 @@ export default function CalculadoraPage() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-2xl border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,.08)] dark:border-slate-800/80 dark:bg-slate-900/60 dark:shadow-none">
-                <CardContent className="px-5 pt-7 pb-5">
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Card className="rounded-2xl border-slate-200 bg-white text-slate-900 shadow-[0_12px_34px_rgba(15,23,42,.08)] min-w-0 dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-50 dark:shadow-none">
+                <CardContent className="px-4 pt-6 pb-5 sm:px-5 sm:pt-7 min-w-0 overflow-x-hidden">
+                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,.06)] dark:border-slate-800/80 dark:bg-slate-900/40 dark:shadow-none">
                       <p className="text-xs text-slate-500 dark:text-slate-400">Parcela estimada</p>
                       <p className="mt-1 text-xl font-black text-slate-900 dark:text-slate-50">{formatBRL(parcelas.pmt)}</p>
@@ -539,25 +543,25 @@ export default function CalculadoraPage() {
                         {formatPct(safeNumber(rateFinPct))}/m · {Math.floor(safeNumber(nper))}x
                       </p>
                     </div>
-                    <div className="mt-3 overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <div className="mt-3 -mx-1 min-w-0 overflow-x-auto overscroll-x-contain sm:mx-0">
+                      <table className="w-full min-w-[260px] text-xs sm:text-sm table-fixed">
                         <thead>
-                          <tr className="text-xs text-slate-500 border-b border-slate-200/70 dark:text-slate-400 dark:border-slate-800/80">
-                            <th className="text-left font-medium py-2 pr-3">#</th>
-                            <th className="text-right font-medium py-2 px-3">Parcela</th>
-                            <th className="text-right font-medium py-2 px-3">Juros</th>
-                            <th className="text-right font-medium py-2 px-3">Amort.</th>
-                            <th className="text-right font-medium py-2 pl-3">Saldo</th>
+                          <tr className="text-[10px] uppercase tracking-wide text-slate-500 border-b border-slate-200/70 sm:text-xs sm:normal-case sm:tracking-normal dark:text-slate-400 dark:border-slate-800/80">
+                            <th className="text-left font-medium py-2 pr-1 w-[8%] sm:pr-3">#</th>
+                            <th className="text-right font-medium py-2 px-1 w-[22%] sm:px-3">Parcela</th>
+                            <th className="text-right font-medium py-2 px-1 w-[22%] sm:px-3">Juros</th>
+                            <th className="text-right font-medium py-2 px-1 w-[22%] sm:px-3">Amort.</th>
+                            <th className="text-right font-medium py-2 pl-1 w-[26%] sm:pl-3">Saldo</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800/70">
                           {amort.map((r) => (
                             <tr key={r.i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                              <td className="py-2 pr-3 text-slate-600 dark:text-slate-300">{r.i}</td>
-                              <td className="py-2 px-3 text-right font-medium text-slate-900 dark:text-slate-50">{formatBRL(r.payment)}</td>
-                              <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-200">{formatBRL(r.interest)}</td>
-                              <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-200">{formatBRL(r.principal)}</td>
-                              <td className="py-2 pl-3 text-right text-slate-700 dark:text-slate-200">{formatBRL(r.balance)}</td>
+                              <td className="py-1.5 pr-1 text-slate-600 tabular-nums sm:py-2 sm:pr-3 dark:text-slate-300">{r.i}</td>
+                              <td className="py-1.5 px-1 text-right font-medium tabular-nums text-slate-900 sm:py-2 sm:px-3 dark:text-slate-50">{formatBRL(r.payment)}</td>
+                              <td className="py-1.5 px-1 text-right tabular-nums text-slate-700 sm:py-2 sm:px-3 dark:text-slate-200">{formatBRL(r.interest)}</td>
+                              <td className="py-1.5 px-1 text-right tabular-nums text-slate-700 sm:py-2 sm:px-3 dark:text-slate-200">{formatBRL(r.principal)}</td>
+                              <td className="py-1.5 pl-1 text-right tabular-nums text-slate-700 sm:py-2 sm:pl-3 dark:text-slate-200">{formatBRL(r.balance)}</td>
                             </tr>
                           ))}
                         </tbody>

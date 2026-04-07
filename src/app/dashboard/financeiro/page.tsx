@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import {
   Plus,
   ArrowDownRight,
@@ -20,6 +20,7 @@ import {
   ChevronRight,
   DollarSign,
   PieChart,
+  Loader2,
 } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, subMonths, addMonths, subWeeks, addWeeks, subDays, addDays, isWithinInterval, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -73,7 +74,6 @@ interface Client {
   payment_type?: string | null
   billing_due_day?: number | null
   billing_due_date?: string | null
-  installment_count?: number | null
   created_at?: string | null
 }
 
@@ -120,6 +120,8 @@ export default function FinanceiroPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterPeriod, setFilterPeriod] = useState<'month' | 'week' | 'day'>('month')
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [transactionSaving, setTransactionSaving] = useState(false)
+  const transactionSaveLockRef = useRef(false)
 
   const [form, setForm] = useState({
     title: '',
@@ -276,6 +278,9 @@ export default function FinanceiroPage() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (transactionSaveLockRef.current || transactionSaving) return
+    transactionSaveLockRef.current = true
+    setTransactionSaving(true)
 
     const url = selected
       ? `/api/finance/transactions/${selected.id}`
@@ -283,27 +288,32 @@ export default function FinanceiroPage() {
 
     const method = selected ? 'PUT' : 'POST'
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        title: form.title,
-        type: form.type,
-        amount: Number(form.amount),
-        date: form.date,
-        category: form.category || null,
-        client_id: form.client_id || null,
-        client_name: clientName || null,
-        project_id: form.project_id || null,
-        project_name: projectName || null,
-        notes: form.notes || null,
-      }),
-    })
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: form.title,
+          type: form.type,
+          amount: Number(form.amount),
+          date: form.date,
+          category: form.category || null,
+          client_id: form.client_id || null,
+          client_name: clientName || null,
+          project_id: form.project_id || null,
+          project_name: projectName || null,
+          notes: form.notes || null,
+        }),
+      })
 
-    if (res.ok) {
-      await fetchData()
-      closeDialog()
+      if (res.ok) {
+        await fetchData()
+        closeDialog()
+      }
+    } finally {
+      transactionSaveLockRef.current = false
+      setTransactionSaving(false)
     }
   }
 
@@ -387,6 +397,7 @@ export default function FinanceiroPage() {
           </Button>
           <Button
             onClick={() => openDialog(null)}
+            disabled={transactionSaving}
             className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700"
           >
             <Plus className="w-4 h-4" />
@@ -729,7 +740,14 @@ export default function FinanceiroPage() {
       </div>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          if (!open && transactionSaving) return
+          setDialogOpen(open)
+          if (!open) setSelected(null)
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{selected ? 'Editar Transação' : 'Nova Transação'}</DialogTitle>
@@ -882,11 +900,26 @@ export default function FinanceiroPage() {
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={closeDialog} className="rounded-xl">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeDialog}
+                className="rounded-xl"
+                disabled={transactionSaving}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" className="rounded-xl bg-emerald-600 hover:bg-emerald-700">
-                {selected ? 'Salvar Alterações' : 'Criar Transação'}
+              <Button
+                type="submit"
+                className="rounded-xl gap-2 bg-emerald-600 hover:bg-emerald-700"
+                disabled={transactionSaving}
+              >
+                {transactionSaving && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+                {transactionSaving
+                  ? 'Salvando…'
+                  : selected
+                    ? 'Salvar Alterações'
+                    : 'Criar Transação'}
               </Button>
             </DialogFooter>
           </form>

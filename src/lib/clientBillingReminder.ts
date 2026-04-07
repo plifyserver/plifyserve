@@ -8,7 +8,6 @@ export type ClientBillingFields = {
 }
 
 export type ClientInstallmentFields = ClientBillingFields & {
-  installment_count?: number | null
   created_at?: string | null
 }
 
@@ -47,15 +46,8 @@ function parseBillingDay(d: unknown): number | null {
   return n
 }
 
-/** Sem valor = assinatura mensal contínua (teto de 360 meses nos cálculos de dashboard / lembretes). */
+/** Teto de meses para gerar vencimentos futuros em lembretes (assinatura contínua). */
 const ONGOING_INSTALLMENT_MONTHS = 360
-
-function parseInstallmentCount(raw: unknown): number {
-  if (raw == null || raw === '') return ONGOING_INSTALLMENT_MONTHS
-  const n = typeof raw === 'string' ? parseInt(raw, 10) : Number(raw)
-  if (!Number.isInteger(n) || n < 1) return ONGOING_INSTALLMENT_MONTHS
-  return Math.min(n, ONGOING_INSTALLMENT_MONTHS)
-}
 
 /** yyyy-MM-dd do instante no fuso do app (ex.: cadastro no Supabase em UTC). */
 export function isoInstantToAppCalendarYmd(iso: string | null | undefined): string | null {
@@ -121,21 +113,20 @@ function addMonthsToYmd(ymd: string, deltaMonths: number): string {
 }
 
 /**
- * Datas de vencimento de cada parcela (yyyy-MM-dd), na ordem.
- * Recorrente: 1.ª parcela = primeiro dia de vencimento em ou após o cadastro (fuso app); demais = +1 mês cada.
+ * Datas de vencimento futuras (yyyy-MM-dd), na ordem (até 360 meses).
+ * Recorrente com dia do mês: 1.ª parcela = primeiro vencimento em ou após o cadastro (fuso SP); demais = +1 mês.
  */
 export function getInstallmentDueDatesIso(client: ClientInstallmentFields): string[] {
   if (client.payment_type !== 'recorrente') return []
   const createdYmd = isoInstantToAppCalendarYmd(client.created_at ?? null)
   if (!createdYmd) return []
 
-  const n = parseInstallmentCount(client.installment_count)
   const dayNum = parseBillingDay(client.billing_due_day)
 
   if (dayNum != null) {
     const first = firstInstallmentYmdOnOrAfterCadastro(createdYmd, dayNum)
     const out: string[] = []
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < ONGOING_INSTALLMENT_MONTHS; i++) {
       out.push(i === 0 ? first : addMonthsToYmd(first, i))
     }
     return out

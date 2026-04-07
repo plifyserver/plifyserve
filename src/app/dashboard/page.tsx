@@ -235,10 +235,10 @@ export default function DashboardPage() {
     type C = {
       id: string
       name: string
+      status?: string | null
       payment_type?: string | null
       billing_due_day?: number | null
       billing_due_date?: string | null
-      installment_count?: number | null
       created_at?: string | null
     }
     const today = new Date()
@@ -249,7 +249,11 @@ export default function DashboardPage() {
       return Math.round((d.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
     }
     return (clients as C[])
-      .filter((c) => shouldShowClientBillingReminderFromClient(c, today))
+      .filter((c) => {
+        const s = String(c.status ?? '').toLowerCase()
+        if (s !== 'active' && s !== 'lead') return false
+        return shouldShowClientBillingReminderFromClient(c, today)
+      })
       .map((c) => {
         const nextDue = getNextBillingDueDateIso(c, today)!
         return { ...c, days: dayDiff(nextDue), nextBillingDue: nextDue }
@@ -392,9 +396,9 @@ export default function DashboardPage() {
             <div className="min-w-0 flex-1">
               <p className="font-medium text-amber-950">Cobranças próximas</p>
               <p className="mt-1 text-sm text-amber-900/80">
-                Recorrentes: dia do vencimento e &quot;Válido até&quot; em Clientes. O aviso aparece{' '}
-                <strong>no dia anterior</strong> ao vencimento e <strong>no próprio dia</strong>, quando você abre o painel.
-                Pontuais: uma data de cobrança, mesma regra.
+                Clientes <strong>Ativos</strong> ou <strong>Leads</strong>: recorrentes com dia de vencimento definido; pontuais
+                com data de cobrança. O aviso aparece <strong>um dia antes</strong> e <strong>no dia</strong> do vencimento ao
+                abrir o painel.
               </p>
               <ul className="mt-3 space-y-2 text-sm">
                 {clientsBillingSoon.map((c) => (
@@ -432,14 +436,14 @@ export default function DashboardPage() {
           title="Receita Total Mês"
           value={`R$ ${(stats.receitaTotalMes ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           icon={TrendingUp}
-          trendValue="Mês atual: pontual/parcela após vencimento; entrada recorrente após o cadastro (fuso SP)"
+          trendValue="Mês atual: recorrente = soma das parcelas (Ativo/Lead); pontual = após data de vencimento (fuso SP)"
           color="#10B981"
         />
         <StatsCard
           title="MMR"
           value={typeof stats.mmr === 'number' ? `R$ ${stats.mmr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : stats.mmr}
           icon={Repeat}
-          trendValue="Só parcelas recorrentes do mês após o vencimento; entrada não entra no MMR (só na receita)"
+          trendValue="Soma do valor da parcela de todos os clientes recorrentes Ativos e Leads"
           color="#8B5CF6"
         />
         <StatsCard

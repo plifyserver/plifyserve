@@ -30,8 +30,6 @@ interface Client {
   recurring_amount?: number | null
   billing_due_day?: number | null
   billing_due_date?: string | null
-  installment_count?: number | null
-  down_payment?: number | null
 }
 
 export default function ClientesPage() {
@@ -62,8 +60,6 @@ export default function ClientesPage() {
     recurring_amount: '' as string | number,
     billing_due_day: '' as string | number,
     billing_due_date: '' as string,
-    installment_count: '' as string | number,
-    down_payment: '' as string | number,
   })
 
   const fetchClients = async () => {
@@ -113,14 +109,6 @@ export default function ClientesPage() {
         recurring_amount: client.recurring_amount != null ? client.recurring_amount : '',
         billing_due_day: initialDay === '' ? '' : initialDay,
         billing_due_date: client.payment_type === 'pontual' ? client.billing_due_date || '' : '',
-        installment_count:
-          client.payment_type === 'recorrente'
-            ? client.installment_count != null && client.installment_count >= 1
-              ? client.installment_count
-              : ''
-            : '',
-        down_payment:
-          client.payment_type === 'recorrente' && client.down_payment != null ? client.down_payment : '',
       })
     } else {
       setSelected(null)
@@ -137,8 +125,6 @@ export default function ClientesPage() {
         recurring_amount: '',
         billing_due_day: '',
         billing_due_date: '',
-        installment_count: '',
-        down_payment: '',
       })
     }
     setDialogOpen(true)
@@ -182,16 +168,6 @@ export default function ClientesPage() {
               : null,
           billing_due_date:
             form.payment_type === 'pontual' && form.billing_due_date ? form.billing_due_date : null,
-          installment_count:
-            form.payment_type === 'recorrente'
-              ? form.installment_count !== ''
-                ? Math.min(360, Math.max(1, Math.floor(Number(form.installment_count)) || 1))
-                : null
-              : null,
-          down_payment:
-            form.payment_type === 'recorrente' && form.down_payment !== ''
-              ? Number(form.down_payment)
-              : null,
         }),
       })
       if (res.ok) {
@@ -327,9 +303,6 @@ export default function ClientesPage() {
                         <p className="text-sm text-slate-500 break-words">
                           Parcela: R${' '}
                           {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          {client.installment_count != null && client.installment_count >= 1 && (
-                            <> · {client.installment_count} parcela{client.installment_count > 1 ? 's' : ''}</>
-                          )}
                           {client.billing_due_day != null && client.billing_due_day >= 1 && (
                             <> · vence dia {client.billing_due_day}</>
                           )}
@@ -442,13 +415,7 @@ export default function ClientesPage() {
                       setForm((f) => ({
                         ...f,
                         payment_type: v,
-                        ...(v === 'recorrente'
-                          ? {
-                              billing_due_date: '',
-                              installment_count:
-                                f.installment_count === '' ? '1' : f.installment_count,
-                            }
-                          : { billing_due_day: '', installment_count: '', down_payment: '' }),
+                        ...(v === 'recorrente' ? { billing_due_date: '' } : { billing_due_day: '' }),
                       }))
                     }}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
@@ -527,51 +494,9 @@ export default function ClientesPage() {
                         ))}
                       </select>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Cada parcela entra no <strong>MMR</strong> e na <strong>Receita total mês</strong> apenas no mês em que
-                        essa data ocorre. Aviso de cobrança no dia anterior e no dia do vencimento.
+                        O <strong>valor da parcela</strong> entra no <strong>MMR</strong> e na <strong>Receita total mês</strong>{' '}
+                        assim que o cliente está Ativo ou Lead. Aviso no dashboard no dia anterior e no dia do vencimento.
                       </p>
-                    </div>
-                    <div className="col-span-2 sm:col-span-1">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Quantidade de parcelas</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={360}
-                        placeholder="Contínuo"
-                        value={form.installment_count === '' ? '' : form.installment_count}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            installment_count: e.target.value === '' ? '' : Math.max(1, Math.min(360, Number(e.target.value) || 1)),
-                          }))
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                      />
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Vazio = mensal contínuo (receita conta todo mês com vencimento, até 360 meses no cálculo).
-                      </p>
-                    </div>
-                    <div className="col-span-2 sm:col-span-1">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Entrada (R$)</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0,00"
-                        value={
-                          form.down_payment === ''
-                            ? ''
-                            : Number(form.down_payment).toLocaleString('pt-BR', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })
-                        }
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/\D/g, '')
-                          setForm((f) => ({ ...f, down_payment: v === '' ? '' : Number(v) / 100 }))
-                        }}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                      />
-                      <p className="text-xs text-slate-500 mt-0.5">Opcional. Conta no MMR e na receita do mês do cadastro.</p>
                     </div>
                   </>
                 )}
