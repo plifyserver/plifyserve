@@ -56,14 +56,35 @@ export default function LoginPage() {
     if (data?.url) window.location.href = data.url
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const mapLoginError = (msg: string) => {
+    if (msg === 'Invalid login credentials') return 'Email ou senha inválidos'
+    if (/missing email or phone/i.test(msg)) {
+      return 'Não foi possível ler o e-mail. Digite novamente ou desative o preenchimento automático neste campo.'
+    }
+    return msg
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+    // Preenchimento automático do navegador nem sempre dispara onChange antes do submit;
+    // FormData lê o valor atual do DOM (inclui autofill).
+    const fd = new FormData(e.currentTarget)
+    const emailTrimmed = String(fd.get('email') ?? '').trim() || email.trim()
+    const passwordUsed = String(fd.get('password') ?? '') || password
+    if (!emailTrimmed || !passwordUsed) {
+      setLoading(false)
+      setError('Preencha o e-mail e a senha.')
+      return
+    }
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email: emailTrimmed,
+      password: passwordUsed,
+    })
     setLoading(false)
     if (err) {
-      setError(err.message === 'Invalid login credentials' ? 'Email ou senha inválidos' : err.message)
+      setError(mapLoginError(err.message))
       return
     }
     router.push(redirectTo.startsWith('/') ? redirectTo : '/dashboard')
@@ -78,7 +99,7 @@ export default function LoginPage() {
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-8">Seja bem-vindo</h1>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               {error && (
                 <div className="p-3 rounded-lg bg-red-500/10 text-red-600 text-sm border border-red-200">
                   {error}
@@ -90,11 +111,12 @@ export default function LoginPage() {
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input
+                    name="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Digite seu email"
-                    required
+                    autoComplete="email"
                     className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                   />
                 </div>
@@ -105,11 +127,11 @@ export default function LoginPage() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
                   <input
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Digite sua senha"
-                    required
                     autoComplete="current-password"
                     className="w-full pl-10 pr-11 py-3 rounded-sm bg-white border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                   />

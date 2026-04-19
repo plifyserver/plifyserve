@@ -53,16 +53,35 @@ export default function CadastroPage() {
     if (data?.url) window.location.href = data.url
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setSuccess('')
     setLoading(true)
 
+    const fd = new FormData(e.currentTarget)
+    const fullNameTrimmed = String(fd.get('full_name') ?? '').trim() || fullName.trim()
+    const emailTrimmed = String(fd.get('email') ?? '').trim() || email.trim()
+    const passwordUsed = String(fd.get('password') ?? '') || password
+    if (!fullNameTrimmed || !emailTrimmed || !passwordUsed) {
+      setLoading(false)
+      setError('Preencha nome, e-mail e senha.')
+      return
+    }
+    if (passwordUsed.length < 6) {
+      setLoading(false)
+      setError('A senha deve ter pelo menos 6 caracteres.')
+      return
+    }
+
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, full_name: fullName }),
+      body: JSON.stringify({
+        email: emailTrimmed,
+        password: passwordUsed,
+        full_name: fullNameTrimmed,
+      }),
     })
     const data = await res.json()
     setLoading(false)
@@ -93,7 +112,7 @@ export default function CadastroPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-8">Criar conta</h1>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {error && (
               <div className="p-3 rounded-lg bg-red-500/10 text-red-600 text-sm border border-red-200">
                 {error}
@@ -110,10 +129,12 @@ export default function CadastroPage() {
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
+                  name="full_name"
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Digite seu nome"
+                  autoComplete="name"
                   className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                 />
               </div>
@@ -124,11 +145,12 @@ export default function CadastroPage() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Digite seu email"
-                  required
+                  autoComplete="email"
                   className="w-full pl-10 pr-4 py-3 rounded-sm bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                 />
               </div>
@@ -139,12 +161,11 @@ export default function CadastroPage() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
                 <input
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Digite sua senha"
-                  required
-                  minLength={6}
                   autoComplete="new-password"
                   className="w-full pl-10 pr-11 py-3 rounded-sm bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25 focus:shadow-md focus:shadow-orange-500/15 outline-none transition-all"
                 />
