@@ -1,15 +1,21 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
+import { useCmsRuntime } from '@/contexts/CmsRuntimeContext'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, Upload, Trash2, User, Lock, Mail } from 'lucide-react'
+import { DashboardNavCustomizer } from '@/components/dashboard/DashboardNavCustomizer'
+import { DashboardPersonalizacaoForm } from '@/components/dashboard/DashboardPersonalizacaoForm'
+import { PlanosMarketingContent } from '@/components/dashboard/PlanosMarketingContent'
+import { SITE_CONTAINER_LG } from '@/lib/siteLayout'
+import { cn } from '@/lib/utils'
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE_MB = 2
 
-export default function ConfiguracoesPage() {
+function ConfiguracoesCmsV1() {
   const { user, profile, refreshProfile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +28,6 @@ export default function ConfiguracoesPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
-  // Cache buster para a foto atualizar ao trocar (mesmo que no header e em Meu perfil)
   const avatarUrl = profile?.avatar_url
     ? `${profile.avatar_url}${profile.avatar_url.includes('?') ? '&' : '?'}t=${profile.updated_at || Date.now()}`
     : null
@@ -39,7 +44,7 @@ export default function ConfiguracoesPage() {
         .filter((p) => !keepPath || p !== keepPath)
       if (toRemove.length) await supabase.storage.from('avatars').remove(toRemove)
     } catch {
-      // ignora; não bloqueia o fluxo
+      // ignora
     }
   }
 
@@ -277,6 +282,120 @@ export default function ConfiguracoesPage() {
           </p>
         </div>
       </div>
+
+      <div className="mt-12 max-w-3xl border-t border-gray-200 pt-10">
+        <h2 className="text-xl font-bold text-gray-900 mb-1">Personalização</h2>
+        <p className="text-gray-500 text-sm mb-6">
+          Nome do sistema, logo e cores da interface (disponível no plano Pro).
+        </p>
+        <DashboardPersonalizacaoForm compact />
+      </div>
     </div>
   )
+}
+
+type ConfigTab = 'menu' | 'personalizacao' | 'planos'
+
+function ConfiguracoesCmsV2() {
+  const [tab, setTabState] = useState<ConfigTab>('menu')
+
+  useLayoutEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('tab')
+    if (q === 'planos' || q === 'personalizacao' || q === 'menu') {
+      setTabState(q)
+    }
+  }, [])
+
+  const setTab = (t: ConfigTab) => {
+    setTabState(t)
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', t)
+    window.history.replaceState({}, '', `${url.pathname}?${url.searchParams.toString()}`)
+  }
+
+  return (
+    <div className={SITE_CONTAINER_LG}>
+      <div className="max-w-5xl">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-slate-900">Configurações</h1>
+            {tab === 'menu' ? (
+              <p className="mt-1 text-sm text-slate-500">
+                Arraste para reordenar e escolha quais itens aparece no menu.
+              </p>
+            ) : tab === 'personalizacao' ? (
+              <p className="mt-1 text-sm text-slate-500">
+                Nome, logo e cores do seu espaço no Plify. No plano Pro você desbloqueia o pacote completo de marca.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex w-full min-w-0 flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-sm sm:flex-nowrap sm:w-auto sm:shrink-0">
+            <button
+              type="button"
+              onClick={() => setTab('menu')}
+              className={cn(
+                'min-w-0 flex-1 px-2 py-2 text-center text-[11px] font-semibold leading-tight rounded-lg transition-colors sm:min-w-[7.5rem] sm:px-3 sm:text-sm',
+                tab === 'menu'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:bg-white/70'
+              )}
+            >
+              Reajuste de menu
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('personalizacao')}
+              className={cn(
+                'min-w-0 flex-1 px-2 py-2 text-center text-[11px] font-semibold leading-tight rounded-lg transition-colors sm:min-w-[7.5rem] sm:px-3 sm:text-sm',
+                tab === 'personalizacao'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:bg-white/70'
+              )}
+            >
+              Personalização
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('planos')}
+              className={cn(
+                'min-w-0 flex-1 px-2 py-2 text-center text-[11px] font-semibold leading-tight rounded-lg transition-colors sm:min-w-[7.5rem] sm:px-3 sm:text-sm',
+                tab === 'planos'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:bg-white/70'
+              )}
+            >
+              Planos
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          {tab === 'menu' ? (
+            <div className="max-w-3xl">
+              <DashboardNavCustomizer />
+            </div>
+          ) : tab === 'personalizacao' ? (
+            <div className="max-w-3xl">
+              <DashboardPersonalizacaoForm compact nonProPlanosHref="/dashboard/configuracoes?tab=planos" />
+            </div>
+          ) : (
+            <div>
+              <PlanosMarketingContent embedded />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function ConfiguracoesPage() {
+  const { settingsCmsVersion } = useCmsRuntime()
+
+  if (settingsCmsVersion === 'v2') {
+    return <ConfiguracoesCmsV2 />
+  }
+
+  return <ConfiguracoesCmsV1 />
 }

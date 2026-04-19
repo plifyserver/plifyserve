@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
 import { sanitizePracticeAreas } from '@/lib/profileSpecialization'
+import { mergeDashboardNavConfig, parseDashboardNavConfig } from '@/lib/dashboardNav'
 
 export async function GET() {
   const userId = await getCurrentUserId()
@@ -30,6 +31,7 @@ export async function PUT(request: NextRequest) {
   }
 
   const body = await request.json()
+  const supabase = await createClient()
   const updates: Record<string, unknown> = {}
   if (body.full_name !== undefined) updates.full_name = body.full_name
   if (body.company_name !== undefined) updates.company_name = body.company_name
@@ -53,13 +55,25 @@ export async function PUT(request: NextRequest) {
     const t = typeof s === 'string' ? s.trim().slice(0, 8000) : ''
     updates.niches = t !== '' ? t : null
   }
+  if (body.dashboard_nav_config !== undefined) {
+    const parsed = parseDashboardNavConfig(body.dashboard_nav_config)
+    if (!parsed) {
+      return NextResponse.json({ error: 'dashboard_nav_config inválido' }, { status: 400 })
+    }
+    const { data: curPlan } = await supabase
+      .from('profiles')
+      .select('plan, account_type')
+      .eq('id', userId)
+      .single()
+    const isProUser = curPlan?.plan === 'pro' || curPlan?.account_type === 'admin'
+    updates.dashboard_nav_config = mergeDashboardNavConfig(parsed, !!isProUser)
+  }
   if (body.edits_remaining !== undefined) updates.edits_remaining = body.edits_remaining
   if (body.plan !== undefined) updates.plan = body.plan
   if (body.stripe_customer_id !== undefined) updates.stripe_customer_id = body.stripe_customer_id
   if (body.stripe_subscription_id !== undefined) updates.stripe_subscription_id = body.stripe_subscription_id
   updates.updated_at = new Date().toISOString()
 
-  const supabase = await createClient()
   const { data, error } = await supabase
     .from('profiles')
     .update(updates)

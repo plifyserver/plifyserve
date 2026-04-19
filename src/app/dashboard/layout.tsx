@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -16,7 +16,6 @@ import {
   FileSignature,
   Columns3,
   Network,
-  Palette,
   Settings,
   LogOut,
   Menu,
@@ -31,6 +30,7 @@ import {
   Sun,
   Calculator,
   Shield,
+  type LucideIcon,
 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils'
 import { SITE_GUTTER_X } from '@/lib/siteLayout'
 import FeedbackSuggestionsButton from '@/components/FeedbackSuggestionsButton'
 import { useCmsRuntime } from '@/contexts/CmsRuntimeContext'
+import { mergeDashboardNavConfig, resolveSidebarNavItems } from '@/lib/dashboardNav'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -53,10 +54,25 @@ const navItems = [
   { href: '/dashboard/financeiro', icon: DollarSign, label: 'Gastos Pessoais' },
   { href: '/dashboard/calculadora', icon: Calculator, label: 'Calculadora' },
   { href: '/dashboard/kanban', icon: Columns3, label: 'Kanban' },
-  { href: '/dashboard/personalizacao', icon: Palette, label: 'Personalização' },
   { href: '/dashboard/planos', icon: CreditCard, label: 'Planos' },
   { href: '/dashboard/configuracoes', icon: Settings, label: 'Configurações' },
 ]
+
+const NAV_ICON_BY_HREF: Record<string, LucideIcon> = {
+  '/dashboard': LayoutDashboard,
+  '/dashboard/clientes': Users,
+  '/dashboard/propostas': FileText,
+  '/dashboard/documentos': FileSignature,
+  '/dashboard/projetos': Briefcase,
+  '/dashboard/agenda': Calendar,
+  '/dashboard/chat-ia': Headphones,
+  '/dashboard/mapa-mental': Network,
+  '/dashboard/ads': BarChart3,
+  '/dashboard/financeiro': DollarSign,
+  '/dashboard/calculadora': Calculator,
+  '/dashboard/kanban': Columns3,
+  '/dashboard/configuracoes': Settings,
+}
 
 interface AppSettings {
   app_name?: string | null
@@ -104,12 +120,32 @@ export default function DashboardLayout({
   }, [supportName, supportMessage])
 
   const isPro = !!(profile?.is_pro || profile?.account_type === 'admin')
-  const navItemsFiltered = navItems.filter((item) => {
-    if (item.href === '/dashboard/ads' || item.href === '/dashboard/personalizacao') {
-      return isPro
+  const { feedbackButtonEnabled, settingsCmsVersion } = useCmsRuntime()
+
+  const sidebarNavItems = useMemo(() => {
+    const pro = !!(profile?.is_pro || profile?.account_type === 'admin')
+    if (settingsCmsVersion !== 'v2') {
+      return navItems.filter((item) => {
+        if (item.href === '/dashboard/ads') {
+          return pro
+        }
+        return true
+      })
     }
-    return true
-  })
+    const entries = mergeDashboardNavConfig(profile?.dashboard_nav_config, pro)
+    const resolved = resolveSidebarNavItems(entries, pro)
+    return resolved.map((r) => ({
+      href: r.href,
+      label: r.label,
+      icon: NAV_ICON_BY_HREF[r.href] ?? LayoutDashboard,
+    }))
+  }, [
+    settingsCmsVersion,
+    profile?.dashboard_nav_config,
+    profile?.is_pro,
+    profile?.account_type,
+    profile?.updated_at,
+  ])
 
   useEffect(() => {
     const closeDropdowns = (e: MouseEvent) => {
@@ -160,7 +196,6 @@ export default function DashboardLayout({
   }, [])
 
   const { mode: themeMode, toggleTheme } = useTheme()
-  const { feedbackButtonEnabled } = useCmsRuntime()
   const accentColor = settings?.primary_color || '#dc2626'
   const sidebarBg = settings?.secondary_color || '#121212'
   const appName = settings?.app_name || ''
@@ -217,7 +252,7 @@ export default function DashboardLayout({
           </button>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {navItemsFiltered.map((item) => (
+          {sidebarNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -323,7 +358,7 @@ export default function DashboardLayout({
           </button>
         </div>
         <nav className="p-2 space-y-1">
-          {navItemsFiltered.map((item) => (
+          {sidebarNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

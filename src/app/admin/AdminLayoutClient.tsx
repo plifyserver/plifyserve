@@ -21,6 +21,7 @@ import {
   PanelTop,
   UserRound,
   MessageSquare,
+  SlidersHorizontal,
 } from 'lucide-react'
 
 const adminNavItems = [
@@ -34,6 +35,7 @@ const adminNavItems = [
 const cmsNavItems = [
   { href: '/admin/cms/dashboard', icon: PanelTop, label: 'Dashboard' },
   { href: '/admin/cms/perfil', icon: UserRound, label: 'Perfil' },
+  { href: '/admin/cms/configuracoes', icon: SlidersHorizontal, label: 'Configurações' },
   { href: '/admin/cms/feedback-button', icon: MessageSquare, label: 'Botão Feedback' },
 ]
 

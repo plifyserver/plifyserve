@@ -23,8 +23,9 @@ const MAX_SIZE_MB = 2
 
 export default function PerfilPage() {
   const { user, profile, refreshProfile } = useAuth()
-  const { profileCmsVersion } = useCmsRuntime()
+  const { profileCmsVersion, settingsCmsVersion } = useCmsRuntime()
   const showSpecialization = profileCmsVersion === 'v2'
+  const settingsV2 = settingsCmsVersion === 'v2'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -308,7 +309,13 @@ export default function PerfilPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Meu perfil</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Seus dados pessoais e foto de perfil</p>
+        <p className="text-sm text-slate-500 mt-0.5">
+          {settingsV2
+            ? showSpecialization
+              ? 'Especialização profissional'
+              : 'Dados da conta, senha, foto e segurança'
+            : 'Seus dados pessoais e foto de perfil'}
+        </p>
       </div>
 
       {error && (
@@ -322,6 +329,7 @@ export default function PerfilPage() {
         </div>
       )}
 
+      {!settingsV2 ? (
       <div className={cn('mx-auto w-full', showSpecialization ? 'max-w-5xl space-y-8' : 'max-w-2xl space-y-6')}>
         {showSpecialization ? (
           <>
@@ -587,6 +595,235 @@ export default function PerfilPage() {
           </>
         )}
       </div>
+      ) : (
+        <div className="mx-auto w-full max-w-5xl space-y-6">
+          {showSpecialization ? (
+            <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+              <CardContent className="p-6 sm:p-8">
+                <h2 className="text-lg font-semibold text-slate-900">Especialização</h2>
+                <p className="text-sm text-slate-500 mt-1 mb-6">
+                  Suas áreas de atuação, especialidades e nichos.
+                </p>
+
+                <form onSubmit={handleSaveSpecialization} className="space-y-6">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800 mb-3">Áreas de atuação</p>
+                    <div className="flex flex-wrap gap-2">
+                      {PRACTICE_AREA_PRESETS.map((label) => {
+                        const on = practiceAreas.includes(label)
+                        return (
+                          <button
+                            key={label}
+                            type="button"
+                            onClick={() => togglePracticeArea(label)}
+                            className={cn(
+                              'rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                              on
+                                ? 'border-[color:var(--primary-color,#dc2626)] bg-red-50/60 text-[color:var(--primary-color,#dc2626)]'
+                                : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                            )}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="mt-4">
+                      <label className="sr-only" htmlFor="practice-area-extra-v2">
+                        Sua área
+                      </label>
+                      <Input
+                        id="practice-area-extra-v2"
+                        type="text"
+                        value={practiceAreaExtra}
+                        onChange={(e) => setPracticeAreaExtra(e.target.value)}
+                        placeholder="Sua área..."
+                        autoComplete="off"
+                        className={cn('rounded-lg', inputLightCard)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800 mb-2">Especialidades</label>
+                    <Textarea
+                      value={specialties}
+                      onChange={(e) => setSpecialties(e.target.value)}
+                      placeholder="Descreva suas especialidades..."
+                      rows={4}
+                      className="min-h-[100px] resize-y rounded-lg border-0 border-b border-slate-200 bg-transparent px-0 py-2 shadow-none focus-visible:border-slate-400 focus-visible:ring-0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800 mb-2">Nichos</label>
+                    <Textarea
+                      value={niches}
+                      onChange={(e) => setNiches(e.target.value)}
+                      placeholder="Quais nichos você atende?"
+                      rows={3}
+                      className="min-h-[88px] resize-y rounded-lg border-0 border-b border-slate-200 bg-transparent px-0 py-2 shadow-none focus-visible:border-slate-400 focus-visible:ring-0"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={savingSpec || loading}
+                    className="rounded-lg bg-slate-900 px-6 hover:bg-slate-800"
+                  >
+                    {savingSpec ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar alterações'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8 lg:items-stretch">
+                <Card className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+                  <CardContent className="flex flex-1 flex-col p-6">
+                    <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <User className="w-5 h-5 text-slate-600" />
+                      Dados pessoais
+                    </h2>
+                    <form onSubmit={handleSaveName} className="flex flex-1 flex-col space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nome completo</label>
+                        <Input
+                          type="text"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="Seu nome"
+                          autoComplete="name"
+                          className={cn('rounded-lg', inputLightCard)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
+                        <Input
+                          type="text"
+                          value={user?.email ?? ''}
+                          disabled
+                          className="rounded-lg border-slate-200 bg-slate-50 text-slate-600 dark:!border-slate-200 dark:!bg-slate-100 dark:!text-slate-600"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">O e-mail não pode ser alterado aqui.</p>
+                      </div>
+                      <div className="pt-1 mt-auto">
+                        <Button type="submit" disabled={loading} className="rounded-lg bg-slate-900 hover:bg-slate-800">
+                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar nome'}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                <Card className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+                  <CardContent className="flex flex-1 flex-col p-6">
+                    <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <Lock className="w-5 h-5 text-slate-600" />
+                      Alterar senha
+                    </h2>
+                    {passwordError && (
+                      <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {passwordError}
+                      </div>
+                    )}
+                    {passwordSuccess && (
+                      <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                        {passwordSuccess}
+                      </div>
+                    )}
+                    <form onSubmit={handleChangePassword} className="flex flex-1 flex-col space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nova senha</label>
+                        <Input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                          minLength={6}
+                          autoComplete="new-password"
+                          className={cn('rounded-lg', inputLightCard)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Confirmar nova senha</label>
+                        <Input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Repita a senha"
+                          autoComplete="new-password"
+                          className={cn('rounded-lg', inputLightCard)}
+                        />
+                      </div>
+                      <div className="pt-1 mt-auto">
+                        <Button
+                          type="submit"
+                          disabled={passwordLoading || !newPassword || !confirmPassword}
+                          className="rounded-lg bg-slate-900 hover:bg-slate-800"
+                        >
+                          {passwordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Alterar senha'}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8 lg:items-stretch">
+                {profilePhotoCard}
+                <Card className="flex h-full min-h-0 flex-col rounded-2xl border border-red-200/80 bg-red-50/40 shadow-sm overflow-hidden">
+                  <CardContent className="flex flex-1 flex-col p-6">
+                    <h2 className="text-lg font-semibold text-red-900 mb-1 flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                      Zona de perigo
+                    </h2>
+                    <p className="text-sm text-red-900/80 mb-4">
+                      Excluir a conta remove o seu acesso e os dados associados conforme as regras do sistema. Esta ação
+                      não pode ser desfeita.
+                    </p>
+                    {deleteError && (
+                      <div className="mb-3 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm text-red-800">
+                        {deleteError}
+                      </div>
+                    )}
+                    <div className="mt-auto space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-red-900 mb-1">
+                          Para confirmar, digite:{' '}
+                          <span className="font-mono text-xs">{DELETE_ACCOUNT_CONFIRMATION_PHRASE}</span>
+                        </label>
+                        <Input
+                          type="text"
+                          value={deletePhrase}
+                          onChange={(e) => setDeletePhrase(e.target.value)}
+                          placeholder={DELETE_ACCOUNT_CONFIRMATION_PHRASE}
+                          autoComplete="off"
+                          className={cn('rounded-lg border-red-200 bg-white', inputLightCard)}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={
+                          deleteLoading ||
+                          deletePhrase.trim() !== DELETE_ACCOUNT_CONFIRMATION_PHRASE ||
+                          loading ||
+                          passwordLoading
+                        }
+                        onClick={handleDeleteAccount}
+                        className="w-full rounded-lg border-red-300 bg-white text-red-700 hover:bg-red-50 hover:text-red-800"
+                      >
+                        {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Excluir minha conta'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

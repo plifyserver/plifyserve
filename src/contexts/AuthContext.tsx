@@ -35,6 +35,8 @@ export interface Profile {
   practice_area_extra?: string | null
   specialties?: string | null
   niches?: string | null
+  /** Preferências do menu lateral (CMS Configurações v2) */
+  dashboard_nav_config?: unknown
   is_pro?: boolean
   is_socio?: boolean
   is_admin?: boolean
