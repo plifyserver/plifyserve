@@ -282,14 +282,6 @@ function ConfiguracoesCmsV1() {
           </p>
         </div>
       </div>
-
-      <div className="mt-12 max-w-3xl border-t border-gray-200 pt-10">
-        <h2 className="text-xl font-bold text-gray-900 mb-1">Personalização</h2>
-        <p className="text-gray-500 text-sm mb-6">
-          Nome do sistema, logo e cores da interface (disponível no plano Pro).
-        </p>
-        <DashboardPersonalizacaoForm compact />
-      </div>
     </div>
   )
 }
