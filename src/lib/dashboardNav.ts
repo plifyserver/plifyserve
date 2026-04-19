@@ -1,6 +1,7 @@
 /**
- * Menu lateral (CMS Configurações v2): ordem e visibilidade por utilizador.
- * Planos e Personalização não entram no menu neste modo — ficam em guias em Configurações.
+ * Menu lateral quando CMS Configurações está em v2: ordem e visibilidade por utilizador.
+ * Planos e Personalização não entram no sidebar neste modo (ficam em guias em Configurações).
+ * Com CMS v1, Personalização continua no menu estático em `dashboard/layout.tsx`.
  */
 
 export type DashboardNavEntry = {

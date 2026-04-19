@@ -30,6 +30,7 @@ import {
   Sun,
   Calculator,
   Shield,
+  Palette,
   type LucideIcon,
 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -54,6 +55,7 @@ const navItems = [
   { href: '/dashboard/financeiro', icon: DollarSign, label: 'Gastos Pessoais' },
   { href: '/dashboard/calculadora', icon: Calculator, label: 'Calculadora' },
   { href: '/dashboard/kanban', icon: Columns3, label: 'Kanban' },
+  { href: '/dashboard/personalizacao', icon: Palette, label: 'Personalização' },
   { href: '/dashboard/planos', icon: CreditCard, label: 'Planos' },
   { href: '/dashboard/configuracoes', icon: Settings, label: 'Configurações' },
 ]
@@ -71,6 +73,7 @@ const NAV_ICON_BY_HREF: Record<string, LucideIcon> = {
   '/dashboard/financeiro': DollarSign,
   '/dashboard/calculadora': Calculator,
   '/dashboard/kanban': Columns3,
+  '/dashboard/personalizacao': Palette,
   '/dashboard/configuracoes': Settings,
 }
 
