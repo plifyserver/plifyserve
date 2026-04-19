@@ -19,8 +19,7 @@ import {
   ChevronDown,
   Layers,
   PanelTop,
-  Calendar,
-  Sparkles,
+  UserRound,
   MessageSquare,
 } from 'lucide-react'
 
@@ -34,8 +33,7 @@ const adminNavItems = [
 
 const cmsNavItems = [
   { href: '/admin/cms/dashboard', icon: PanelTop, label: 'Dashboard' },
-  { href: '/admin/cms/ia', icon: Sparkles, label: 'IA' },
-  { href: '/admin/cms/agenda', icon: Calendar, label: 'Agenda' },
+  { href: '/admin/cms/perfil', icon: UserRound, label: 'Perfil' },
   { href: '/admin/cms/feedback-button', icon: MessageSquare, label: 'Botão Feedback' },
 ]
 

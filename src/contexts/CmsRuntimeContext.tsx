@@ -4,29 +4,42 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export type CmsActiveVersion = 'v1' | 'v2'
+/** v1 = perfil sem Especialização; v2 = com Especialização */
+export type ProfileCmsVersion = 'v1' | 'v2'
 
 type CmsRuntimeState = {
   activeVersion: CmsActiveVersion
   feedbackButtonEnabled: boolean
+  profileCmsVersion: ProfileCmsVersion
   loading: boolean
   error: string | null
 }
 
 const CmsRuntimeContext = createContext<CmsRuntimeState | undefined>(undefined)
 
-async function fetchCmsRuntime(): Promise<{ activeVersion: CmsActiveVersion; feedbackButtonEnabled: boolean }> {
+async function fetchCmsRuntime(): Promise<{
+  activeVersion: CmsActiveVersion
+  feedbackButtonEnabled: boolean
+  profileCmsVersion: ProfileCmsVersion
+}> {
   const res = await fetch('/api/cms/runtime', { credentials: 'include', cache: 'no-store' })
   if (!res.ok) throw new Error('Falha ao carregar versão do CMS')
-  const data = (await res.json()) as { activeVersion?: CmsActiveVersion; feedbackButtonEnabled?: boolean }
+  const data = (await res.json()) as {
+    activeVersion?: CmsActiveVersion
+    feedbackButtonEnabled?: boolean
+    profileCmsVersion?: ProfileCmsVersion
+  }
   return {
     activeVersion: data.activeVersion === 'v2' ? 'v2' : 'v1',
     feedbackButtonEnabled: data.feedbackButtonEnabled === true,
+    profileCmsVersion: data.profileCmsVersion === 'v2' ? 'v2' : 'v1',
   }
 }
 
 export function CmsRuntimeProvider({ children }: { children: React.ReactNode }) {
   const [activeVersion, setActiveVersion] = useState<CmsActiveVersion>('v1')
   const [feedbackButtonEnabled, setFeedbackButtonEnabled] = useState(false)
+  const [profileCmsVersion, setProfileCmsVersion] = useState<ProfileCmsVersion>('v1')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,6 +53,7 @@ export function CmsRuntimeProvider({ children }: { children: React.ReactNode }) 
         if (!mounted) return
         setActiveVersion(runtime.activeVersion)
         setFeedbackButtonEnabled(runtime.feedbackButtonEnabled)
+        setProfileCmsVersion(runtime.profileCmsVersion)
         setError(null)
       } catch (e) {
         if (!mounted) return
@@ -58,12 +72,18 @@ export function CmsRuntimeProvider({ children }: { children: React.ReactNode }) 
         'postgres_changes',
         { event: '*', schema: 'public', table: 'cms_runtime_settings', filter: 'id=eq.1' },
         (payload) => {
-          const nextRow = payload.new as { active_version?: string; feedback_button_enabled?: boolean } | null
+          const nextRow = payload.new as {
+            active_version?: string
+            feedback_button_enabled?: boolean
+            profile_cms_version?: string
+          } | null
           const next = nextRow?.active_version
           if (next === 'v2' || next === 'v1') setActiveVersion(next)
           if (typeof nextRow?.feedback_button_enabled === 'boolean') {
             setFeedbackButtonEnabled(nextRow.feedback_button_enabled)
           }
+          const pv = nextRow?.profile_cms_version
+          if (pv === 'v2' || pv === 'v1') setProfileCmsVersion(pv)
         }
       )
       .subscribe()
@@ -75,8 +95,8 @@ export function CmsRuntimeProvider({ children }: { children: React.ReactNode }) 
   }, [])
 
   const value = useMemo<CmsRuntimeState>(
-    () => ({ activeVersion, feedbackButtonEnabled, loading, error }),
-    [activeVersion, feedbackButtonEnabled, loading, error]
+    () => ({ activeVersion, feedbackButtonEnabled, profileCmsVersion, loading, error }),
+    [activeVersion, feedbackButtonEnabled, profileCmsVersion, loading, error]
   )
 
   return <CmsRuntimeContext.Provider value={value}>{children}</CmsRuntimeContext.Provider>

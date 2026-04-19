@@ -3,27 +3,59 @@
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
+import { useCmsRuntime } from '@/contexts/CmsRuntimeContext'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, Upload, Trash2, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import { PRACTICE_AREA_PRESETS } from '@/lib/profileSpecialization'
+
+/** Inputs em cards claros: evita `dark:bg-slate-800` do componente base quando o tema do site está escuro. */
+const inputLightCard =
+  'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 dark:!border-slate-200 dark:!bg-white dark:!text-slate-900 dark:!placeholder:text-slate-400 [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_rgb(255,255,255)] [&:-webkit-autofill]:[-webkit-text-fill-color:rgb(15,23,42)]'
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE_MB = 2
 
 export default function PerfilPage() {
   const { user, profile, refreshProfile } = useAuth()
+  const { profileCmsVersion } = useCmsRuntime()
+  const showSpecialization = profileCmsVersion === 'v2'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
+  const [practiceAreas, setPracticeAreas] = useState<string[]>([])
+  const [practiceAreaExtra, setPracticeAreaExtra] = useState('')
+  const [specialties, setSpecialties] = useState('')
+  const [niches, setNiches] = useState('')
+  const [savingSpec, setSavingSpec] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
   useEffect(() => {
     if (profile?.full_name !== undefined) setFullName(profile.full_name ?? '')
   }, [profile?.full_name])
+
+  useEffect(() => {
+    if (!profile || !showSpecialization) return
+    const areas = profile.practice_areas
+    setPracticeAreas(Array.isArray(areas) ? areas.filter((a) => typeof a === 'string') : [])
+    setPracticeAreaExtra(profile.practice_area_extra ?? '')
+    setSpecialties(profile.specialties ?? '')
+    setNiches(profile.niches ?? '')
+  }, [
+    showSpecialization,
+    profile?.id,
+    profile?.updated_at,
+    profile?.practice_areas,
+    profile?.practice_area_extra,
+    profile?.specialties,
+    profile?.niches,
+  ])
 
   // Cache buster: força o navegador a recarregar a imagem quando o perfil for atualizado
   const avatarUrl = profile?.avatar_url
@@ -117,6 +149,38 @@ export default function PerfilPage() {
     setLoading(false)
   }
 
+  const togglePracticeArea = (label: string) => {
+    setPracticeAreas((prev) =>
+      prev.includes(label) ? prev.filter((a) => a !== label) : [...prev, label]
+    )
+  }
+
+  const handleSaveSpecialization = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setSuccess(null)
+    setSavingSpec(true)
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          practice_areas: practiceAreas,
+          practice_area_extra: practiceAreaExtra.trim() || null,
+          specialties: specialties.trim() || null,
+          niches: niches.trim() || null,
+        }),
+      })
+      if (!res.ok) throw new Error('Falha ao salvar especialização')
+      await refreshProfile()
+      setSuccess('Especialização atualizada.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar.')
+    }
+    setSavingSpec(false)
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -135,7 +199,7 @@ export default function PerfilPage() {
         </div>
       )}
 
-      <div className="max-w-md space-y-6">
+      <div className="max-w-2xl space-y-6">
         <Card className="rounded-2xl border-0 shadow-sm overflow-hidden">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
@@ -150,7 +214,8 @@ export default function PerfilPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Seu nome"
-                  className="rounded-lg border-slate-200"
+                  autoComplete="name"
+                  className={cn('rounded-lg', inputLightCard)}
                 />
               </div>
               <div>
@@ -159,7 +224,7 @@ export default function PerfilPage() {
                   type="text"
                   value={user?.email ?? ''}
                   disabled
-                  className="rounded-lg border-slate-200 bg-slate-50 text-slate-600"
+                  className="rounded-lg border-slate-200 bg-slate-50 text-slate-600 dark:!border-slate-200 dark:!bg-slate-100 dark:!text-slate-600"
                 />
                 <p className="text-xs text-slate-500 mt-1">O e-mail não pode ser alterado aqui.</p>
               </div>
@@ -229,6 +294,87 @@ export default function PerfilPage() {
             </p>
           </CardContent>
         </Card>
+
+        {showSpecialization ? (
+        <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+          <CardContent className="p-6 sm:p-8">
+            <h2 className="text-lg font-semibold text-slate-900">Especialização</h2>
+            <p className="text-sm text-slate-500 mt-1 mb-6">
+              Suas áreas de atuação, especialidades e nichos.
+            </p>
+
+            <form onSubmit={handleSaveSpecialization} className="space-y-6">
+              <div>
+                <p className="text-sm font-medium text-slate-800 mb-3">Áreas de atuação</p>
+                <div className="flex flex-wrap gap-2">
+                  {PRACTICE_AREA_PRESETS.map((label) => {
+                    const on = practiceAreas.includes(label)
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => togglePracticeArea(label)}
+                        className={cn(
+                          'rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                          on
+                            ? 'border-[color:var(--primary-color,#dc2626)] bg-red-50/60 text-[color:var(--primary-color,#dc2626)]'
+                            : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                        )}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="mt-4">
+                  <label className="sr-only" htmlFor="practice-area-extra">
+                    Sua área
+                  </label>
+                  <Input
+                    id="practice-area-extra"
+                    type="text"
+                    value={practiceAreaExtra}
+                    onChange={(e) => setPracticeAreaExtra(e.target.value)}
+                    placeholder="Sua área..."
+                    autoComplete="off"
+                    className={cn('rounded-lg', inputLightCard)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-2">Especialidades</label>
+                <Textarea
+                  value={specialties}
+                  onChange={(e) => setSpecialties(e.target.value)}
+                  placeholder="Descreva suas especialidades..."
+                  rows={4}
+                  className="min-h-[100px] resize-y rounded-lg border-0 border-b border-slate-200 bg-transparent px-0 py-2 shadow-none focus-visible:border-slate-400 focus-visible:ring-0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-2">Nichos</label>
+                <Textarea
+                  value={niches}
+                  onChange={(e) => setNiches(e.target.value)}
+                  placeholder="Quais nichos você atende?"
+                  rows={3}
+                  className="min-h-[88px] resize-y rounded-lg border-0 border-b border-slate-200 bg-transparent px-0 py-2 shadow-none focus-visible:border-slate-400 focus-visible:ring-0"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={savingSpec || loading}
+                className="rounded-lg bg-slate-900 px-6 hover:bg-slate-800"
+              >
+                {savingSpec ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar alterações'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+        ) : null}
       </div>
     </div>
   )

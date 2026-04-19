@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
+import { sanitizePracticeAreas } from '@/lib/profileSpecialization'
 
 export async function GET() {
   const userId = await getCurrentUserId()
@@ -34,6 +35,24 @@ export async function PUT(request: NextRequest) {
   if (body.company_name !== undefined) updates.company_name = body.company_name
   if (body.phone !== undefined) updates.phone = body.phone
   if (body.avatar_url !== undefined) updates.avatar_url = body.avatar_url
+  if (body.practice_areas !== undefined) {
+    updates.practice_areas = sanitizePracticeAreas(body.practice_areas)
+  }
+  if (body.practice_area_extra !== undefined) {
+    const s = body.practice_area_extra
+    const t = typeof s === 'string' ? s.trim().slice(0, 200) : ''
+    updates.practice_area_extra = t !== '' ? t : null
+  }
+  if (body.specialties !== undefined) {
+    const s = body.specialties
+    const t = typeof s === 'string' ? s.trim().slice(0, 8000) : ''
+    updates.specialties = t !== '' ? t : null
+  }
+  if (body.niches !== undefined) {
+    const s = body.niches
+    const t = typeof s === 'string' ? s.trim().slice(0, 8000) : ''
+    updates.niches = t !== '' ? t : null
+  }
   if (body.edits_remaining !== undefined) updates.edits_remaining = body.edits_remaining
   if (body.plan !== undefined) updates.plan = body.plan
   if (body.stripe_customer_id !== undefined) updates.stripe_customer_id = body.stripe_customer_id

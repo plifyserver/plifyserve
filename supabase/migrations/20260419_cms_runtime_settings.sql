@@ -5,6 +5,7 @@ create table if not exists public.cms_runtime_settings (
   id int primary key,
   active_version text not null default 'v1' check (active_version in ('v1', 'v2')),
   feedback_button_enabled boolean not null default false,
+  profile_cms_version text not null default 'v1' check (profile_cms_version in ('v1', 'v2')),
   updated_at timestamptz not null default now()
 );
 
@@ -29,12 +30,25 @@ begin
 end $$;
 
 -- Garante linha singleton
-insert into public.cms_runtime_settings (id, active_version, feedback_button_enabled)
-values (1, 'v1', false)
+insert into public.cms_runtime_settings (id, active_version, feedback_button_enabled, profile_cms_version)
+values (1, 'v1', false, 'v1')
 on conflict (id) do nothing;
 
--- Realtime (Postgres changes) para alternância "ao vivo"
-alter publication supabase_realtime add table public.cms_runtime_settings;
+-- Realtime (só adiciona se ainda não estiver na publicação — evita erro 42710 ao reexecutar o script)
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    if not exists (
+      select 1
+      from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = 'cms_runtime_settings'
+    ) then
+      execute 'alter publication supabase_realtime add table public.cms_runtime_settings';
+    end if;
+  end if;
+end $$;
 
 -- updated_at automático em updates
 create or replace function public.set_updated_at()

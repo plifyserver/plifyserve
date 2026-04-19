@@ -29,6 +29,12 @@ export interface Profile {
   templates_limit?: number | null
   created_at: string
   updated_at: string
+  /** Áreas de atuação selecionadas (presets do perfil) */
+  practice_areas?: string[] | null
+  /** Área adicional digitada pelo usuário */
+  practice_area_extra?: string | null
+  specialties?: string | null
+  niches?: string | null
   is_pro?: boolean
   is_socio?: boolean
   is_admin?: boolean
