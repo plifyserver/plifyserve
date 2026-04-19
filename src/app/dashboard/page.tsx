@@ -20,6 +20,8 @@ import { ptBR } from 'date-fns/locale'
 import { chartPaletteFromPrimary } from '@/lib/colorUtils'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
 import { getNextBillingDueDateIso, shouldShowClientBillingReminderFromClient } from '@/lib/clientBillingReminder'
+import { useCmsRuntime } from '@/contexts/CmsRuntimeContext'
+import CmsDashboardV2 from '@/app/cms/dashboard/CmsDashboardV2'
 
 const FALLBACK_PRIMARY = '#dc2626'
 
@@ -94,6 +96,24 @@ function buildStatsUrl(period: PeriodType, start?: string, end?: string): string
 }
 
 export default function DashboardPage() {
+  const { activeVersion, loading: cmsLoading } = useCmsRuntime()
+
+  if (cmsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (activeVersion === 'v2') {
+    return <CmsDashboardV2 />
+  }
+
+  return <DashboardV1 />
+}
+
+function DashboardV1() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [settings, setSettings] = useState<{ primary_color?: string } | null>(null)
   const [clients, setClients] = useState<{ created_at?: string }[]>([])

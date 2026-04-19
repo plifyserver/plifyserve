@@ -16,6 +16,11 @@ import {
   X,
   Shield,
   ChevronLeft,
+  ChevronDown,
+  Layers,
+  PanelTop,
+  Calendar,
+  Sparkles,
 } from 'lucide-react'
 
 const adminNavItems = [
@@ -26,11 +31,18 @@ const adminNavItems = [
   { href: '/admin/settings', icon: Settings, label: 'Configurações' },
 ]
 
+const cmsNavItems = [
+  { href: '/admin/cms/dashboard', icon: PanelTop, label: 'Dashboard' },
+  { href: '/admin/cms/ia', icon: Sparkles, label: 'IA' },
+  { href: '/admin/cms/agenda', icon: Calendar, label: 'Agenda' },
+]
+
 export default function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { signOut, profile } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [cmsOpen, setCmsOpen] = useState(() => pathname.startsWith('/admin/cms'))
 
   const handleSignOut = async () => {
     await signOut()
@@ -93,6 +105,44 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
               {item.label}
             </Link>
           ))}
+
+          {/* CMS (com subitens) */}
+          <button
+            type="button"
+            onClick={() => setCmsOpen((v) => !v)}
+            className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+              pathname.startsWith('/admin/cms')
+                ? 'bg-red-500/20 text-red-400'
+                : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+            }`}
+            aria-expanded={cmsOpen}
+          >
+            <span className="flex items-center gap-3">
+              <Layers className="w-5 h-5" />
+              CMS
+            </span>
+            <ChevronDown className={`w-4 h-4 transition-transform ${cmsOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {cmsOpen ? (
+            <div className="ml-3 pl-2 border-l border-slate-700 space-y-1">
+              {cmsNavItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                    pathname === item.href
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                  }`}
+                >
+                  <item.icon className="w-4 h-4" />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-700 space-y-1">

@@ -32,6 +32,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (body.end_date !== undefined) updates.end_date = body.end_date
   if (body.responsible !== undefined) updates.responsible = body.responsible
   if (body.progress !== undefined) updates.progress = Math.min(100, Math.max(0, Number(body.progress) || 0))
+  if (body.icon_key !== undefined) updates.icon_key = body.icon_key
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('projects')

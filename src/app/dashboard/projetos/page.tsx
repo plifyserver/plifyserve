@@ -11,6 +11,12 @@ import {
   Clock,
   Users,
   FolderKanban,
+  Briefcase,
+  Rocket,
+  Target,
+  Palette,
+  Wrench,
+  Megaphone,
   MoreHorizontal,
   Calendar,
   TrendingUp,
@@ -89,6 +95,7 @@ interface Project {
   start_date: string | null
   end_date: string | null
   responsible: string | null
+  icon_key?: string | null
   created_at: string
 }
 
@@ -132,7 +139,27 @@ export default function ProjetosPage() {
     start_date: '',
     end_date: '',
     responsible: '',
+    icon_key: 'folder',
   })
+
+  const PROJECT_ICON_OPTIONS = useMemo(
+    () => [
+      { key: 'folder', label: 'Padrão', Icon: FolderKanban },
+      { key: 'briefcase', label: 'Negócios', Icon: Briefcase },
+      { key: 'rocket', label: 'Lançamento', Icon: Rocket },
+      { key: 'target', label: 'Meta', Icon: Target },
+      { key: 'palette', label: 'Design', Icon: Palette },
+      { key: 'wrench', label: 'Implementação', Icon: Wrench },
+      { key: 'megaphone', label: 'Marketing', Icon: Megaphone },
+    ],
+    []
+  )
+
+  const iconByKey = useMemo(() => {
+    const map = new Map<string, (typeof PROJECT_ICON_OPTIONS)[number]['Icon']>()
+    for (const opt of PROJECT_ICON_OPTIONS) map.set(opt.key, opt.Icon)
+    return map
+  }, [PROJECT_ICON_OPTIONS])
 
   const load = async () => {
     try {
@@ -280,6 +307,7 @@ export default function ProjetosPage() {
         start_date: project.start_date || '',
         end_date: project.end_date || '',
         responsible: project.responsible || '',
+        icon_key: project.icon_key || 'folder',
       })
     } else {
       setSelected(null)
@@ -292,6 +320,7 @@ export default function ProjetosPage() {
         start_date: new Date().toISOString().slice(0, 10),
         end_date: '',
         responsible: '',
+        icon_key: 'folder',
       })
     }
     setDialogOpen(true)
@@ -327,6 +356,7 @@ export default function ProjetosPage() {
           start_date: form.start_date || null,
           end_date: form.end_date || null,
           responsible: form.responsible || null,
+          icon_key: form.icon_key || 'folder',
         }),
       })
 
@@ -521,18 +551,24 @@ export default function ProjetosPage() {
                   filtered.map((project) => {
                     const StatusIcon = statusConfig[project.status]?.icon || Play
                     const deadline = getDeadlineStatus(project.end_date)
+                    const ProjectIcon = iconByKey.get(project.icon_key || 'folder') || FolderKanban
 
                     return (
                       <tr key={project.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4">
-                          <div>
-                            <p className="font-semibold text-slate-900">{project.name}</p>
-                            {project.responsible && (
-                              <p className="text-sm text-slate-400 flex items-center gap-1 mt-0.5">
-                                <Users className="w-3 h-3" />
-                                {project.responsible}
-                              </p>
-                            )}
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                              <ProjectIcon className="w-4 h-4 text-slate-700" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-900">{project.name}</p>
+                              {project.responsible && (
+                                <p className="text-sm text-slate-400 flex items-center gap-1 mt-0.5">
+                                  <Users className="w-3 h-3" />
+                                  {project.responsible}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -604,12 +640,18 @@ export default function ProjetosPage() {
             filtered.map((project) => {
               const StatusIcon = statusConfig[project.status]?.icon || Play
               const deadline = getDeadlineStatus(project.end_date)
+              const ProjectIcon = iconByKey.get(project.icon_key || 'folder') || FolderKanban
 
               return (
                 <div key={project.id} className={`${DASH_SURFACE_CARD} p-5 hover:shadow-md transition-shadow`}>
                     <div className="flex items-start justify-between mb-4">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900 truncate">{project.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                          <ProjectIcon className="w-4 h-4 text-slate-700" />
+                        </div>
+                        <h3 className="font-semibold text-slate-900 truncate">{project.name}</h3>
+                      </div>
                       {project.client_name && (
                         <p className="text-sm text-slate-400 truncate">{project.client_name}</p>
                       )}
@@ -831,6 +873,25 @@ export default function ProjetosPage() {
                 className="mt-1.5 rounded-xl"
                 required
               />
+            </div>
+
+            <div>
+              <Label>Ícone do projeto</Label>
+              <Select value={form.icon_key || 'folder'} onValueChange={(v) => setForm({ ...form, icon_key: v })}>
+                <SelectTrigger className="mt-1.5 rounded-xl">
+                  <SelectValue placeholder="Selecione um ícone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROJECT_ICON_OPTIONS.map(({ key, label, Icon }) => (
+                    <SelectItem key={key} value={key}>
+                      <span className="inline-flex items-center gap-2">
+                        <Icon className="w-4 h-4" />
+                        {label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

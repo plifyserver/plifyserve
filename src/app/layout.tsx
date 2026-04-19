@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { CmsRuntimeProvider } from "@/contexts/CmsRuntimeContext";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { SpaceKeyFix } from "@/components/SpaceKeyFix";
@@ -36,8 +37,10 @@ export default function RootLayout({
         <QueryProvider>
           <ThemeProvider>
             <AuthProvider>
-              {children}
-              <Toaster />
+              <CmsRuntimeProvider>
+                {children}
+                <Toaster />
+              </CmsRuntimeProvider>
             </AuthProvider>
           </ThemeProvider>
         </QueryProvider>

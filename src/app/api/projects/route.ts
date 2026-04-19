@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       end_date: body.end_date ?? null,
       responsible: body.responsible ?? null,
       progress: Math.min(100, Math.max(0, Number(body.progress) || 0)),
+      icon_key: typeof body.icon_key === 'string' ? body.icon_key : null,
     })
     .select()
     .single()
