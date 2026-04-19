@@ -4,6 +4,7 @@
 create table if not exists public.cms_runtime_settings (
   id int primary key,
   active_version text not null default 'v1' check (active_version in ('v1', 'v2')),
+  feedback_button_enabled boolean not null default false,
   updated_at timestamptz not null default now()
 );
 
@@ -28,8 +29,8 @@ begin
 end $$;
 
 -- Garante linha singleton
-insert into public.cms_runtime_settings (id, active_version)
-values (1, 'v1')
+insert into public.cms_runtime_settings (id, active_version, feedback_button_enabled)
+values (1, 'v1', false)
 on conflict (id) do nothing;
 
 -- Realtime (Postgres changes) para alternância "ao vivo"

@@ -21,6 +21,7 @@ import {
   PanelTop,
   Calendar,
   Sparkles,
+  MessageSquare,
 } from 'lucide-react'
 
 const adminNavItems = [
@@ -35,6 +36,7 @@ const cmsNavItems = [
   { href: '/admin/cms/dashboard', icon: PanelTop, label: 'Dashboard' },
   { href: '/admin/cms/ia', icon: Sparkles, label: 'IA' },
   { href: '/admin/cms/agenda', icon: Calendar, label: 'Agenda' },
+  { href: '/admin/cms/feedback-button', icon: MessageSquare, label: 'Botão Feedback' },
 ]
 
 export default function AdminLayoutClient({ children }: { children: React.ReactNode }) {

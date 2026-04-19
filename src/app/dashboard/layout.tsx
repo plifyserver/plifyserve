@@ -37,6 +37,8 @@ import NotificationsDropdown from '@/components/NotificationsDropdown'
 import { LOGO_PRETO, LOGO_BRANCO } from '@/lib/logo'
 import { cn } from '@/lib/utils'
 import { SITE_GUTTER_X } from '@/lib/siteLayout'
+import FeedbackSuggestionsButton from '@/components/FeedbackSuggestionsButton'
+import { useCmsRuntime } from '@/contexts/CmsRuntimeContext'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -158,6 +160,7 @@ export default function DashboardLayout({
   }, [])
 
   const { mode: themeMode, toggleTheme } = useTheme()
+  const { feedbackButtonEnabled } = useCmsRuntime()
   const accentColor = settings?.primary_color || '#dc2626'
   const sidebarBg = settings?.secondary_color || '#121212'
   const appName = settings?.app_name || ''
@@ -369,6 +372,7 @@ export default function DashboardLayout({
 
       {/* Main - quadrado à esquerda (onde encontra o menu), redondo à direita */}
       <div className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 lg:mt-1 lg:mr-2 lg:mb-2 rounded-tl-none rounded-bl-none rounded-tr-lg rounded-br-lg bg-white shadow-sm ${sidebarCollapsed ? 'lg:ml-[84px]' : 'lg:ml-[260px]'}`}>
+        {feedbackButtonEnabled ? <FeedbackSuggestionsButton accentColor={accentColor} /> : null}
         <header ref={headerRef} className={cn('bg-white border-b border-slate-200 py-3 relative', SITE_GUTTER_X)}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 max-w-md hidden sm:block">
