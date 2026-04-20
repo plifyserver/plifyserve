@@ -5,8 +5,8 @@ import { hasActivePaidAccess, type BillingGateProfile } from '@/lib/billing-acce
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Landing pública: não há redirects de auth aqui; pular o Supabase no edge acelera o primeiro carregamento (especialmente em dev).
-  if (pathname === '/') {
+  // Landing e páginas legais estáticas (OAuth / bots): sem Supabase no edge.
+  if (pathname === '/' || pathname === '/legal' || pathname.startsWith('/legal/')) {
     return NextResponse.next({ request })
   }
 
