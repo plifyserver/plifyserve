@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { userProfileHasProPlan } from '@/lib/calendar/calendarAccess'
 
 const locales = { 'pt-BR': ptBR }
 const localizer = dateFnsLocalizer({
@@ -83,7 +84,7 @@ function AgendaPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, profile } = useAuth()
-  const canAgendaIntegrations = !!(profile?.is_pro || profile?.is_admin)
+  const canAgendaIntegrations = userProfileHasProPlan(profile)
   const [events, setEvents] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)

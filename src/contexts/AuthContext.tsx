@@ -7,6 +7,7 @@ import {
   effectiveCustomTemplateLimit,
   resolveEffectivePlan,
 } from '@/lib/plan-entitlements'
+import { userProfileHasProPlan } from '@/lib/calendar/calendarAccess'
 
 export type AccountType = 'admin' | 'socio' | 'usuario'
 export type PlanType = 'free' | 'essential' | 'pro' | 'admin'
@@ -73,10 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ...data,
       account_type: data.account_type || 'usuario',
       templates_count: data.templates_count || 0,
-      is_pro:
-        data.plan === 'pro' ||
-        data.plan_type === 'pro' ||
-        data.account_type === 'admin',
+      is_pro: userProfileHasProPlan(data),
       is_socio: data.account_type === 'socio' || data.account_type === 'admin',
       is_admin: data.account_type === 'admin',
     } as Profile
@@ -135,10 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ...data,
           account_type: data.account_type || 'usuario',
           templates_count: data.templates_count || 0,
-          is_pro:
-            data.plan === 'pro' ||
-            data.plan_type === 'pro' ||
-            data.account_type === 'admin',
+          is_pro: userProfileHasProPlan(data),
           is_socio: data.account_type === 'socio' || data.account_type === 'admin',
           is_admin: data.account_type === 'admin',
         } as Profile

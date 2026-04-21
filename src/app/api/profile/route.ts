@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserId } from '@/lib/auth'
 import { sanitizePracticeAreas } from '@/lib/profileSpecialization'
 import { mergeDashboardNavConfig, parseDashboardNavConfig } from '@/lib/dashboardNav'
+import { userProfileHasProPlan } from '@/lib/calendar/calendarAccess'
 
 export async function GET() {
   const userId = await getCurrentUserId()
@@ -21,7 +22,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 })
   }
 
-  return NextResponse.json({ ...profile, is_pro: profile.plan === 'pro' })
+  return NextResponse.json({ ...profile, is_pro: userProfileHasProPlan(profile) })
 }
 
 export async function PUT(request: NextRequest) {
@@ -62,10 +63,10 @@ export async function PUT(request: NextRequest) {
     }
     const { data: curPlan } = await supabase
       .from('profiles')
-      .select('plan, account_type')
+      .select('plan, plan_type, account_type')
       .eq('id', userId)
       .single()
-    const isProUser = curPlan?.plan === 'pro' || curPlan?.account_type === 'admin'
+    const isProUser = userProfileHasProPlan(curPlan)
     updates.dashboard_nav_config = mergeDashboardNavConfig(parsed, !!isProUser)
   }
   if (body.edits_remaining !== undefined) updates.edits_remaining = body.edits_remaining
@@ -85,5 +86,5 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ ...data, is_pro: data.plan === 'pro' })
+  return NextResponse.json({ ...data, is_pro: userProfileHasProPlan(data) })
 }
