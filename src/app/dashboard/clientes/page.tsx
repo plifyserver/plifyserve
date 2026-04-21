@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
@@ -209,6 +209,54 @@ export default function ClientesPage() {
     }
   }
 
+  const renderClientBillingBlock = (client: Client) => (
+    <>
+      {client.payment_type === 'pontual' && client.recurring_amount != null && (
+        <p className="text-sm text-slate-500 break-words">
+          Fatura: R${' '}
+          {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        </p>
+      )}
+      {client.payment_type === 'recorrente' && client.recurring_amount != null && (
+        <p className="text-sm text-slate-500 break-words">
+          Parcela: R${' '}
+          {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          {client.billing_due_day != null && client.billing_due_day >= 1 && (
+            <> · vence dia {client.billing_due_day}</>
+          )}
+        </p>
+      )}
+      {client.payment_type === 'recorrente' &&
+        (client.billing_due_day == null || client.billing_due_day < 1) &&
+        client.billing_due_date && (
+          <p className="text-xs text-amber-700 mt-0.5">
+            Legado: data {format(new Date(client.billing_due_date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}{' '}
+            — defina o dia do vencimento
+          </p>
+        )}
+    </>
+  )
+
+  const renderStatusControl = (client: Client) =>
+    client.status === 'active' || client.status === 'inactive' ? (
+      <button
+        type="button"
+        onClick={() => toggleActiveInactive(client)}
+        disabled={togglingId === client.id}
+        title={client.status === 'active' ? 'Clique para marcar como Inativo' : 'Clique para marcar como Ativo'}
+        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60 ${statusConfig[client.status]?.color || 'bg-slate-100 text-slate-700'}`}
+      >
+        {togglingId === client.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+        {statusConfig[client.status]?.label || client.status}
+      </button>
+    ) : (
+      <span
+        className={`inline-flex px-2 py-1 rounded-lg text-sm font-medium ${statusConfig[client.status]?.color || 'bg-slate-100 text-slate-700'}`}
+      >
+        {statusConfig[client.status]?.label || client.status}
+      </span>
+    )
+
   const toggleActiveInactive = async (client: Client) => {
     if (client.status !== 'active' && client.status !== 'inactive') return
     setTogglingId(client.id)
@@ -263,113 +311,131 @@ export default function ClientesPage() {
       </div>
 
       <div className={`${DASH_SURFACE_CARD} overflow-hidden`}>
-        <table className="w-full table-fixed md:table-auto text-left">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="w-[34%] px-4 sm:px-5 py-3.5 font-semibold text-slate-700">Nome</th>
-              <th className="w-[40%] px-4 sm:px-5 py-3.5 font-semibold text-slate-700">Contato</th>
-              <th className="px-5 py-3.5 font-semibold text-slate-700">Status</th>
-              <th className="px-5 py-3.5 font-semibold text-slate-700">Responsável</th>
-              <th className="px-5 py-3.5 font-semibold text-slate-700">Data</th>
-              <th className="w-12 px-5 py-3.5" />
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
-                  Carregando...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
-                  Nenhum cliente encontrado
-                </td>
-              </tr>
-            ) : (
-              filtered.map((client) => (
-                <tr key={client.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                  <td className="px-4 sm:px-5 py-3.5">
-                    <div className="min-w-0">
-                      <p className="font-medium text-slate-900 break-words">{client.name}</p>
-                      {client.payment_type === 'pontual' && client.recurring_amount != null && (
-                        <p className="text-sm text-slate-500 break-words">
-                          Fatura: R${' '}
-                          {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                      )}
-                      {client.payment_type === 'recorrente' && client.recurring_amount != null && (
-                        <p className="text-sm text-slate-500 break-words">
-                          Parcela: R${' '}
-                          {Number(client.recurring_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          {client.billing_due_day != null && client.billing_due_day >= 1 && (
-                            <> · vence dia {client.billing_due_day}</>
-                          )}
-                        </p>
-                      )}
-                      {client.payment_type === 'recorrente' &&
-                        (client.billing_due_day == null || client.billing_due_day < 1) &&
-                        client.billing_due_date && (
-                          <p className="text-xs text-amber-700 mt-0.5">
-                            Legado: data {format(new Date(client.billing_due_date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}{' '}
-                            — defina o dia do vencimento
-                          </p>
-                        )}
+        {loading ? (
+          <div className="px-5 py-10 text-center text-slate-500">Carregando...</div>
+        ) : filtered.length === 0 ? (
+          <div className="px-5 py-10 text-center text-slate-500">Nenhum cliente encontrado</div>
+        ) : (
+          <>
+            {/* Mobile: cartões empilhados (evita colunas table-fixed sobrepostas) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filtered.map((client) => (
+                <div key={client.id} className="p-4 space-y-3">
+                  <div className="flex gap-3 items-start justify-between">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="font-medium text-slate-900 break-words leading-snug">{client.name}</p>
+                      <div className="space-y-0.5">{renderClientBillingBlock(client)}</div>
                     </div>
-                  </td>
-                  <td className="px-4 sm:px-5 py-3.5">
-                    <div className="min-w-0 space-y-1">
-                      {client.email && <p className="text-sm text-slate-600 break-all leading-snug">{client.email}</p>}
-                      {client.phone && <p className="text-sm text-slate-600 break-all leading-snug">{client.phone}</p>}
-                      {!client.email && !client.phone && '—'}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    {(client.status === 'active' || client.status === 'inactive') ? (
+                    <div className="flex shrink-0 gap-0.5">
                       <button
                         type="button"
-                        onClick={() => toggleActiveInactive(client)}
-                        disabled={togglingId === client.id}
-                        title={client.status === 'active' ? 'Clique para marcar como Inativo' : 'Clique para marcar como Ativo'}
-                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60 ${statusConfig[client.status]?.color || 'bg-slate-100 text-slate-700'}`}
-                      >
-                        {togglingId === client.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                        {statusConfig[client.status]?.label || client.status}
-                      </button>
-                    ) : (
-                      <span className={`inline-flex px-2 py-1 rounded-lg text-sm font-medium ${statusConfig[client.status]?.color || 'bg-slate-100 text-slate-700'}`}>
-                        {statusConfig[client.status]?.label || client.status}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-600">{client.responsible || '—'}</td>
-                  <td className="px-5 py-3.5 text-slate-500">
-                    {client.created_at ? format(new Date(client.created_at), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex gap-1">
-                      <button
                         onClick={() => openDialog(client)}
-                        className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"
+                        className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         title="Editar"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => openDeleteDialog(client)}
-                        className="p-2 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600"
+                        className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-100"
                         title="Excluir"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                  <div className="min-w-0 space-y-1 text-sm text-slate-600">
+                    {client.email && <p className="break-all leading-snug">{client.email}</p>}
+                    {client.phone && <p className="break-all leading-snug">{client.phone}</p>}
+                    {!client.email && !client.phone && <p className="text-slate-400">—</p>}
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="shrink-0">{renderStatusControl(client)}</div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                      <span>
+                        <span className="font-medium text-slate-600">Resp.:</span>{' '}
+                        {client.responsible || '—'}
+                      </span>
+                      <span>
+                        <span className="font-medium text-slate-600">Cadastro:</span>{' '}
+                        {client.created_at
+                          ? format(new Date(client.created_at), 'dd/MM/yyyy', { locale: ptBR })
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: tabela */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left lg:min-w-0 lg:table-fixed">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="w-[28%] px-5 py-3.5 font-semibold text-slate-700">Nome</th>
+                    <th className="w-[32%] px-5 py-3.5 font-semibold text-slate-700">Contato</th>
+                    <th className="whitespace-nowrap px-5 py-3.5 font-semibold text-slate-700">Status</th>
+                    <th className="px-5 py-3.5 font-semibold text-slate-700">Responsável</th>
+                    <th className="whitespace-nowrap px-5 py-3.5 font-semibold text-slate-700">Data</th>
+                    <th className="w-24 whitespace-nowrap px-5 py-3.5 text-right font-semibold text-slate-700">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((client) => (
+                    <tr key={client.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                      <td className="px-5 py-3.5 align-top">
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-900 break-words">{client.name}</p>
+                          <div className="mt-0.5 space-y-0.5">{renderClientBillingBlock(client)}</div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 align-top">
+                        <div className="min-w-0 space-y-1">
+                          {client.email && (
+                            <p className="text-sm text-slate-600 break-all leading-snug">{client.email}</p>
+                          )}
+                          {client.phone && (
+                            <p className="text-sm text-slate-600 break-all leading-snug">{client.phone}</p>
+                          )}
+                          {!client.email && !client.phone && '—'}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 align-top whitespace-nowrap">{renderStatusControl(client)}</td>
+                      <td className="px-5 py-3.5 align-top text-slate-600 break-words">{client.responsible || '—'}</td>
+                      <td className="px-5 py-3.5 align-top text-slate-500 whitespace-nowrap">
+                        {client.created_at ? format(new Date(client.created_at), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                      </td>
+                      <td className="px-5 py-3.5 align-top text-right">
+                        <div className="inline-flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openDialog(client)}
+                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDeleteDialog(client)}
+                            className="p-2 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600"
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {dialogOpen && (
