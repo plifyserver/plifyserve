@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import type { Profile, AccountType, PlanType } from '@/contexts/AuthContext'
+import { userProfileHasProPlan } from '@/lib/calendar/calendarAccess'
 
 const supabase = createClient()
 
@@ -20,7 +21,7 @@ export const profileService = {
       ...data,
       account_type: data.account_type || 'usuario',
       templates_count: data.templates_count || 0,
-      is_pro: data.plan === 'pro',
+      is_pro: userProfileHasProPlan(data),
       is_socio: data.account_type === 'socio' || data.account_type === 'admin',
       is_admin: data.account_type === 'admin',
     } as Profile

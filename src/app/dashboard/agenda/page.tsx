@@ -83,8 +83,9 @@ type CalendarIntegrationInfo = {
 function AgendaPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, profile } = useAuth()
-  const canAgendaIntegrations = userProfileHasProPlan(profile)
+  const { user } = useAuth()
+  /** null = a verificar (GET /api/profile) enquanto a modal está aberta */
+  const [integrationAccess, setIntegrationAccess] = useState<boolean | null>(null)
   const [events, setEvents] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
@@ -135,8 +136,30 @@ function AgendaPageContent() {
   }, [])
 
   useEffect(() => {
-    if (showIntegrations && canAgendaIntegrations) void loadCalendarIntegrations()
-  }, [showIntegrations, canAgendaIntegrations, loadCalendarIntegrations])
+    if (!showIntegrations) {
+      setIntegrationAccess(null)
+      return
+    }
+    let cancelled = false
+    setIntegrationAccess(null)
+    void (async () => {
+      try {
+        const res = await fetch('/api/profile', { credentials: 'include' })
+        const data = res.ok ? await res.json().catch(() => null) : null
+        if (cancelled) return
+        setIntegrationAccess(data ? userProfileHasProPlan(data) : false)
+      } catch {
+        if (!cancelled) setIntegrationAccess(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [showIntegrations])
+
+  useEffect(() => {
+    if (showIntegrations && integrationAccess === true) void loadCalendarIntegrations()
+  }, [showIntegrations, integrationAccess, loadCalendarIntegrations])
 
   const disconnectGoogleCalendar = async () => {
     const res = await fetch('/api/calendar/integrations/google', { method: 'DELETE', credentials: 'include' })
@@ -674,7 +697,11 @@ function AgendaPageContent() {
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            {!canAgendaIntegrations ? (
+            {integrationAccess === null ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+              </div>
+            ) : !integrationAccess ? (
               <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
                 <p>
                   Integração com Google Calendar e feed para o celular fazem parte do plano <strong>Pro</strong>. No

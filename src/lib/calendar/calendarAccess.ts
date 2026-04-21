@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
- * Pro (campo `plan` ou `plan_type`) ou admin — mesma regra na agenda, API de calendário e `is_pro`.
- * Usa comparação case-insensitive para evitar divergência com o Postgres / painel admin.
+ * Acesso aos recursos Pro da agenda (Google / ICS): alinhado a `hasActivePaidAccess` — admin, sócio,
+ * ou `plan` / `plan_type` em Pro. Case-insensitive.
  */
 export function userProfileHasProPlan(row: {
   plan?: string | null
@@ -10,7 +10,8 @@ export function userProfileHasProPlan(row: {
   account_type?: string | null
 } | null | undefined): boolean {
   if (!row) return false
-  if (row.account_type === 'admin') return true
+  const acct = (row.account_type ?? '').toString().trim().toLowerCase()
+  if (acct === 'admin' || acct === 'socio') return true
   const plan = (row.plan ?? '').toString().trim().toLowerCase()
   const planType = (row.plan_type ?? '').toString().trim().toLowerCase()
   return plan === 'pro' || planType === 'pro'
