@@ -1,31 +1,47 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useCmsRuntime, type SettingsCmsVersion } from '@/contexts/CmsRuntimeContext'
+import { useCmsRuntime, type SettingsCmsVersion, type SidebarStyle } from '@/contexts/CmsRuntimeContext'
 
 export default function CmsConfiguracoesPage() {
-  const { settingsCmsVersion, loading } = useCmsRuntime()
+  const { settingsCmsVersion, sidebarStyle, loading } = useCmsRuntime()
   const [desiredVersion, setDesiredVersion] = useState<SettingsCmsVersion>('v1')
+  const [desiredSidebarStyle, setDesiredSidebarStyle] = useState<SidebarStyle>('default')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null)
 
   useEffect(() => {
-    if (!loading) setDesiredVersion(settingsCmsVersion)
-  }, [loading, settingsCmsVersion])
+    if (!loading) {
+      setDesiredVersion(settingsCmsVersion)
+      setDesiredSidebarStyle(sidebarStyle)
+    }
+  }, [loading, settingsCmsVersion, sidebarStyle])
 
   const submit = async () => {
     setSubmitting(true)
     setStatus(null)
     try {
-      const res = await fetch('/api/admin/cms/settings-version', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ version: desiredVersion, password }),
-      })
-      const data = (await res.json()) as { error?: string }
-      if (!res.ok) throw new Error(data.error || 'Falha ao salvar')
+      const [resSettings, resSidebar] = await Promise.all([
+        fetch('/api/admin/cms/settings-version', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ version: desiredVersion, password }),
+        }),
+        fetch('/api/admin/cms/sidebar-style', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ style: desiredSidebarStyle, password }),
+        }),
+      ])
+
+      const dataSettings = (await resSettings.json().catch(() => ({}))) as { error?: string }
+      const dataSidebar = (await resSidebar.json().catch(() => ({}))) as { error?: string }
+      if (!resSettings.ok) throw new Error(dataSettings.error || 'Falha ao salvar (configurações)')
+      if (!resSidebar.ok) throw new Error(dataSidebar.error || 'Falha ao salvar (sidebar)')
+
       setStatus({ kind: 'ok', msg: 'Atualizado com sucesso.' })
       setPassword('')
     } catch (e) {
@@ -83,6 +99,42 @@ export default function CmsConfiguracoesPage() {
                   <span className="font-medium text-white">CMS 2</span>
                   <span className="block text-xs text-slate-400">
                     Guia Reajuste de menu + Personalização + Planos em Configurações; perfil só Especialização.
+                  </span>
+                </span>
+              </label>
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="block text-sm font-medium text-slate-200">SLIDEBAR (menu lateral)</span>
+            <div className="mt-2 space-y-3">
+              <label className="flex cursor-pointer items-start gap-2 text-slate-200">
+                <input
+                  type="radio"
+                  name="sidebar-style"
+                  className="mt-1"
+                  checked={desiredSidebarStyle === 'default'}
+                  onChange={() => setDesiredSidebarStyle('default')}
+                />
+                <span>
+                  <span className="font-medium text-white">Padrão</span>
+                  <span className="block text-xs text-slate-400">
+                    Sidebar atual (escura, com destaque sólido na cor primária).
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 text-slate-200">
+                <input
+                  type="radio"
+                  name="sidebar-style"
+                  className="mt-1"
+                  checked={desiredSidebarStyle === 'clean'}
+                  onChange={() => setDesiredSidebarStyle('clean')}
+                />
+                <span>
+                  <span className="font-medium text-white">Clean</span>
+                  <span className="block text-xs text-slate-400">
+                    Visual mais limpo (estilo CMS), com sidebar clara e ajustes globais no dashboard.
                   </span>
                 </span>
               </label>

@@ -21,6 +21,9 @@ interface Notification {
 
 interface NotificationsDropdownProps {
   userId: string
+  buttonClassName?: string
+  iconClassName?: string
+  badgeClassName?: string
 }
 
 const ICON_MAP = {
@@ -106,7 +109,12 @@ const NotificationRow = memo(function NotificationRow({
 /** Evita refetch em rajada (abrir painel + polling). */
 const REFETCH_COOLDOWN_MS = 5_000
 
-export default function NotificationsDropdown({ userId }: NotificationsDropdownProps) {
+export default function NotificationsDropdown({
+  userId,
+  buttonClassName,
+  iconClassName,
+  badgeClassName,
+}: NotificationsDropdownProps) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -301,11 +309,19 @@ export default function NotificationsDropdown({ userId }: NotificationsDropdownP
       <button
         type="button"
         onClick={toggleOpen}
-        className="relative rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100"
+        className={
+          buttonClassName ??
+          'relative rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100'
+        }
       >
-        <Bell className="h-5 w-5" />
+        <Bell className={iconClassName ?? 'h-5 w-5'} />
         {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+          <span
+            className={
+              badgeClassName ??
+              'absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white'
+            }
+          >
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}

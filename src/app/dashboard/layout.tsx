@@ -31,6 +31,7 @@ import {
   Calculator,
   Shield,
   Palette,
+  Wallet2,
   type LucideIcon,
 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -55,6 +56,7 @@ const navItems = [
   { href: '/dashboard/financeiro', icon: DollarSign, label: 'Gastos Pessoais' },
   { href: '/dashboard/calculadora', icon: Calculator, label: 'Calculadora' },
   { href: '/dashboard/kanban', icon: Columns3, label: 'Kanban' },
+  { href: '/dashboard/pagamentos', icon: Wallet2, label: 'Pagamentos' },
   { href: '/dashboard/personalizacao', icon: Palette, label: 'Personalização' },
   { href: '/dashboard/planos', icon: CreditCard, label: 'Planos' },
   { href: '/dashboard/configuracoes', icon: Settings, label: 'Configurações' },
@@ -73,6 +75,7 @@ const NAV_ICON_BY_HREF: Record<string, LucideIcon> = {
   '/dashboard/financeiro': DollarSign,
   '/dashboard/calculadora': Calculator,
   '/dashboard/kanban': Columns3,
+  '/dashboard/pagamentos': Wallet2,
   '/dashboard/personalizacao': Palette,
   '/dashboard/configuracoes': Settings,
 }
@@ -123,7 +126,8 @@ export default function DashboardLayout({
   }, [supportName, supportMessage])
 
   const isPro = !!(profile?.is_pro || profile?.account_type === 'admin')
-  const { feedbackButtonEnabled, settingsCmsVersion } = useCmsRuntime()
+  const { feedbackButtonEnabled, settingsCmsVersion, sidebarStyle, paymentsEnabled } = useCmsRuntime()
+  const isCleanSidebar = sidebarStyle === 'clean'
 
   const sidebarNavItems = useMemo(() => {
     const pro = !!(profile?.is_pro || profile?.account_type === 'admin')
@@ -132,22 +136,28 @@ export default function DashboardLayout({
         if (item.href === '/dashboard/ads') {
           return pro
         }
+        if (item.href === '/dashboard/pagamentos') {
+          return paymentsEnabled
+        }
         return true
       })
     }
     const entries = mergeDashboardNavConfig(profile?.dashboard_nav_config, pro)
     const resolved = resolveSidebarNavItems(entries, pro)
-    return resolved.map((r) => ({
-      href: r.href,
-      label: r.label,
-      icon: NAV_ICON_BY_HREF[r.href] ?? LayoutDashboard,
-    }))
+    return resolved
+      .filter((r) => (r.href === '/dashboard/pagamentos' ? paymentsEnabled : true))
+      .map((r) => ({
+        href: r.href,
+        label: r.label,
+        icon: NAV_ICON_BY_HREF[r.href] ?? LayoutDashboard,
+      }))
   }, [
     settingsCmsVersion,
     profile?.dashboard_nav_config,
     profile?.is_pro,
     profile?.account_type,
     profile?.updated_at,
+    paymentsEnabled,
   ])
 
   useEffect(() => {
@@ -208,7 +218,13 @@ export default function DashboardLayout({
     : LOGO_BRANCO
 
   return (
-    <div className="dashboard-app min-h-screen bg-slate-100">
+    <div
+      className={cn(
+        'dashboard-app min-h-screen',
+        isCleanSidebar ? 'bg-slate-50' : 'bg-slate-100'
+      )}
+      data-sidebar-style={isCleanSidebar ? 'clean' : 'default'}
+    >
       <style>{`
         :root {
           --primary-color: ${accentColor};
@@ -216,106 +232,203 @@ export default function DashboardLayout({
         }
       `}</style>
 
-      {/* Sidebar - azul escuro: redondo à esquerda (pra fora), quadrado à direita */}
-      <aside
-        className="fixed top-1 left-1 bottom-1 z-40 transition-all duration-300 hidden lg:flex flex-col rounded-l-lg overflow-hidden"
-        style={{
-          width: sidebarCollapsed ? 80 : 256,
-          backgroundColor: sidebarBg,
-          height: 'calc(100vh - 0.5rem)',
-        }}
-      >
-        <div className="px-4 py-3 flex items-center justify-between min-h-[56px] border-b border-white/10">
-          {!sidebarCollapsed && (
-            <Link href="/dashboard" className="flex-1 min-w-0 flex items-center">
-              <Image 
-                src={logoUrl} 
-                alt="Logo" 
-                width={80} 
-                height={20} 
-                className="h-5 w-auto max-w-[90px] object-contain object-left" 
-                priority 
+      {/* Sidebar (desktop) */}
+      {!isCleanSidebar ? (
+        <aside
+          className="fixed top-1 left-1 bottom-1 z-40 transition-all duration-300 hidden lg:flex flex-col rounded-l-lg overflow-hidden"
+          style={{
+            width: sidebarCollapsed ? 80 : 256,
+            backgroundColor: sidebarBg,
+            height: 'calc(100vh - 0.5rem)',
+          }}
+        >
+          <div className="px-4 py-3 flex items-center justify-between min-h-[56px] border-b border-white/10">
+            {!sidebarCollapsed && (
+              <Link href="/dashboard" className="flex-1 min-w-0 flex items-center">
+                <Image
+                  src={logoUrl}
+                  alt="Logo"
+                  width={80}
+                  height={20}
+                  className="h-5 w-auto max-w-[90px] object-contain object-left"
+                  priority
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    if (!target.src.endsWith(LOGO_BRANCO)) {
+                      target.src = LOGO_BRANCO
+                    }
+                  }}
+                />
+              </Link>
+            )}
+            {sidebarCollapsed && <div className="flex-1" />}
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-white/80 flex-shrink-0"
+              title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          </div>
+          <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+            {sidebarNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch
+                onMouseEnter={() => router.prefetch(item.href)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  pathname === item.href
+                    ? 'text-white'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                }`}
+                style={pathname === item.href ? { backgroundColor: accentColor } : undefined}
+                title={sidebarCollapsed ? item.label : undefined}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+              </Link>
+            ))}
+            {profile?.account_type === 'admin' && (
+              <>
+                <div className="my-2 border-t border-white/10" aria-hidden />
+                <Link
+                  href="/admin"
+                  prefetch
+                  onMouseEnter={() => router.prefetch('/admin')}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                    pathname.startsWith('/admin')
+                      ? 'text-white'
+                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                  }`}
+                  style={pathname.startsWith('/admin') ? { backgroundColor: accentColor } : undefined}
+                  title={sidebarCollapsed ? 'Painel Admin' : undefined}
+                >
+                  <Shield className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && <span className="truncate">Painel Admin</span>}
+                </Link>
+              </>
+            )}
+          </nav>
+          <div className="p-2 border-t border-white/10 flex flex-col gap-0.5">
+            {!sidebarCollapsed ? (
+              <button
+                type="button"
+                onClick={(e) => handleSignOut(e)}
+                className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-white/70 hover:bg-white/10 text-left"
+              >
+                <LogOut className="w-5 h-5 flex-shrink-0" />
+                <span>Sair</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => handleSignOut(e)}
+                className="flex items-center justify-center w-full p-2.5 rounded-lg text-white/70 hover:bg-white/10"
+                title="Sair"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        </aside>
+      ) : (
+        <aside className="fixed top-0 left-0 bottom-0 z-40 hidden lg:flex w-64 flex-col border-r border-slate-200 bg-white">
+          <div className="px-4 py-4 flex items-center gap-3 border-b border-slate-200 min-h-[64px]">
+            <Link href="/dashboard" className="flex items-center min-w-0 flex-1">
+              <Image
+                src={logoBase ? logoUrl : LOGO_PRETO}
+                alt="Logo"
+                width={110}
+                height={28}
+                className="h-6 w-auto max-w-[140px] object-contain object-left"
+                priority
                 onError={(e) => {
                   const target = e.target as HTMLImageElement
-                  if (!target.src.endsWith(LOGO_BRANCO)) {
-                    target.src = LOGO_BRANCO
+                  if (!target.src.endsWith(LOGO_PRETO)) {
+                    target.src = LOGO_PRETO
                   }
                 }}
               />
             </Link>
-          )}
-          {sidebarCollapsed && <div className="flex-1" />}
-          <button
-            type="button"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-white/80 flex-shrink-0"
-            title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-        </div>
-        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {sidebarNavItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              prefetch
-              onMouseEnter={() => router.prefetch(item.href)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                pathname === item.href
-                  ? 'text-white'
-                  : 'text-white/70 hover:bg-white/10 hover:text-white'
-              }`}
-              style={pathname === item.href ? { backgroundColor: accentColor } : undefined}
-              title={sidebarCollapsed ? item.label : undefined}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-            </Link>
-          ))}
-          {profile?.account_type === 'admin' && (
-            <>
-              <div className="my-2 border-t border-white/10" aria-hidden />
-              <Link
-                href="/admin"
-                prefetch
-                onMouseEnter={() => router.prefetch('/admin')}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                  pathname.startsWith('/admin')
-                    ? 'text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                }`}
-                style={pathname.startsWith('/admin') ? { backgroundColor: accentColor } : undefined}
-                title={sidebarCollapsed ? 'Painel Admin' : undefined}
-              >
-                <Shield className="w-5 h-5 flex-shrink-0" />
-                {!sidebarCollapsed && <span className="truncate">Painel Admin</span>}
-              </Link>
-            </>
-          )}
-        </nav>
-        <div className="p-2 border-t border-white/10 flex flex-col gap-0.5">
-          {!sidebarCollapsed ? (
+          </div>
+
+          <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
+            {sidebarNavItems.map((item) => {
+              const active = pathname === item.href
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch
+                  onMouseEnter={() => router.prefetch(item.href)}
+                  className={cn(
+                    'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                    active ? 'text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  )}
+                  style={
+                    active
+                      ? {
+                          backgroundColor: `${accentColor}1A`,
+                          boxShadow: `inset 3px 0 0 0 ${accentColor}`,
+                        }
+                      : undefined
+                  }
+                >
+                  <item.icon
+                    className="h-5 w-5 flex-shrink-0"
+                    style={active ? { color: accentColor } : undefined}
+                  />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              )
+            })}
+
+            {profile?.account_type === 'admin' && (
+              <>
+                <div className="my-3 border-t border-slate-200" aria-hidden />
+                <Link
+                  href="/admin"
+                  prefetch
+                  onMouseEnter={() => router.prefetch('/admin')}
+                  className={cn(
+                    'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                    pathname.startsWith('/admin')
+                      ? 'text-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  )}
+                  style={
+                    pathname.startsWith('/admin')
+                      ? {
+                          backgroundColor: `${accentColor}1A`,
+                          boxShadow: `inset 3px 0 0 0 ${accentColor}`,
+                        }
+                      : undefined
+                  }
+                >
+                  <Shield
+                    className="h-5 w-5 flex-shrink-0"
+                    style={pathname.startsWith('/admin') ? { color: accentColor } : undefined}
+                  />
+                  <span className="truncate">Painel Admin</span>
+                </Link>
+              </>
+            )}
+          </nav>
+
+          <div className="p-3 border-t border-slate-200">
             <button
               type="button"
               onClick={(e) => handleSignOut(e)}
-              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-white/70 hover:bg-white/10 text-left"
+              className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 text-left"
             >
-              <LogOut className="w-5 h-5 flex-shrink-0" />
+              <LogOut className="h-5 w-5 flex-shrink-0" />
               <span>Sair</span>
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={(e) => handleSignOut(e)}
-              className="flex items-center justify-center w-full p-2.5 rounded-lg text-white/70 hover:bg-white/10"
-              title="Sair"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      </aside>
+          </div>
+        </aside>
+      )}
 
       {/* Mobile header */}
       <div
@@ -408,18 +521,38 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Main - quadrado à esquerda (onde encontra o menu), redondo à direita */}
-      <div className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 lg:mt-1 lg:mr-2 lg:mb-2 rounded-tl-none rounded-bl-none rounded-tr-lg rounded-br-lg bg-white shadow-sm ${sidebarCollapsed ? 'lg:ml-[84px]' : 'lg:ml-[260px]'}`}>
+      {/* Main */}
+      <div
+        className={cn(
+          'transition-all duration-300 min-h-screen pt-16 lg:pt-0',
+          isCleanSidebar
+            ? 'lg:ml-64'
+            : cn(
+                'lg:mt-1 lg:mr-2 lg:mb-2 rounded-tl-none rounded-bl-none rounded-tr-lg rounded-br-lg bg-white shadow-sm',
+                sidebarCollapsed ? 'lg:ml-[84px]' : 'lg:ml-[260px]'
+              )
+        )}
+      >
         {feedbackButtonEnabled ? <FeedbackSuggestionsButton accentColor={accentColor} /> : null}
-        <header ref={headerRef} className={cn('bg-white border-b border-slate-200 py-3 relative', SITE_GUTTER_X)}>
+        <header
+          ref={headerRef}
+          className={cn(
+            'border-b border-slate-200 py-3 relative',
+            isCleanSidebar ? 'bg-white' : 'bg-white',
+            SITE_GUTTER_X
+          )}
+        >
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 max-w-md hidden sm:block">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="search"
-                  placeholder="Buscar..."
-                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  placeholder={isCleanSidebar ? 'Faça uma busca...' : 'Buscar...'}
+                  className={cn(
+                    'w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200',
+                    isCleanSidebar && 'bg-white'
+                  )}
                 />
               </div>
             </div>
@@ -427,7 +560,12 @@ export default function DashboardLayout({
               <button
                 type="button"
                 onClick={() => toggleTheme()}
-                className="rounded-lg border border-slate-200 bg-white p-2 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className={cn(
+                  'transition-colors',
+                  isCleanSidebar
+                    ? 'rounded-xl bg-slate-900 p-2.5 text-white hover:bg-slate-800'
+                    : 'rounded-lg border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                )}
                 title={themeMode === 'dark' ? 'Modo claro' : 'Modo escuro'}
                 aria-label={themeMode === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
               >
@@ -437,16 +575,41 @@ export default function DashboardLayout({
               <button
                 type="button"
                 onClick={() => setSupportOpen(true)}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: accentColor }}
+                className={cn(
+                  'transition-colors',
+                  isCleanSidebar
+                    ? 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50'
+                    : 'px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90'
+                )}
+                style={isCleanSidebar ? undefined : { backgroundColor: accentColor }}
                 title="Suporte"
                 aria-label="Abrir suporte"
               >
-                Suporte
+                {isCleanSidebar ? (
+                  <>
+                    <Headphones className="h-4 w-4" style={{ color: accentColor }} />
+                    <span>Suporte</span>
+                  </>
+                ) : (
+                  'Suporte'
+                )}
               </button>
               {/* Notificações */}
               {user?.id && (
-                <NotificationsDropdown userId={user.id} />
+                <NotificationsDropdown
+                  userId={user.id}
+                  buttonClassName={
+                    isCleanSidebar
+                      ? 'relative rounded-xl p-2.5 text-slate-600 transition-colors hover:bg-slate-50'
+                      : undefined
+                  }
+                  iconClassName={isCleanSidebar ? 'h-5 w-5' : undefined}
+                  badgeClassName={
+                    isCleanSidebar
+                      ? 'absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold leading-none text-white'
+                      : undefined
+                  }
+                />
               )}
               {/* Perfil */}
               <div className="relative pl-2 border-l border-slate-200">

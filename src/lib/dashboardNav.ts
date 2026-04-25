@@ -23,6 +23,7 @@ export const DASHBOARD_NAV_SIDEBAR_ORDER: { href: string; label: string; require
   { href: '/dashboard/financeiro', label: 'Gastos Pessoais' },
   { href: '/dashboard/calculadora', label: 'Calculadora' },
   { href: '/dashboard/kanban', label: 'Kanban' },
+  { href: '/dashboard/pagamentos', label: 'Pagamentos' },
   { href: '/dashboard/configuracoes', label: 'Configurações' },
 ]
 

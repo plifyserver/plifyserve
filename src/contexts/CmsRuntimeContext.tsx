@@ -8,12 +8,15 @@ export type CmsActiveVersion = 'v1' | 'v2'
 export type ProfileCmsVersion = 'v1' | 'v2'
 /** v1 = configurações atuais no app; v2 = hub (menu + planos) sem duplicar dados na página Perfil */
 export type SettingsCmsVersion = 'v1' | 'v2'
+export type SidebarStyle = 'default' | 'clean'
 
 type CmsRuntimeState = {
   activeVersion: CmsActiveVersion
   feedbackButtonEnabled: boolean
   profileCmsVersion: ProfileCmsVersion
   settingsCmsVersion: SettingsCmsVersion
+  sidebarStyle: SidebarStyle
+  paymentsEnabled: boolean
   loading: boolean
   error: string | null
 }
@@ -25,6 +28,8 @@ async function fetchCmsRuntime(): Promise<{
   feedbackButtonEnabled: boolean
   profileCmsVersion: ProfileCmsVersion
   settingsCmsVersion: SettingsCmsVersion
+  sidebarStyle: SidebarStyle
+  paymentsEnabled: boolean
 }> {
   const res = await fetch('/api/cms/runtime', { credentials: 'include', cache: 'no-store' })
   if (!res.ok) throw new Error('Falha ao carregar versão do CMS')
@@ -33,12 +38,16 @@ async function fetchCmsRuntime(): Promise<{
     feedbackButtonEnabled?: boolean
     profileCmsVersion?: ProfileCmsVersion
     settingsCmsVersion?: SettingsCmsVersion
+    sidebarStyle?: SidebarStyle
+    paymentsEnabled?: boolean
   }
   return {
     activeVersion: data.activeVersion === 'v2' ? 'v2' : 'v1',
     feedbackButtonEnabled: data.feedbackButtonEnabled === true,
     profileCmsVersion: data.profileCmsVersion === 'v2' ? 'v2' : 'v1',
     settingsCmsVersion: data.settingsCmsVersion === 'v2' ? 'v2' : 'v1',
+    sidebarStyle: data.sidebarStyle === 'clean' ? 'clean' : 'default',
+    paymentsEnabled: data.paymentsEnabled === true,
   }
 }
 
@@ -47,6 +56,8 @@ export function CmsRuntimeProvider({ children }: { children: React.ReactNode }) 
   const [feedbackButtonEnabled, setFeedbackButtonEnabled] = useState(false)
   const [profileCmsVersion, setProfileCmsVersion] = useState<ProfileCmsVersion>('v1')
   const [settingsCmsVersion, setSettingsCmsVersion] = useState<SettingsCmsVersion>('v1')
+  const [sidebarStyle, setSidebarStyle] = useState<SidebarStyle>('default')
+  const [paymentsEnabled, setPaymentsEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -62,6 +73,8 @@ export function CmsRuntimeProvider({ children }: { children: React.ReactNode }) 
         setFeedbackButtonEnabled(runtime.feedbackButtonEnabled)
         setProfileCmsVersion(runtime.profileCmsVersion)
         setSettingsCmsVersion(runtime.settingsCmsVersion)
+        setSidebarStyle(runtime.sidebarStyle)
+        setPaymentsEnabled(runtime.paymentsEnabled)
         setError(null)
       } catch (e) {
         if (!mounted) return
@@ -85,6 +98,7 @@ export function CmsRuntimeProvider({ children }: { children: React.ReactNode }) 
             feedback_button_enabled?: boolean
             profile_cms_version?: string
             settings_cms_version?: string
+            payments_enabled?: boolean
           } | null
           const next = nextRow?.active_version
           if (next === 'v2' || next === 'v1') setActiveVersion(next)
@@ -95,6 +109,11 @@ export function CmsRuntimeProvider({ children }: { children: React.ReactNode }) 
           if (pv === 'v2' || pv === 'v1') setProfileCmsVersion(pv)
           const sv = nextRow?.settings_cms_version
           if (sv === 'v2' || sv === 'v1') setSettingsCmsVersion(sv)
+          const ss = (nextRow as { sidebar_style?: string } | null)?.sidebar_style
+          if (ss === 'clean' || ss === 'default') setSidebarStyle(ss)
+          if (typeof nextRow?.payments_enabled === 'boolean') {
+            setPaymentsEnabled(nextRow.payments_enabled)
+          }
         }
       )
       .subscribe()
@@ -111,10 +130,21 @@ export function CmsRuntimeProvider({ children }: { children: React.ReactNode }) 
       feedbackButtonEnabled,
       profileCmsVersion,
       settingsCmsVersion,
+      sidebarStyle,
+      paymentsEnabled,
       loading,
       error,
     }),
-    [activeVersion, feedbackButtonEnabled, profileCmsVersion, settingsCmsVersion, loading, error]
+    [
+      activeVersion,
+      feedbackButtonEnabled,
+      profileCmsVersion,
+      settingsCmsVersion,
+      sidebarStyle,
+      paymentsEnabled,
+      loading,
+      error,
+    ]
   )
 
   return <CmsRuntimeContext.Provider value={value}>{children}</CmsRuntimeContext.Provider>

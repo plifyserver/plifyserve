@@ -22,6 +22,7 @@ import {
   UserRound,
   MessageSquare,
   SlidersHorizontal,
+  Wallet2,
 } from 'lucide-react'
 
 const adminNavItems = [
@@ -37,6 +38,7 @@ const cmsNavItems = [
   { href: '/admin/cms/perfil', icon: UserRound, label: 'Perfil' },
   { href: '/admin/cms/configuracoes', icon: SlidersHorizontal, label: 'Configurações' },
   { href: '/admin/cms/feedback-button', icon: MessageSquare, label: 'Botão Feedback' },
+  { href: '/admin/cms/pagamentos', icon: Wallet2, label: 'Pagamentos' },
 ]
 
 export default function AdminLayoutClient({ children }: { children: React.ReactNode }) {
