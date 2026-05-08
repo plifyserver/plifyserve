@@ -1,6 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 
+type QuizRow = {
+  id: string
+  user_id: string
+  is_published: boolean
+  title: string
+  slug: string
+  logo_url: string | null
+  intro_title: string | null
+  intro_description: string | null
+  thanks_title: string | null
+  thanks_description: string | null
+  thanks_badge_emoji: string | null
+  thanks_badge_text: string | null
+  thanks_title_top: string | null
+  thanks_title_bottom: string | null
+  thanks_highlights: unknown
+  thanks_callout_title: string | null
+  thanks_callout_text: string | null
+  hero_badge_emoji: string | null
+  hero_badge_text: string | null
+  hero_title_top: string | null
+  hero_title_bottom: string | null
+  hero_description: string | null
+  hero_floating_items: unknown
+  start_button_label: string | null
+  social_proof_text: string | null
+}
+
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const supabase = await createClient()
@@ -45,13 +73,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (quizErr || !quiz) {
     return NextResponse.json({ error: 'Quiz não encontrado' }, { status: 404 })
   }
-  const isOwner = Boolean(userId && quiz.user_id === userId)
-  if (!quiz.is_published && !isOwner) return NextResponse.json({ error: 'Quiz não publicado' }, { status: 404 })
+  const quizRow = quiz as unknown as QuizRow
+  const isOwner = Boolean(userId && quizRow.user_id === userId)
+  if (!quizRow.is_published && !isOwner) return NextResponse.json({ error: 'Quiz não publicado' }, { status: 404 })
 
   const { data: questions, error: qErr } = await supabase
     .from('quiz_questions')
     .select('id, quiz_id, order, title, description, emoji, kind, required, options, placeholder')
-    .eq('quiz_id', quiz.id)
+    .eq('quiz_id', quizRow.id)
     .order('order', { ascending: true })
     .order('created_at', { ascending: true })
 
@@ -62,8 +91,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   try {
     const admin = createServiceRoleClient()
     const [{ data: settings }, { data: profile }] = await Promise.all([
-      admin.from('app_settings').select('app_name').eq('user_id', quiz.user_id).maybeSingle(),
-      admin.from('profiles').select('company_name, full_name').eq('id', quiz.user_id).maybeSingle(),
+      admin.from('app_settings').select('app_name').eq('user_id', quizRow.user_id).maybeSingle(),
+      admin.from('profiles').select('company_name, full_name').eq('id', quizRow.user_id).maybeSingle(),
     ])
     brandName =
       (settings?.app_name && String(settings.app_name).trim()) ||
@@ -74,7 +103,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     brandName = null
   }
 
-  const { user_id: _ownerId, ...publicQuiz } = quiz
+  const { user_id: _ownerId, ...publicQuiz } = quizRow
   return NextResponse.json({ quiz: publicQuiz, questions: questions ?? [], isOwner, brandName })
 }
 
