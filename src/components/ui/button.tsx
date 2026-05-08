@@ -23,15 +23,28 @@ export interface ButtonProps
   asChild?: boolean
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className = '', variant = 'default', size = 'default', asChild, ...props }, ref) => {
-    const Comp = asChild ? 'span' : 'button'
+const Button = React.forwardRef<HTMLElement, ButtonProps>(
+  ({ className = '', variant = 'default', size = 'default', asChild, children, ...props }, ref) => {
+    const mergedClassName =
+      `inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors ` +
+      `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:pointer-events-none disabled:opacity-50 ` +
+      `${buttonVariants[variant]} ${buttonSizes[size]} ${className}`
+
+    if (asChild && React.isValidElement(children)) {
+      const child = children as React.ReactElement<{ className?: string }>
+      return React.cloneElement(child, {
+        className: `${mergedClassName} ${child.props.className || ''}`.trim(),
+      })
+    }
+
     return (
-      <Comp
+      <button
         ref={ref as React.Ref<HTMLButtonElement>}
-        className={`inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:pointer-events-none disabled:opacity-50 ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
-        {...(Comp === 'button' ? props : {})}
-      />
+        className={mergedClassName}
+        {...props}
+      >
+        {children}
+      </button>
     )
   }
 )

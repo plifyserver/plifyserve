@@ -19,6 +19,7 @@ export const DASHBOARD_NAV_SIDEBAR_ORDER: { href: string; label: string; require
   { href: '/dashboard/agenda', label: 'Agenda' },
   { href: '/dashboard/chat-ia', label: 'Chat IA' },
   { href: '/dashboard/mapa-mental', label: 'Mapa Mental' },
+  { href: '/dashboard/quiz', label: 'Quiz' },
   { href: '/dashboard/ads', label: 'Ads', requiresPro: true },
   { href: '/dashboard/financeiro', label: 'Gastos Pessoais' },
   { href: '/dashboard/calculadora', label: 'Calculadora' },

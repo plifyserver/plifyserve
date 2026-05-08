@@ -32,6 +32,7 @@ import {
   Shield,
   Palette,
   Wallet2,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -52,6 +53,7 @@ const navItems = [
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/chat-ia', icon: Headphones, label: 'Chat IA' },
   { href: '/dashboard/mapa-mental', icon: Network, label: 'Mapa Mental' },
+  { href: '/dashboard/quiz', icon: ClipboardList, label: 'Quiz' },
   { href: '/dashboard/ads', icon: BarChart3, label: 'Ads' },
   { href: '/dashboard/financeiro', icon: DollarSign, label: 'Gastos Pessoais' },
   { href: '/dashboard/calculadora', icon: Calculator, label: 'Calculadora' },
@@ -71,6 +73,7 @@ const NAV_ICON_BY_HREF: Record<string, LucideIcon> = {
   '/dashboard/agenda': Calendar,
   '/dashboard/chat-ia': Headphones,
   '/dashboard/mapa-mental': Network,
+  '/dashboard/quiz': ClipboardList,
   '/dashboard/ads': BarChart3,
   '/dashboard/financeiro': DollarSign,
   '/dashboard/calculadora': Calculator,
