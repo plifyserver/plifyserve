@@ -63,7 +63,7 @@ export function WakeQuizShareBar(props?: ShareBarProps) {
   }
 
   return (
-    <div className="sticky top-3 z-[100] px-3 pt-3">
+    <div className="sticky top-3 z-[100] px-3 pt-3 mb-4 sm:mb-6">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 rounded-2xl border border-orange-100/90 bg-white/90 p-3 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="min-w-0">
           <p className="text-sm font-bold text-slate-900">Link para colocar na bio do Instagram</p>
