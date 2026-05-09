@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Allura&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Playfair+Display:wght@600;700&display=swap');
 /*
   Raiz de escaneamento explícita: no Vercel/CI o cwd pode não ser a raiz do app, e o Tailwind v4
   usa o cwd por padrão — isso gerava CSS quase sem utilitários (layout “cru” só em produção).
@@ -241,5 +243,56 @@ html.dark .public-marketing-page .text-slate-500 {
   .executiva-marquee-track-up,
   .executiva-marquee-track-down {
     animation: none !important;
+  }
+}
+
+/* Quiz Wake (ex-Base44): fontes + utilitários usados nos componentes copiados */
+.wake-quiz-root .font-inter,
+.wake-quiz-root.font-inter {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.wake-quiz-root .font-grotesk {
+  font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+}
+
+.wake-quiz-root .text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+}
+
+.wake-quiz-root .text-foreground {
+  color: hsl(var(--foreground));
+}
+
+/* Pilares da hero: float em GPU (evita loop infinito do Framer no main thread) */
+@keyframes wake-quiz-pillar-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.wake-quiz-pillar-float {
+  animation: wake-quiz-pillar-float 2.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+.wake-quiz-pillar-float--0 {
+  animation-delay: 0s;
+}
+.wake-quiz-pillar-float--1 {
+  animation-delay: 0.3s;
+}
+.wake-quiz-pillar-float--2 {
+  animation-delay: 0.6s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wake-quiz-pillar-float {
+    animation: none;
+    will-change: auto;
   }
 }

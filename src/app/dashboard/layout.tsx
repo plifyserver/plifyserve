@@ -53,7 +53,7 @@ const navItems = [
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/chat-ia', icon: Headphones, label: 'Chat IA' },
   { href: '/dashboard/mapa-mental', icon: Network, label: 'Mapa Mental' },
-  { href: '/dashboard/quiz', icon: ClipboardList, label: 'Quiz' },
+  { href: '/dashboard/quiz', icon: ClipboardList, label: 'Quiz Bio' },
   { href: '/dashboard/ads', icon: BarChart3, label: 'Ads' },
   { href: '/dashboard/financeiro', icon: DollarSign, label: 'Gastos Pessoais' },
   { href: '/dashboard/calculadora', icon: Calculator, label: 'Calculadora' },

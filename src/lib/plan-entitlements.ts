@@ -9,8 +9,6 @@ export const ESSENTIAL_MONTHLY_PROPOSALS = 5
 export const ESSENTIAL_MONTHLY_CONTRACTS = 5
 export const ESSENTIAL_MAX_MIND_MAPS = 5
 export const ESSENTIAL_MAX_KANBAN_BOARDS = 5
-/** Perguntas máximas por quiz no Essential. No Pro/Admin é ilimitado. */
-export const ESSENTIAL_MAX_QUIZ_QUESTIONS = 5
 /** Templates salvos pelo usuário (tabela templates), não confundir com modelos padrão de proposta. */
 export const ESSENTIAL_CUSTOM_TEMPLATES_CAP = 10
 
@@ -24,6 +22,7 @@ export function resolveEffectivePlan(p: PlanProfileLike | null | undefined): Eff
   if (!p) return 'essential'
   const accountType = (p.account_type || '').toLowerCase()
   if (accountType === 'admin') return 'admin'
+  if (accountType === 'socio') return 'pro'
   const t = (p.plan_type || p.plan || 'essential').toLowerCase()
   if (t === 'pro') return 'pro'
   return 'essential'
