@@ -100,10 +100,6 @@ export default function QuizQuestion({
                         style={{ maxHeight: headerLogoH }}
                       />
                     </div>
-                    <span className="pointer-events-none mt-1 flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white opacity-0 shadow transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 max-sm:opacity-100">
-                      <Pencil className="size-3" />
-                      Tamanho / logo
-                    </span>
                   </button>
                 ) : (
                   <div
@@ -146,10 +142,6 @@ export default function QuizQuestion({
                 </span>
                 <span className="text-[8px] tracking-widest text-orange-400 uppercase font-semibold truncate max-w-[200px]">
                   {line2}
-                </span>
-                <span className="pointer-events-none mt-1 flex items-center gap-0.5 text-[10px] font-semibold text-orange-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 max-sm:opacity-100">
-                  <Pencil className="size-3" />
-                  Logo e tamanho
                 </span>
               </button>
             ) : (

@@ -34,10 +34,6 @@ function EditableBlock({ children, editMode, onEdit, className = '' }) {
     >
       <div className="pointer-events-none absolute inset-0 z-[4] rounded-2xl ring-2 ring-transparent transition-shadow group-hover:ring-orange-400/65 group-focus-visible:ring-orange-500" />
       {children}
-      <span className="pointer-events-none absolute -top-0.5 right-0 z-[6] flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 max-sm:opacity-100">
-        <Pencil className="size-3" />
-        Editar
-      </span>
     </div>
   )
 }

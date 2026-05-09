@@ -17,7 +17,7 @@ export default function DashboardWakeQuizPage() {
   const [questionsEditorOpen, setQuestionsEditorOpen] = useState(false)
 
   return (
-    <div className="relative pt-[10.75rem] sm:pt-[8.75rem] lg:pt-[7.25rem]">
+    <div className="relative">
       <WakeQuizShareBar onEditQuestions={() => setQuestionsEditorOpen(true)} />
       <WakeQuizFlow
         enableHeroEditor
