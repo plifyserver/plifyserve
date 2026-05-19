@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Plus, Trash2, X, Save } from 'lucide-react'
 import type { WakeQuizOption, WakeQuizQuestion, WakeQuizQuestionType } from '@/lib/wakeQuizQuestions'
 import { ESSENTIAL_MAX_QUIZ_QUESTIONS, PRO_HARD_MAX_QUIZ_QUESTIONS } from '@/lib/wakeQuizQuestions'
+import { WakeQuizTypographyControls } from '@/components/wake-quiz/WakeQuizTypographyControls'
 
 type QuizPlanMeta = {
   maxQuestions: number | null
@@ -275,6 +276,31 @@ export function WakeQuizQuestionsEditor({ open, onClose, questions, quizPlan, on
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
+
+              <WakeQuizTypographyControls
+                heading="Título da pergunta"
+                value={q.titleTypography}
+                onChange={(next) => patchQ(qi, { titleTypography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Subtítulo da pergunta"
+                value={q.subtitleTypography}
+                onChange={(next) => patchQ(qi, { subtitleTypography: next })}
+              />
+              {q.type === 'selection' ? (
+                <>
+                  <WakeQuizTypographyControls
+                    heading="Texto principal das opções"
+                    value={q.optionLabelTypography}
+                    onChange={(next) => patchQ(qi, { optionLabelTypography: next })}
+                  />
+                  <WakeQuizTypographyControls
+                    heading="Descrição das opções (linha pequena)"
+                    value={q.optionDescTypography}
+                    onChange={(next) => patchQ(qi, { optionDescTypography: next })}
+                  />
+                </>
+              ) : null}
 
               {q.type === 'selection' ? (
                 <div className="space-y-2 pt-1">

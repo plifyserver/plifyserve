@@ -1,4 +1,6 @@
 import { hasUnlimitedQuotas, resolveEffectivePlan, type PlanProfileLike } from '@/lib/plan-entitlements'
+import type { WakeQuizBlockTypography } from '@/lib/wakeQuizTypography'
+import { parseWakeQuizBlockTypography } from '@/lib/wakeQuizTypography'
 
 export const ESSENTIAL_MAX_QUIZ_QUESTIONS = 5
 /** Teto de segurança para Pro/Admin (evita payloads enormes). */
@@ -23,6 +25,11 @@ export type WakeQuizQuestion = {
   /** Chave única no mapa de respostas (slug) */
   field: string
   options: WakeQuizOption[]
+  /** Tipografia opcional por bloco (só esta pergunta). */
+  titleTypography?: WakeQuizBlockTypography
+  subtitleTypography?: WakeQuizBlockTypography
+  optionLabelTypography?: WakeQuizBlockTypography
+  optionDescTypography?: WakeQuizBlockTypography
 }
 
 const DEFAULT_QUESTIONS_RAW: WakeQuizQuestion[] = [
@@ -135,10 +142,21 @@ function normalizeQuestion(raw: unknown, index: number): WakeQuizQuestion | null
     typeof r.id === 'number' && Number.isFinite(r.id) && r.id > 0 ? Math.floor(r.id) : index + 1
   const optsIn = Array.isArray(r.options) ? r.options : []
   const options = optsIn.map((x) => normalizeOption(x)).filter(Boolean) as WakeQuizOption[]
-  if (type === 'selection') {
-    return { id, type, emoji, title, subtitle, field, options: options.length >= 2 ? options : [] }
-  }
-  return { id, type, emoji, title, subtitle, field, options: [] }
+  const titleTypography = parseWakeQuizBlockTypography(r.titleTypography)
+  const subtitleTypography = parseWakeQuizBlockTypography(r.subtitleTypography)
+  const optionLabelTypography = parseWakeQuizBlockTypography(r.optionLabelTypography)
+  const optionDescTypography = parseWakeQuizBlockTypography(r.optionDescTypography)
+
+  const base: WakeQuizQuestion =
+    type === 'selection'
+      ? { id, type, emoji, title, subtitle, field, options: options.length >= 2 ? options : [] }
+      : { id, type, emoji, title, subtitle, field, options: [] }
+
+  if (titleTypography) base.titleTypography = titleTypography
+  if (subtitleTypography) base.subtitleTypography = subtitleTypography
+  if (optionLabelTypography) base.optionLabelTypography = optionLabelTypography
+  if (optionDescTypography) base.optionDescTypography = optionDescTypography
+  return base
 }
 
 /** Mescla array guardado com defaults (substitui lista inteira se válida). */
@@ -227,6 +245,64 @@ export function sanitizeQuizAnswersPayload(raw: unknown): Record<string, string>
     if (t.length === 0) continue
     out[k] = t.slice(0, 4000)
   }
+  return out
+}
+
+export type QuizAnswerDisplayRow = {
+  field: string
+  questionTitle: string
+  answerText: string
+}
+
+function trimAnswerValue(v: unknown): string {
+  if (v === null || v === undefined) return ''
+  const s = typeof v === 'string' ? v : String(v)
+  return s.trim()
+}
+
+/**
+ * Converte `quiz_answers` (chave = campo da pergunta, valor = id da opção ou texto livre)
+ * em linhas legíveis para CRM / relatórios, usando a definição atual de `questions`.
+ */
+export function expandQuizAnswersForDisplay(
+  answers: Record<string, unknown> | null | undefined,
+  questions: WakeQuizQuestion[]
+): QuizAnswerDisplayRow[] {
+  const raw =
+    answers && typeof answers === 'object' && !Array.isArray(answers)
+      ? (answers as Record<string, unknown>)
+      : {}
+  const out: QuizAnswerDisplayRow[] = []
+  const seen = new Set<string>()
+
+  for (const q of questions) {
+    const val = trimAnswerValue(raw[q.field])
+    if (!val) continue
+    seen.add(q.field)
+    let answerText = val
+    if (q.type === 'selection') {
+      const opt = q.options.find((o) => o.id === val)
+      if (opt) answerText = opt.label
+    }
+    out.push({ field: q.field, questionTitle: q.title, answerText })
+  }
+
+  const restKeys = Object.keys(raw)
+    .filter((k) => !seen.has(k))
+    .sort()
+  for (const field of restKeys) {
+    const val = trimAnswerValue(raw[field])
+    if (!val) continue
+    const q = questions.find((x) => x.field === field)
+    const questionTitle = q?.title ?? field
+    let answerText = val
+    if (q?.type === 'selection') {
+      const opt = q.options.find((o) => o.id === val)
+      if (opt) answerText = opt.label
+    }
+    out.push({ field, questionTitle, answerText })
+  }
+
   return out
 }
 

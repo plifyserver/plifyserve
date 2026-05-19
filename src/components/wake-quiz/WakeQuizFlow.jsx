@@ -226,11 +226,19 @@ export default function WakeQuizFlow(props) {
               logoUrl={logoUrl}
               headerLogoMaxHeightPx={hero.questionHeaderLogoMaxHeightPx}
               brand={{ line1: hero.logoText, line2: hero.tagline }}
+              logoTextTypography={hero.logoTextTypography}
+              taglineTypography={hero.taglineTypography}
               headerLogoEditable={heroEditMode}
               onHeaderLogoPress={() => {
                 setLogoSizingContext('questions')
                 setEditSection('logo')
               }}
+              quizScreenBgTint={hero.quizScreenBgTint}
+              quizAccentColor={hero.quizAccentColor}
+              quizProgressTypography={hero.quizProgressTypography}
+              quizContinueTypography={hero.quizContinueTypography}
+              questionUiEditMode={heroEditMode}
+              onEditQuizTheme={() => setEditSection('quiz_theme')}
             />
           </motion.div>
         )}

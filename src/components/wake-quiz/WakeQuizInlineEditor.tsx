@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { X, Save, Upload, Trash2, Bold, Italic, Underline } from 'lucide-react'
 import type { WakeQuizHeroContent, WakeQuizHeroEditSection, WakeQuizPillar } from '@/lib/wakeQuizHero'
 import { WAKE_QUIZ_SECTION_LABELS } from '@/lib/wakeQuizHero'
+import type { WakeQuizFontKey } from '@/lib/wakeQuizTypography'
+import { WakeQuizTypographyControls } from '@/components/wake-quiz/WakeQuizTypographyControls'
 
 const FONT_OPTIONS: { value: NonNullable<WakeQuizHeroContent['badgeFontKey']>; label: string }[] = [
   { value: 'grotesk', label: 'Space Grotesk' },
@@ -248,6 +250,16 @@ export function WakeQuizInlineEditor({
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 placeholder="Wake Aceleradora Digital"
               />
+              <WakeQuizTypographyControls
+                heading="Texto do logo (quando não há imagem)"
+                value={hero.logoTextTypography}
+                onChange={(next) => onHeroPatch({ logoTextTypography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Linha pequena abaixo do logo"
+                value={hero.taglineTypography}
+                onChange={(next) => onHeroPatch({ taglineTypography: next })}
+              />
             </>
           )}
 
@@ -298,7 +310,7 @@ export function WakeQuizInlineEditor({
                 value={hero.badgeFontKey ?? 'grotesk'}
                 onChange={(e) =>
                   onHeroPatch({
-                    badgeFontKey: e.target.value as NonNullable<WakeQuizHeroContent['badgeFontKey']>,
+                    badgeFontKey: e.target.value as WakeQuizFontKey,
                   })
                 }
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
@@ -355,16 +367,33 @@ export function WakeQuizInlineEditor({
                 onChange={(e) => onHeroPatch({ titleLine2: e.target.value })}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
               />
+              <WakeQuizTypographyControls
+                heading="Linha 1 do título"
+                value={hero.titleLine1Typography}
+                onChange={(next) => onHeroPatch({ titleLine1Typography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Linha 2 do título"
+                value={hero.titleLine2Typography}
+                onChange={(next) => onHeroPatch({ titleLine2Typography: next })}
+              />
             </>
           )}
 
           {section === 'subtitle' && (
-            <textarea
-              value={hero.subtitle ?? ''}
-              onChange={(e) => onHeroPatch({ subtitle: e.target.value })}
-              rows={5}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2"
-            />
+            <>
+              <textarea
+                value={hero.subtitle ?? ''}
+                onChange={(e) => onHeroPatch({ subtitle: e.target.value })}
+                rows={5}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2"
+              />
+              <WakeQuizTypographyControls
+                heading="Subtítulo"
+                value={hero.subtitleTypography}
+                onChange={(next) => onHeroPatch({ subtitleTypography: next })}
+              />
+            </>
           )}
 
           {section === 'pillars' && (
@@ -385,16 +414,28 @@ export function WakeQuizInlineEditor({
                   />
                 </div>
               ))}
+              <WakeQuizTypographyControls
+                heading="Rótulos dos três ícones"
+                value={hero.pillarLabelsTypography}
+                onChange={(next) => onHeroPatch({ pillarLabelsTypography: next })}
+              />
             </div>
           )}
 
           {section === 'cta' && (
-            <input
-              value={hero.ctaLabel ?? ''}
-              onChange={(e) => onHeroPatch({ ctaLabel: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2"
-              placeholder="Texto do botão"
-            />
+            <>
+              <input
+                value={hero.ctaLabel ?? ''}
+                onChange={(e) => onHeroPatch({ ctaLabel: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                placeholder="Texto do botão"
+              />
+              <WakeQuizTypographyControls
+                heading="Texto do botão principal"
+                value={hero.ctaTypography}
+                onChange={(next) => onHeroPatch({ ctaTypography: next })}
+              />
+            </>
           )}
 
           {section === 'footer' && (
@@ -411,6 +452,74 @@ export function WakeQuizInlineEditor({
                 value={hero.footerText ?? ''}
                 onChange={(e) => onHeroPatch({ footerText: e.target.value })}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
+              />
+              <WakeQuizTypographyControls
+                heading="Texto do rodapé"
+                value={hero.footerTypography}
+                onChange={(next) => onHeroPatch({ footerTypography: next })}
+              />
+            </>
+          )}
+
+          {section === 'quiz_theme' && (
+            <>
+              <p className="text-[11px] text-slate-500">
+                Aplicam-se a <strong>todo o fluxo</strong> do link do quiz: página inicial, perguntas,
+                carregamento e ecrã final (fundos, botões principais, gradientes de título e cartões). O botão
+                <strong> WhatsApp</strong> no resultado mantém-se sempre verde (identidade da marca).
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                  <label className="block text-xs font-semibold text-slate-800">Fundo da tela</label>
+                  <p className="text-[11px] leading-snug text-slate-500">
+                    Tom médio do gradiente em todas as fases (branco → cor → sombra suave).
+                  </p>
+                  <input
+                    type="color"
+                    aria-label="Cor de fundo das perguntas"
+                    value={
+                      hero.quizScreenBgTint?.startsWith('#')
+                        ? hero.quizScreenBgTint
+                        : '#fff7ed'
+                    }
+                    onChange={(e) => onHeroPatch({ quizScreenBgTint: e.target.value })}
+                    className="h-11 w-full cursor-pointer rounded-lg border border-slate-200 bg-white"
+                  />
+                </div>
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                  <label className="block text-xs font-semibold text-slate-800">Botões e destaques</label>
+                  <p className="text-[11px] leading-snug text-slate-500">
+                    CTAs do início e &quot;Continuar&quot;, barras de progresso, ícones de destaque e realces de
+                    seleção (não altera o botão verde do WhatsApp).
+                  </p>
+                  <input
+                    type="color"
+                    aria-label="Cor de destaque do quiz"
+                    value={
+                      hero.quizAccentColor?.startsWith('#')
+                        ? hero.quizAccentColor
+                        : '#f97316'
+                    }
+                    onChange={(e) => onHeroPatch({ quizAccentColor: e.target.value })}
+                    className="h-11 w-full cursor-pointer rounded-lg border border-slate-200 bg-white"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] font-semibold text-slate-700">Texto nas perguntas e carregamento</p>
+              <WakeQuizTypographyControls
+                heading="Barra «Pergunta X de Y» e percentagem"
+                value={hero.quizProgressTypography}
+                onChange={(next) => onHeroPatch({ quizProgressTypography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Botão «Continuar»"
+                value={hero.quizContinueTypography}
+                onChange={(next) => onHeroPatch({ quizContinueTypography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Ecrã de carregamento (passos e %)"
+                value={hero.quizLoadingTypography}
+                onChange={(next) => onHeroPatch({ quizLoadingTypography: next })}
               />
             </>
           )}
@@ -436,6 +545,21 @@ export function WakeQuizInlineEditor({
                 rows={4}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
               />
+              <WakeQuizTypographyControls
+                heading="Linha 1 do título (escura)"
+                value={hero.resultTitleLine1Typography}
+                onChange={(next) => onHeroPatch({ resultTitleLine1Typography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Linha 2 do título (laranja)"
+                value={hero.resultTitleLine2Typography}
+                onChange={(next) => onHeroPatch({ resultTitleLine2Typography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Descrição abaixo do título"
+                value={hero.resultSubtitleTypography}
+                onChange={(next) => onHeroPatch({ resultSubtitleTypography: next })}
+              />
             </>
           )}
 
@@ -453,6 +577,16 @@ export function WakeQuizInlineEditor({
                 onChange={(e) => onHeroPatch({ resultContactBody: e.target.value })}
                 rows={4}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
+              />
+              <WakeQuizTypographyControls
+                heading="Título do bloco de contacto"
+                value={hero.resultContactTitleTypography}
+                onChange={(next) => onHeroPatch({ resultContactTitleTypography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Texto do bloco de contacto"
+                value={hero.resultContactBodyTypography}
+                onChange={(next) => onHeroPatch({ resultContactBodyTypography: next })}
               />
             </>
           )}
@@ -498,6 +632,11 @@ export function WakeQuizInlineEditor({
               <p className="text-[11px] text-slate-500">
                 No link público, o botão abre o WhatsApp automaticamente com este número e mensagem.
               </p>
+              <WakeQuizTypographyControls
+                heading="Texto do botão WhatsApp"
+                value={hero.whatsappButtonTypography}
+                onChange={(next) => onHeroPatch({ whatsappButtonTypography: next })}
+              />
             </>
           )}
 
@@ -517,6 +656,11 @@ export function WakeQuizInlineEditor({
                 onChange={(e) => onHeroPatch({ resultBadgeText: e.target.value })}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
                 placeholder="Seu plano está pronto!"
+              />
+              <WakeQuizTypographyControls
+                heading="Texto da faixa de resultado"
+                value={hero.resultBadgeTypography}
+                onChange={(next) => onHeroPatch({ resultBadgeTypography: next })}
               />
             </>
           )}
@@ -606,6 +750,16 @@ export function WakeQuizInlineEditor({
                   </div>
                 )
               })}
+              <WakeQuizTypographyControls
+                heading="Títulos dos 3 cards de estatística"
+                value={hero.resultStatLabelTypography}
+                onChange={(next) => onHeroPatch({ resultStatLabelTypography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Valores dos 3 cards (ex.: +39%)"
+                value={hero.resultStatValueTypography}
+                onChange={(next) => onHeroPatch({ resultStatValueTypography: next })}
+              />
             </div>
           )}
 
@@ -622,6 +776,16 @@ export function WakeQuizInlineEditor({
                 value={hero.resultFooterSmallText ?? ''}
                 onChange={(e) => onHeroPatch({ resultFooterSmallText: e.target.value })}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
+              />
+              <WakeQuizTypographyControls
+                heading="Texto abaixo do botão"
+                value={hero.resultAfterWhatsappTypography}
+                onChange={(next) => onHeroPatch({ resultAfterWhatsappTypography: next })}
+              />
+              <WakeQuizTypographyControls
+                heading="Rodapé pequeno"
+                value={hero.resultFooterSmallTypography}
+                onChange={(next) => onHeroPatch({ resultFooterSmallTypography: next })}
               />
             </>
           )}

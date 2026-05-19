@@ -1,3 +1,13 @@
+import {
+  coerceHexColor,
+  WAKE_QUIZ_DEFAULT_QUIZ_ACCENT,
+  WAKE_QUIZ_DEFAULT_QUIZ_BG_TINT,
+} from '@/lib/wakeQuizThemeColors'
+import type { WakeQuizBlockTypography, WakeQuizFontKey } from '@/lib/wakeQuizTypography'
+import { parseWakeQuizBlockTypography, wakeQuizFontStack } from '@/lib/wakeQuizTypography'
+
+export type { WakeQuizFontKey } from '@/lib/wakeQuizTypography'
+
 export type WakeQuizPillar = { icon: string; label: string }
 
 export type WakeQuizHeroEditSection =
@@ -8,6 +18,7 @@ export type WakeQuizHeroEditSection =
   | 'pillars'
   | 'cta'
   | 'footer'
+  | 'quiz_theme'
   | 'result_title'
   | 'result_contact'
   | 'result_whatsapp'
@@ -37,7 +48,7 @@ export type WakeQuizHeroContent = {
   badgeText?: string
   badgeFontSizePx?: number
   /** Nome lógico da fonte (mapeado em CSS) */
-  badgeFontKey?: 'inter' | 'grotesk' | 'poppins' | 'dmSans' | 'playfair'
+  badgeFontKey?: WakeQuizFontKey
   badgeBold?: boolean
   badgeItalic?: boolean
   badgeUnderline?: boolean
@@ -49,6 +60,11 @@ export type WakeQuizHeroContent = {
   ctaLabel?: string
   footerIcon?: string
   footerText?: string
+
+  /** Tom médio do fundo (gradiente) em todo o fluxo do quiz: início, perguntas, carregamento e resultado. */
+  quizScreenBgTint?: string
+  /** Cor de destaque global: CTAs (exceto WhatsApp), gradientes de título, progresso, seleções, ícones de destaque. */
+  quizAccentColor?: string
 
   /** Tela final (carregamento + resultado): textos e CTA */
   resultTitleLine1?: string
@@ -67,6 +83,30 @@ export type WakeQuizHeroContent = {
   resultStats?: WakeQuizResultStat[]
   resultAfterWhatsappText?: string
   resultFooterSmallText?: string
+
+  /** Tipografia opcional por bloco (cor, fonte, tamanho, negrito…) — ver `WakeQuizTypographyControls`. */
+  logoTextTypography?: WakeQuizBlockTypography
+  taglineTypography?: WakeQuizBlockTypography
+  titleLine1Typography?: WakeQuizBlockTypography
+  titleLine2Typography?: WakeQuizBlockTypography
+  subtitleTypography?: WakeQuizBlockTypography
+  pillarLabelsTypography?: WakeQuizBlockTypography
+  ctaTypography?: WakeQuizBlockTypography
+  footerTypography?: WakeQuizBlockTypography
+  quizProgressTypography?: WakeQuizBlockTypography
+  quizContinueTypography?: WakeQuizBlockTypography
+  quizLoadingTypography?: WakeQuizBlockTypography
+  resultTitleLine1Typography?: WakeQuizBlockTypography
+  resultTitleLine2Typography?: WakeQuizBlockTypography
+  resultSubtitleTypography?: WakeQuizBlockTypography
+  resultBadgeTypography?: WakeQuizBlockTypography
+  resultContactTitleTypography?: WakeQuizBlockTypography
+  resultContactBodyTypography?: WakeQuizBlockTypography
+  resultStatLabelTypography?: WakeQuizBlockTypography
+  resultStatValueTypography?: WakeQuizBlockTypography
+  resultAfterWhatsappTypography?: WakeQuizBlockTypography
+  resultFooterSmallTypography?: WakeQuizBlockTypography
+  whatsappButtonTypography?: WakeQuizBlockTypography
 }
 
 export const WAKE_QUIZ_HERO_DEFAULTS: WakeQuizHeroContent = {
@@ -95,6 +135,9 @@ export const WAKE_QUIZ_HERO_DEFAULTS: WakeQuizHeroContent = {
   footerIcon: '🎯',
   footerText: '+150 salões já transformados pela Wake',
 
+  quizScreenBgTint: '#fff7ed',
+  quizAccentColor: '#f97316',
+
   resultTitleLine1: 'Montamos um plano exclusivo',
   resultTitleLine2: 'para lotar seu salão 💈',
   resultSubtitle:
@@ -120,18 +163,34 @@ export const WAKE_QUIZ_HERO_DEFAULTS: WakeQuizHeroContent = {
   resultFooterSmallText: '🔒 Seus dados estão seguros',
 }
 
-const FONT_STACK: Record<NonNullable<WakeQuizHeroContent['badgeFontKey']>, string> = {
-  inter: "'Inter', ui-sans-serif, system-ui, sans-serif",
-  grotesk: "'Space Grotesk', ui-sans-serif, system-ui, sans-serif",
-  poppins: "'Poppins', ui-sans-serif, system-ui, sans-serif",
-  dmSans: "'DM Sans', ui-sans-serif, system-ui, sans-serif",
-  playfair: "'Playfair Display', Georgia, serif",
+export function badgeFontStack(key: WakeQuizFontKey | undefined): string {
+  return wakeQuizFontStack(key)
 }
 
-export function badgeFontStack(key: WakeQuizHeroContent['badgeFontKey']): string {
-  const k = key && FONT_STACK[key] ? key : 'grotesk'
-  return FONT_STACK[k]
-}
+const HERO_TYPOGRAPHY_KEYS = [
+  'logoTextTypography',
+  'taglineTypography',
+  'titleLine1Typography',
+  'titleLine2Typography',
+  'subtitleTypography',
+  'pillarLabelsTypography',
+  'ctaTypography',
+  'footerTypography',
+  'quizProgressTypography',
+  'quizContinueTypography',
+  'quizLoadingTypography',
+  'resultTitleLine1Typography',
+  'resultTitleLine2Typography',
+  'resultSubtitleTypography',
+  'resultBadgeTypography',
+  'resultContactTitleTypography',
+  'resultContactBodyTypography',
+  'resultStatLabelTypography',
+  'resultStatValueTypography',
+  'resultAfterWhatsappTypography',
+  'resultFooterSmallTypography',
+  'whatsappButtonTypography',
+] as const satisfies readonly (keyof WakeQuizHeroContent)[]
 
 export const WAKE_QUIZ_SECTION_LABELS: Record<WakeQuizHeroEditSection, string> = {
   logo: 'Logo',
@@ -141,6 +200,7 @@ export const WAKE_QUIZ_SECTION_LABELS: Record<WakeQuizHeroEditSection, string> =
   pillars: 'Três ícones',
   cta: 'Botão laranja',
   footer: 'Rodapé',
+  quiz_theme: 'Cores do quiz (tema global)',
   result_title: 'Resultado — título e descrição',
   result_contact: 'Resultado — bloco de contato',
   result_whatsapp: 'Resultado — WhatsApp',
@@ -188,6 +248,12 @@ export function mergeWakeQuizHero(stored: unknown): WakeQuizHeroContent {
     if (parsed.length === 3) resultStats = parsed
   }
 
+  const typoPatch: Partial<WakeQuizHeroContent> = {}
+  for (const key of HERO_TYPOGRAPHY_KEYS) {
+    const parsed = parseWakeQuizBlockTypography(s[key])
+    if (parsed) Object.assign(typoPatch, { [key]: parsed } as Partial<WakeQuizHeroContent>)
+  }
+
   return {
     ...base,
     ...(typeof s.logoText === 'string' ? { logoText: s.logoText } : {}),
@@ -227,6 +293,12 @@ export function mergeWakeQuizHero(stored: unknown): WakeQuizHeroContent {
     ...(typeof s.ctaLabel === 'string' ? { ctaLabel: s.ctaLabel } : {}),
     ...(typeof s.footerIcon === 'string' ? { footerIcon: s.footerIcon } : {}),
     ...(typeof s.footerText === 'string' ? { footerText: s.footerText } : {}),
+    ...(typeof s.quizScreenBgTint === 'string'
+      ? { quizScreenBgTint: coerceHexColor(s.quizScreenBgTint, WAKE_QUIZ_DEFAULT_QUIZ_BG_TINT) }
+      : {}),
+    ...(typeof s.quizAccentColor === 'string'
+      ? { quizAccentColor: coerceHexColor(s.quizAccentColor, WAKE_QUIZ_DEFAULT_QUIZ_ACCENT) }
+      : {}),
 
     ...(typeof s.resultTitleLine1 === 'string' ? { resultTitleLine1: s.resultTitleLine1 } : {}),
     ...(typeof s.resultTitleLine2 === 'string' ? { resultTitleLine2: s.resultTitleLine2 } : {}),
@@ -251,5 +323,6 @@ export function mergeWakeQuizHero(stored: unknown): WakeQuizHeroContent {
     ...(resultStats ? { resultStats } : {}),
     ...(typeof s.resultAfterWhatsappText === 'string' ? { resultAfterWhatsappText: s.resultAfterWhatsappText } : {}),
     ...(typeof s.resultFooterSmallText === 'string' ? { resultFooterSmallText: s.resultFooterSmallText } : {}),
+    ...typoPatch,
   }
 }

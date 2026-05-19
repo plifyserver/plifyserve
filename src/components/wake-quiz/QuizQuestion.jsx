@@ -1,6 +1,42 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, ArrowLeft, Pencil } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Palette } from 'lucide-react'
 import QuizProgress from './QuizProgress'
+import {
+  WAKE_QUIZ_DEFAULT_QUIZ_ACCENT,
+  WAKE_QUIZ_DEFAULT_QUIZ_BG_TINT,
+  buildAccentGradient,
+  buildQuizQuestionPageBackground,
+  coerceHexColor,
+  hexToRgba,
+} from '@/lib/wakeQuizThemeColors'
+import { typographyToStyle } from '@/lib/wakeQuizTypography'
+
+function splitStyleNoColor(style) {
+  if (!style || typeof style !== 'object') return {}
+  const { color: _c, ...rest } = style
+  return rest
+}
+
+function logoHeaderTextStyle(typography, gradient) {
+  const t = typographyToStyle(typography)
+  const fs = t.fontSize ?? '1.1rem'
+  if (typography?.color) return { ...t, fontSize: fs }
+  return {
+    ...splitStyleNoColor(t),
+    fontSize: fs,
+    background: gradient,
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+  }
+}
+
+function taglineHeaderStyle(typography, fallbackColor) {
+  return {
+    ...typographyToStyle(typography),
+    ...(typography?.color ? {} : { color: fallbackColor }),
+  }
+}
 
 /**
  * @param {object} props
@@ -11,10 +47,17 @@ import QuizProgress from './QuizProgress'
  * @param {() => void} props.onNext
  * @param {() => void} props.onBack
  * @param {{ line1?: string; line2?: string }} [props.brand]
- * @param {string | null | undefined} [props.logoUrl] — mesma imagem da hero; se definida, substitui o texto no topo
- * @param {number | undefined} [props.headerLogoMaxHeightPx] — altura da logo no cabeçalho das perguntas (independente da hero)
- * @param {boolean} [props.headerLogoEditable] — dashboard: clique na logo abre o painel Logo (tamanho / ficheiro)
+ * @param {string | null | undefined} [props.logoUrl]
+ * @param {number | undefined} [props.headerLogoMaxHeightPx]
+ * @param {boolean} [props.headerLogoEditable]
  * @param {() => void} [props.onHeaderLogoPress]
+ * @param {string | undefined} [props.quizScreenBgTint] — tom médio do fundo (guardado no hero)
+ * @param {import('@/lib/wakeQuizTypography').WakeQuizBlockTypography | undefined} [props.logoTextTypography]
+ * @param {import('@/lib/wakeQuizTypography').WakeQuizBlockTypography | undefined} [props.taglineTypography]
+ * @param {import('@/lib/wakeQuizTypography').WakeQuizBlockTypography | undefined} [props.quizProgressTypography]
+ * @param {import('@/lib/wakeQuizTypography').WakeQuizBlockTypography | undefined} [props.quizContinueTypography]
+ * @param {boolean} [props.questionUiEditMode] — dashboard: mostrar atalho para editar cores
+ * @param {() => void} [props.onEditQuizTheme]
  */
 export default function QuizQuestion({
   questions,
@@ -28,11 +71,30 @@ export default function QuizQuestion({
   headerLogoMaxHeightPx,
   headerLogoEditable = false,
   onHeaderLogoPress,
+  quizScreenBgTint,
+  quizAccentColor,
+  logoTextTypography,
+  taglineTypography,
+  quizProgressTypography,
+  quizContinueTypography,
+  questionUiEditMode = false,
+  onEditQuizTheme,
 }) {
+  const bgTint = coerceHexColor(quizScreenBgTint, WAKE_QUIZ_DEFAULT_QUIZ_BG_TINT)
+  const accent = coerceHexColor(quizAccentColor, WAKE_QUIZ_DEFAULT_QUIZ_ACCENT)
+  const pageBg = buildQuizQuestionPageBackground(bgTint)
+  const accentGrad = buildAccentGradient(accent)
+  const borderSoft = hexToRgba(accent, 0.22)
+  const borderLight = hexToRgba(accent, 0.32)
+  const taglineColor = hexToRgba(accent, 0.72)
+
   const question = questions[currentStep]
   if (!question) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center px-5" style={{ background: 'linear-gradient(160deg, #ffffff 0%, #fff7ed 50%, #ffedd5 100%)' }}>
+      <div
+        className="relative min-h-screen flex items-center justify-center px-5"
+        style={{ background: pageBg }}
+      >
         <p className="text-sm text-muted-foreground">Nenhuma pergunta configurada.</p>
       </div>
     )
@@ -59,10 +121,12 @@ export default function QuizQuestion({
     )
   )
 
+  const logoTextGradient = accentGrad
+
   return (
     <div
       className="relative min-h-screen flex flex-col px-5 py-6 overflow-hidden"
-      style={{ background: 'linear-gradient(160deg, #ffffff 0%, #fff7ed 50%, #ffedd5 100%)' }}
+      style={{ background: pageBg }}
     >
       <div className="relative z-10 w-full max-w-lg mx-auto flex flex-col flex-1">
         <motion.div
@@ -76,7 +140,8 @@ export default function QuizQuestion({
             onClick={onBack}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="p-2.5 rounded-xl bg-white border border-orange-100 shadow-sm hover:shadow-md transition-all"
+            className="p-2.5 rounded-xl bg-white shadow-sm hover:shadow-md transition-all"
+            style={{ borderWidth: 1, borderStyle: 'solid', borderColor: borderSoft }}
           >
             <ArrowLeft className="w-4 h-4 text-foreground" />
           </motion.button>
@@ -89,7 +154,15 @@ export default function QuizQuestion({
                     type="button"
                     onClick={onHeaderLogoPress}
                     title="Alterar logo e tamanho"
-                    className="group relative mx-auto flex w-[min(220px,50vw)] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-transparent p-1 outline-none transition-colors hover:border-orange-200 hover:bg-orange-50/60 focus-visible:border-orange-400 focus-visible:ring-2 focus-visible:ring-orange-400/70"
+                    className="group relative mx-auto flex w-[min(220px,50vw)] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-transparent p-1 outline-none transition-colors"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = borderLight
+                      e.currentTarget.style.backgroundColor = hexToRgba(accent, 0.06)
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'transparent'
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }}
                   >
                     <div className="flex w-full items-center justify-center" style={{ maxHeight: headerLogoH + 16 }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -116,7 +189,10 @@ export default function QuizQuestion({
                   </div>
                 )}
                 {line2raw ? (
-                  <span className="mt-1 text-[8px] tracking-widest text-orange-400 uppercase font-semibold truncate max-w-[200px]">
+                  <span
+                    className="mt-1 text-[8px] tracking-widest uppercase font-semibold truncate max-w-[200px]"
+                    style={taglineHeaderStyle(taglineTypography, taglineColor)}
+                  >
                     {line2raw}
                   </span>
                 ) : null}
@@ -126,21 +202,27 @@ export default function QuizQuestion({
                 type="button"
                 onClick={onHeaderLogoPress}
                 title="Carregar ou editar logo e tamanho"
-                className="group relative flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-orange-200 px-4 py-2 outline-none hover:border-orange-400 hover:bg-orange-50/50 focus-visible:border-orange-400 focus-visible:ring-2 focus-visible:ring-orange-400/70"
+                className="group relative flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed px-4 py-2 outline-none transition-colors"
+                style={{
+                  borderColor: borderLight,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = hexToRgba(accent, 0.06)
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
               >
                 <span
                   className="font-grotesk font-black tracking-tight leading-none select-none truncate max-w-[200px] sm:max-w-xs"
-                  style={{
-                    fontSize: '1.1rem',
-                    background: 'linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fdba74 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                  }}
+                  style={logoHeaderTextStyle(logoTextTypography, logoTextGradient)}
                 >
                   {line1}
                 </span>
-                <span className="text-[8px] tracking-widest text-orange-400 uppercase font-semibold truncate max-w-[200px]">
+                <span
+                  className="text-[8px] tracking-widest uppercase font-semibold truncate max-w-[200px]"
+                  style={taglineHeaderStyle(taglineTypography, taglineColor)}
+                >
                   {line2}
                 </span>
               </button>
@@ -148,24 +230,33 @@ export default function QuizQuestion({
               <>
                 <span
                   className="font-grotesk font-black tracking-tight leading-none select-none truncate max-w-[200px] sm:max-w-xs"
-                  style={{
-                    fontSize: '1.1rem',
-                    background: 'linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fdba74 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                  }}
+                  style={logoHeaderTextStyle(logoTextTypography, logoTextGradient)}
                 >
                   {line1}
                 </span>
-                <span className="text-[8px] tracking-widest text-orange-400 uppercase font-semibold truncate max-w-[200px]">
+                <span
+                  className="text-[8px] tracking-widest uppercase font-semibold truncate max-w-[200px]"
+                  style={taglineHeaderStyle(taglineTypography, taglineColor)}
+                >
                   {line2}
                 </span>
               </>
             )}
           </div>
 
-          <div className="w-10 shrink-0" />
+          <div className="w-10 shrink-0 flex justify-end">
+            {questionUiEditMode && typeof onEditQuizTheme === 'function' ? (
+              <button
+                type="button"
+                title="Cores da tela de perguntas"
+                onClick={onEditQuizTheme}
+                className="rounded-xl bg-white p-2 shadow-sm transition-all hover:shadow-md"
+                style={{ borderWidth: 1, borderStyle: 'solid', borderColor: borderSoft }}
+              >
+                <Palette className="h-4 w-4" style={{ color: accent }} aria-hidden />
+              </button>
+            ) : null}
+          </div>
         </motion.div>
 
         <motion.div
@@ -174,7 +265,12 @@ export default function QuizQuestion({
           transition={{ duration: 0.35, delay: 0.05 }}
           className="mb-7"
         >
-          <QuizProgress current={currentStep} total={questions.length} />
+          <QuizProgress
+            current={currentStep}
+            total={questions.length}
+            accentColor={accent}
+            progressTypography={quizProgressTypography}
+          />
         </motion.div>
 
         <div className="flex-1 flex flex-col min-h-0">
@@ -190,9 +286,19 @@ export default function QuizQuestion({
                 {question.emoji}
               </div>
 
-              <h2 className="text-2xl font-grotesk font-bold text-foreground mb-1.5 leading-tight">{question.title}</h2>
+              <h2
+                className="text-2xl font-grotesk font-bold text-foreground mb-1.5 leading-tight"
+                style={typographyToStyle(question.titleTypography)}
+              >
+                {question.title}
+              </h2>
 
-              <p className="text-muted-foreground text-sm mb-6">{question.subtitle}</p>
+              <p
+                className="text-muted-foreground text-sm mb-6"
+                style={typographyToStyle(question.subtitleTypography)}
+              >
+                {question.subtitle}
+              </p>
 
               {question.type === 'selection' ? (
                 <div className="space-y-3">
@@ -211,24 +317,36 @@ export default function QuizQuestion({
                         className="w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer flex items-center gap-4"
                         style={{
                           background: isSelected
-                            ? 'linear-gradient(135deg, rgba(249,115,22,0.06), rgba(251,146,60,0.06))'
+                            ? `linear-gradient(135deg, ${hexToRgba(accent, 0.09)}, ${hexToRgba(accent, 0.04)})`
                             : 'white',
-                          borderColor: isSelected ? '#f97316' : '#e5e7eb',
-                          boxShadow: isSelected ? '0 4px 16px rgba(249,115,22,0.18)' : '0 1px 4px rgba(0,0,0,0.05)',
+                          borderColor: isSelected ? accent : '#e5e7eb',
+                          boxShadow: isSelected
+                            ? `0 4px 16px ${hexToRgba(accent, 0.22)}`
+                            : '0 1px 4px rgba(0,0,0,0.05)',
                         }}
                       >
                         <span className="text-2xl flex-shrink-0">{option.emoji}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-foreground text-sm">{option.label}</div>
+                          <div
+                            className="font-semibold text-foreground text-sm"
+                            style={typographyToStyle(question.optionLabelTypography)}
+                          >
+                            {option.label}
+                          </div>
                           {option.desc ? (
-                            <div className="text-xs text-muted-foreground mt-0.5">{option.desc}</div>
+                            <div
+                              className="text-xs text-muted-foreground mt-0.5"
+                              style={typographyToStyle(question.optionDescTypography)}
+                            >
+                              {option.desc}
+                            </div>
                           ) : null}
                         </div>
                         <div
                           className="w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all"
                           style={{
-                            borderColor: isSelected ? '#f97316' : '#d1d5db',
-                            background: isSelected ? '#f97316' : 'transparent',
+                            borderColor: isSelected ? accent : '#d1d5db',
+                            background: isSelected ? accent : 'transparent',
                           }}
                         >
                           {isSelected ? (
@@ -246,7 +364,14 @@ export default function QuizQuestion({
                   value={textVal}
                   onChange={(e) => onAnswer(question.field, e.target.value)}
                   rows={5}
-                  className="w-full rounded-2xl border-2 border-orange-100 bg-white px-4 py-3 text-sm text-foreground outline-none focus:border-orange-300 transition-colors resize-y min-h-[120px]"
+                  className="w-full rounded-2xl border-2 bg-white px-4 py-3 text-sm text-foreground outline-none transition-colors resize-y min-h-[120px]"
+                  style={{ borderColor: hexToRgba(accent, 0.2) }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = borderLight
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = hexToRgba(accent, 0.2)
+                  }}
                   placeholder="Escreva aqui..."
                 />
               ) : (
@@ -254,7 +379,14 @@ export default function QuizQuestion({
                   type="text"
                   value={textVal}
                   onChange={(e) => onAnswer(question.field, e.target.value)}
-                  className="w-full rounded-2xl border-2 border-orange-100 bg-white px-4 py-3.5 text-sm text-foreground outline-none focus:border-orange-300 transition-colors"
+                  className="w-full rounded-2xl border-2 bg-white px-4 py-3.5 text-sm text-foreground outline-none transition-colors"
+                  style={{ borderColor: hexToRgba(accent, 0.2) }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = borderLight
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = hexToRgba(accent, 0.2)
+                  }}
                   placeholder="Sua resposta..."
                 />
               )}
@@ -276,14 +408,24 @@ export default function QuizQuestion({
             whileTap={canContinue ? { scale: 0.98 } : {}}
             className="w-full py-4 rounded-2xl font-semibold text-base flex items-center justify-center gap-2 transition-all duration-300"
             style={{
-              background: canContinue ? 'linear-gradient(135deg, #f97316, #fb923c)' : '#e5e7eb',
+              background: canContinue ? accentGrad : '#e5e7eb',
               color: canContinue ? 'white' : '#9ca3af',
-              boxShadow: canContinue ? '0 6px 24px rgba(249,115,22,0.3)' : 'none',
+              boxShadow: canContinue ? `0 6px 24px ${hexToRgba(accent, 0.32)}` : 'none',
               cursor: canContinue ? 'pointer' : 'not-allowed',
             }}
           >
-            <span>Continuar</span>
-            <ArrowRight className="w-4 h-4" />
+            <span
+              style={{
+                ...typographyToStyle(quizContinueTypography),
+                color: quizContinueTypography?.color ?? (canContinue ? 'white' : '#9ca3af'),
+              }}
+            >
+              Continuar
+            </span>
+            <ArrowRight
+              className="w-4 h-4"
+              style={{ color: quizContinueTypography?.color ?? (canContinue ? 'white' : '#9ca3af') }}
+            />
           </motion.button>
         </motion.div>
       </div>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Users, ChevronDown, Search, Trash2 } from 'lucide-react'
+import { expandQuizAnswersForDisplay, mergeWakeQuizQuestions } from '@/lib/wakeQuizQuestions'
 
 const STATUS_LABELS = {
   novo: { label: 'Novo', color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
@@ -41,6 +42,8 @@ export default function WakeQuizCRM() {
   const [statusFilter, setStatusFilter] = useState('todos')
   const [selectedLead, setSelectedLead] = useState(null)
   const [brand, setBrand] = useState({ logoUrl: null, headerLogoH: 36 })
+  /** Definição do quiz (mesma fonte que o fluxo público) para mapear campos → título e opções → rótulo. */
+  const [quizQuestions, setQuizQuestions] = useState([])
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const qc = useQueryClient()
 
@@ -57,7 +60,10 @@ export default function WakeQuizCRM() {
             ? data.hero.questionHeaderLogoMaxHeightPx
             : 44
         const headerLogoH = Math.min(64, Math.max(24, Math.round(h)))
-        if (!cancelled) setBrand({ logoUrl, headerLogoH })
+        if (!cancelled) {
+          setBrand({ logoUrl, headerLogoH })
+          setQuizQuestions(mergeWakeQuizQuestions(data?.questions))
+        }
       } catch {
         /* ok */
       }
@@ -107,10 +113,14 @@ export default function WakeQuizCRM() {
     const qa = l.quiz_answers && typeof l.quiz_answers === 'object' ? l.quiz_answers : null
     const qaBlob =
       qa && Object.keys(qa).length > 0
-        ? Object.values(qa)
-            .map((x) => String(x ?? ''))
-            .join(' ')
-            .toLowerCase()
+        ? (quizQuestions.length > 0
+            ? expandQuizAnswersForDisplay(qa, quizQuestions)
+                .map((r) => `${r.questionTitle} ${r.answerText}`)
+                .join(' ')
+            : Object.values(qa)
+                .map((x) => String(x ?? ''))
+                .join(' ')
+          ).toLowerCase()
         : ''
     const matchSearch =
       (l.nome ?? '').toLowerCase().includes(search.toLowerCase()) ||
@@ -348,16 +358,21 @@ export default function WakeQuizCRM() {
                                 Respostas do quiz
                               </p>
                               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                {Object.entries(lead.quiz_answers).map(([k, v]) => (
-                                  <div key={k} className="bg-orange-50 rounded-xl p-2.5 text-left">
-                                    <p className="text-[10px] text-orange-800/80 font-mono mb-0.5">
-                                      {k}
-                                    </p>
-                                    <p className="text-xs text-foreground font-medium whitespace-pre-wrap break-words">
-                                      {String(v ?? '—')}
-                                    </p>
-                                  </div>
-                                ))}
+                                {expandQuizAnswersForDisplay(lead.quiz_answers, quizQuestions).map(
+                                  (row) => (
+                                    <div
+                                      key={row.field}
+                                      className="bg-orange-50 rounded-xl p-2.5 text-left"
+                                    >
+                                      <p className="text-xs font-semibold text-foreground mb-0.5 leading-snug">
+                                        {row.questionTitle}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                                        {row.answerText || '—'}
+                                      </p>
+                                    </div>
+                                  )
+                                )}
                               </div>
                             </div>
                           ) : (

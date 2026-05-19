@@ -1,8 +1,24 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { ArrowRight, Pencil, Target } from 'lucide-react'
+import { ArrowRight, Target } from 'lucide-react'
+import {
+  WAKE_QUIZ_DEFAULT_QUIZ_ACCENT,
+  WAKE_QUIZ_DEFAULT_QUIZ_BG_TINT,
+  buildAccentGradient,
+  buildQuizQuestionPageBackground,
+  coerceHexColor,
+  hexToRgba,
+  mixHex,
+} from '@/lib/wakeQuizThemeColors'
 import { badgeFontStack, WAKE_QUIZ_HERO_DEFAULTS } from '@/lib/wakeQuizHero'
+import { typographyToStyle } from '@/lib/wakeQuizTypography'
+
+function splitStyleNoColor(style) {
+  if (!style || typeof style !== 'object') return {}
+  const { color: _c, ...rest } = style
+  return rest
+}
 
 /**
  * @param {object} props
@@ -49,6 +65,15 @@ export default function QuizHero({
   const c = content
   const pillars = Array.isArray(c.pillars) && c.pillars.length === 3 ? c.pillars : WAKE_QUIZ_HERO_DEFAULTS.pillars
 
+  const bgTint = coerceHexColor(c.quizScreenBgTint, WAKE_QUIZ_DEFAULT_QUIZ_BG_TINT)
+  const accent = coerceHexColor(c.quizAccentColor, WAKE_QUIZ_DEFAULT_QUIZ_ACCENT)
+  const pageBg = buildQuizQuestionPageBackground(bgTint)
+  const accentGrad = buildAccentGradient(accent)
+  const pillBg = hexToRgba(accent, 0.11)
+  const pillBorder = hexToRgba(accent, 0.22)
+  const taglineMuted = hexToRgba(accent, 0.72)
+  const hintLink = mixHex(accent, '#0f172a', 0.38)
+
   const logoImgMaxH = Math.min(
     280,
     Math.max(
@@ -65,7 +90,7 @@ export default function QuizHero({
     fontWeight: c.badgeBold ? 700 : 500,
     fontStyle: c.badgeItalic ? 'italic' : 'normal',
     textDecoration: c.badgeUnderline ? 'underline' : 'none',
-    color: c.badgeTextColor || '#f97316',
+    color: c.badgeTextColor || accent,
   }
 
   const open = (section) => {
@@ -81,14 +106,24 @@ export default function QuizHero({
     <div
       className={`relative box-border flex w-full flex-col items-center justify-center overflow-hidden px-6 pt-[max(3.25rem,calc(env(safe-area-inset-top,0px)+2.75rem))] pb-[max(3.25rem,calc(env(safe-area-inset-bottom,0px)+2.75rem))] sm:pt-16 sm:pb-16 md:pt-[4.75rem] md:pb-[4.75rem] ${minH} ${editMode ? '!pb-28 md:!pb-36' : ''}`}
       style={{
-        background: 'linear-gradient(160deg, #ffffff 0%, #fff7ed 50%, #ffedd5 100%)',
+        background: pageBg,
       }}
     >
       {editMode ? (
-        <p className="absolute bottom-3 left-0 right-0 z-[3] mx-auto max-w-md px-4 text-center text-[11px] text-slate-500">
-          Toque nos blocos para editar. No botão laranja: clique para editar o texto; use o botão abaixo para
-          iniciar o quiz.
-        </p>
+        <div className="absolute bottom-3 left-0 right-0 z-[3] mx-auto max-w-md space-y-2 px-4 text-center">
+          <p className="text-[11px] text-slate-500">
+            Toque nos blocos para editar. No botão principal: clique para editar o texto; use o botão abaixo
+            para iniciar o quiz.
+          </p>
+          <button
+            type="button"
+            onClick={() => open('quiz_theme')}
+            className="text-[11px] font-semibold underline underline-offset-2 hover:opacity-90"
+            style={{ color: hintLink }}
+          >
+            Personalizar cores do quiz
+          </button>
+        </div>
       ) : null}
 
       <div className="relative z-10 max-w-lg w-full text-center">
@@ -117,7 +152,7 @@ export default function QuizHero({
                       />
                     </div>
                     {editMode ? (
-                      <p className="text-[11px] text-orange-700/85 font-medium">
+                      <p className="text-[11px] font-medium" style={{ color: mixHex(accent, '#0f172a', 0.32) }}>
                         Clique na imagem para tamanho e ficheiro
                       </p>
                     ) : null}
@@ -126,23 +161,41 @@ export default function QuizHero({
                   <div className="relative">
                     <span
                       className="font-grotesk font-black tracking-tight leading-none select-none block"
-                      style={{
-                        fontSize: 'clamp(2.375rem, 5.25vmin, 2.875rem)',
-                        background:
-                          'linear-gradient(135deg, #f97316 0%, #fb923c 40%, #fdba74 70%, #f97316 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        filter: 'drop-shadow(0 2px 8px rgba(249,115,22,0.35))',
-                      }}
+                      style={(() => {
+                        const t = typographyToStyle(c.logoTextTypography)
+                        const fs = t.fontSize || 'clamp(2.375rem, 5.25vmin, 2.875rem)'
+                        if (c.logoTextTypography?.color) {
+                          return { ...t, fontSize: fs }
+                        }
+                        return {
+                          ...splitStyleNoColor(t),
+                          fontSize: fs,
+                          background: accentGrad,
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                          filter: `drop-shadow(0 2px 8px ${hexToRgba(accent, 0.35)})`,
+                        }
+                      })()}
                     >
                       {c.logoText || 'SILVA YARIN'}
                     </span>
-                    <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-orange-400 to-transparent opacity-60" />
+                    <div
+                      className="absolute -bottom-1 left-0 right-0 h-0.5 opacity-60"
+                      style={{
+                        background: `linear-gradient(to right, transparent, ${hexToRgba(accent, 0.55)}, transparent)`,
+                      }}
+                    />
                   </div>
                 )}
                 {(c.tagline || '').trim() ? (
-                  <span className="text-[10px] font-semibold tracking-[0.25em] text-orange-400 uppercase mt-1">
+                  <span
+                    className="text-[10px] font-semibold tracking-[0.25em] uppercase mt-1"
+                    style={{
+                      ...typographyToStyle(c.taglineTypography),
+                      ...(!c.taglineTypography?.color ? { color: taglineMuted } : {}),
+                    }}
+                  >
                     {c.tagline}
                   </span>
                 ) : null}
@@ -159,7 +212,10 @@ export default function QuizHero({
           className="mb-6 flex justify-center"
         >
           <EditableBlock editMode={editMode} onEdit={() => open('badge')}>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-100 max-w-[95vw] flex-wrap justify-center">
+            <div
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full max-w-[95vw] flex-wrap justify-center"
+              style={{ background: pillBg, borderWidth: 1, borderStyle: 'solid', borderColor: pillBorder }}
+            >
               <span className="text-lg leading-none shrink-0 select-none" aria-hidden>
                 {c.badgeIcon ?? '⚡'}
               </span>
@@ -178,15 +234,20 @@ export default function QuizHero({
             transition={{ duration: 0.55, delay: 0.2 }}
             className="text-4xl md:text-5xl font-grotesk font-bold text-foreground leading-tight mb-4"
           >
-            {c.titleLine1 ?? 'Descubra como'}
+            <span style={typographyToStyle(c.titleLine1Typography)}>{c.titleLine1 ?? 'Descubra como'}</span>
             <br />
             <span
-              style={{
-                background: 'linear-gradient(135deg, #f97316, #fb923c, #fdba74)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
+              style={(() => {
+                const t = typographyToStyle(c.titleLine2Typography)
+                if (c.titleLine2Typography?.color) return t
+                return {
+                  ...splitStyleNoColor(t),
+                  background: accentGrad,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }
+              })()}
             >
               {c.titleLine2 ?? 'lotar sua agenda'}
             </span>
@@ -199,6 +260,7 @@ export default function QuizHero({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
             className="text-muted-foreground text-base md:text-lg mb-10 max-w-sm mx-auto leading-relaxed"
+            style={typographyToStyle(c.subtitleTypography)}
           >
             {c.subtitle ??
               'Responda em 2 minutos e receba uma estratégia personalizada de marketing para o seu salão de beleza.'}
@@ -219,10 +281,23 @@ export default function QuizHero({
                   key={`${item.label}-${i}`}
                   className={`wake-quiz-pillar-float wake-quiz-pillar-float--${i} flex flex-col items-center gap-1.5`}
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-white shadow-lg shadow-orange-100 border border-orange-100 flex items-center justify-center text-2xl">
+                  <div
+                    className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-2xl"
+                    style={{
+                      borderWidth: 1,
+                      borderStyle: 'solid',
+                      borderColor: hexToRgba(accent, 0.18),
+                      boxShadow: `0 10px 25px -5px ${hexToRgba(accent, 0.15)}`,
+                    }}
+                  >
                     {item.icon}
                   </div>
-                  <span className="text-[10px] font-medium text-muted-foreground">{item.label}</span>
+                  <span
+                    className="text-[10px] font-medium text-muted-foreground"
+                    style={typographyToStyle(c.pillarLabelsTypography)}
+                  >
+                    {item.label}
+                  </span>
                 </div>
               ))}
             </motion.div>
@@ -252,11 +327,19 @@ export default function QuizHero({
               whileTap={editMode ? {} : { scale: 0.97 }}
               className="relative group inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-white font-semibold text-lg shadow-xl transition-shadow duration-300 max-w-full"
               style={{
-                background: 'linear-gradient(135deg, #f97316, #fb923c)',
-                boxShadow: '0 8px 32px rgba(249,115,22,0.35)',
+                background: accentGrad,
+                boxShadow: `0 8px 32px ${hexToRgba(accent, 0.35)}`,
               }}
             >
-              <span className="text-left">{c.ctaLabel ?? 'Quero ter previsibilidade no salão'}</span>
+              <span
+                className="text-left"
+                style={{
+                  ...typographyToStyle(c.ctaTypography),
+                  color: c.ctaTypography?.color ?? 'white',
+                }}
+              >
+                {c.ctaLabel ?? 'Quero ter previsibilidade no salão'}
+              </span>
               <ArrowRight className="w-5 h-5 shrink-0 group-hover:translate-x-1 transition-transform" />
             </motion.button>
           </EditableBlock>
@@ -264,7 +347,11 @@ export default function QuizHero({
             <button
               type="button"
               onClick={onStart}
-              className="w-full rounded-xl border-2 border-dashed border-orange-300 bg-white/80 py-2.5 text-sm font-semibold text-orange-800 hover:bg-orange-50"
+              className="w-full rounded-xl border-2 border-dashed bg-white/80 py-2.5 text-sm font-semibold transition-colors hover:bg-white"
+              style={{
+                borderColor: hexToRgba(accent, 0.45),
+                color: mixHex(accent, '#0f172a', 0.45),
+              }}
             >
               Iniciar quiz (pré-visualização)
             </button>
@@ -284,9 +371,11 @@ export default function QuizHero({
                 {c.footerIcon}
               </span>
             ) : (
-              <Target className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+              <Target className="w-3.5 h-3.5 shrink-0" style={{ color: hexToRgba(accent, 0.55) }} />
             )}
-            <span>{c.footerText ?? '+150 salões já transformados pela Wake'}</span>
+            <span style={typographyToStyle(c.footerTypography)}>
+              {c.footerText ?? '+150 salões já transformados pela Wake'}
+            </span>
           </motion.div>
         </EditableBlock>
       </div>
