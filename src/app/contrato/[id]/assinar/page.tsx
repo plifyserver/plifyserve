@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import SignatureCanvas, { type SignatureData } from '@/components/contracts/SignatureCanvas'
+import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
 import ContractSignaturePlacement, {
   type SignaturePlacement,
 } from '@/components/contracts/ContractSignaturePlacement'
@@ -76,6 +77,11 @@ export default function AssinarContratoPage() {
 
   const effectiveSignatoryEmail = selectedSignatoryEmail || signatoryEmail || null
   const introStorageKey = useMemo(() => `plify-contract-intro-${contractId}`, [contractId])
+  /** Mesma origem — pdf.js no celular falha com URL pública do Storage (CORS). */
+  const contractPdfProxyUrl = useMemo(
+    () => (contract?.file_url ? `/api/contracts/${contractId}/pdf` : null),
+    [contract?.file_url, contractId]
+  )
 
   useEffect(() => {
     const fetchContract = async () => {
@@ -294,12 +300,12 @@ export default function AssinarContratoPage() {
     )
   }
 
-  if (step === 'place' && contract && pendingSignPayload && contract.file_url) {
+  if (step === 'place' && contract && pendingSignPayload && contractPdfProxyUrl) {
     return (
-      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-slate-50 pb-8">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 pt-4 md:pt-6">
           <ContractSignaturePlacement
-            pdfUrl={contract.file_url}
+            pdfUrl={contractPdfProxyUrl}
             signatureDataUrl={pendingSignPayload.signatureImage}
             onConfirm={submitSignWithPlacement}
             onBack={() => {
@@ -478,16 +484,17 @@ export default function AssinarContratoPage() {
           </div>
         )}
 
-        {/* PDF em destaque — scroll interno para ver todas as páginas (sem FitH, que no mobile corta na 1ª) */}
-        <div className={`flex-1 min-h-[70vh] bg-white shadow-sm overflow-auto border border-slate-200 flex flex-col ${signatoryIndex >= 0 ? 'rounded-b-2xl' : 'rounded-2xl'}`}>
-          {contract?.file_url ? (
-            <iframe
-              src={contract.file_url}
-              className="w-full h-[min(85vh,900px)] min-h-[400px] border-0"
-              title={contract?.title ?? 'Contrato'}
+        {/* PDF: todas as páginas empilhadas (pdf.js) — iframe no mobile mostra só a 1ª página */}
+        <div
+          className={`bg-white shadow-sm border border-slate-200 w-full min-w-0 ${signatoryIndex >= 0 ? 'rounded-b-2xl' : 'rounded-2xl'}`}
+        >
+          {contractPdfProxyUrl ? (
+            <ContractPdfViewer
+              pdfUrl={contractPdfProxyUrl}
+              hint="Role a tela para ler todas as páginas do contrato antes de assinar."
             />
           ) : (
-            <div className="h-[50vh] flex items-center justify-center text-slate-500">
+            <div className="h-[40vh] flex items-center justify-center text-slate-500">
               <div className="text-center">
                 <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
                 <p>Nenhum documento anexado</p>

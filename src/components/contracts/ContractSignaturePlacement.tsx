@@ -1,8 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2, Move } from 'lucide-react'
+import {
+  loadContractPdfDocument,
+  measurePdfContainerWidth,
+  renderPdfPagesToCanvases,
+  waitForCanvasRefs,
+} from '@/lib/contractPdfRender'
 
 export type SignaturePlacement = {
   pageIndex: number
@@ -19,9 +25,6 @@ type Props = {
   onConfirm: (placement: SignaturePlacement) => void
   onBack: () => void
 }
-
-const PDFJS_WORKER = 'https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs'
-const MAX_RENDER_SCALE = 1.55
 
 /**
  * Tamanho normalizado (0–1) da caixa no canvas, proporcional à imagem da assinatura,
@@ -104,9 +107,11 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
   const stackRef = useRef<HTMLDivElement>(null)
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
   const pageWrapRefs = useRef<(HTMLDivElement | null)[]>([])
+  const pdfDocRef = useRef<Awaited<ReturnType<typeof loadContractPdfDocument>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [numPages, setNumPages] = useState(0)
+  const [pagesRendered, setPagesRendered] = useState(0)
   const [placement, setPlacement] = useState<SignaturePlacement>({
     pageIndex: 0,
     x: 0.35,
@@ -122,52 +127,26 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
 
   const activePage = placement.pageIndex
 
-  const renderAllPages = useCallback(async () => {
-    const pdfjs = await import('pdfjs-dist')
-    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER
-    const pdf = await pdfjs.getDocument({ url: pdfUrl, withCredentials: false }).promise
-    const count = pdf.numPages
-    setNumPages(count)
-
-    const containerW =
-      stackRef.current?.clientWidth ??
-      (typeof window !== 'undefined' ? Math.min(window.innerWidth - 48, 720) : 360)
-
-    for (let i = 0; i < count; i++) {
-      const canvas = canvasRefs.current[i]
-      if (!canvas) continue
-      const page = await pdf.getPage(i + 1)
-      const baseVp = page.getViewport({ scale: 1 })
-      const scale = Math.min(MAX_RENDER_SCALE, Math.max(0.45, (containerW - 8) / baseVp.width))
-      const viewport = page.getViewport({ scale })
-      const ctx = canvas.getContext('2d')
-      if (!ctx) continue
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      await page.render({ canvasContext: ctx, viewport }).promise
-    }
-  }, [pdfUrl])
-
-  /** Descobre quantas páginas existem e monta os slots no DOM. */
   useEffect(() => {
     let cancelled = false
     canvasRefs.current = []
     pageWrapRefs.current = []
+    pdfDocRef.current = null
     setNumPages(0)
+    setPagesRendered(0)
     setLoading(true)
     setError(null)
     ;(async () => {
       try {
-        const pdfjs = await import('pdfjs-dist')
-        pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER
-        const pdf = await pdfjs.getDocument({ url: pdfUrl, withCredentials: false }).promise
+        const pdf = await loadContractPdfDocument(pdfUrl)
         if (cancelled) return
+        pdfDocRef.current = pdf
         setNumPages(pdf.numPages)
       } catch (e) {
         console.error(e)
         if (!cancelled) {
           setError(
-            'Não foi possível carregar o PDF para posicionar a assinatura. Verifique se o arquivo está público e tente novamente.'
+            'Não foi possível carregar o PDF para posicionar a assinatura. Verifique sua conexão e tente novamente.'
           )
           setLoading(false)
         }
@@ -178,22 +157,38 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
     }
   }, [pdfUrl])
 
-  /** Desenha todas as páginas nos canvas após o DOM ter os refs. */
   useLayoutEffect(() => {
-    if (numPages < 1) return
+    if (numPages < 1 || !pdfDocRef.current) return
     let cancelled = false
     const run = async () => {
       await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
       if (cancelled) return
+
+      const ready = await waitForCanvasRefs(canvasRefs, numPages, 48)
+      if (cancelled) return
+      if (!ready) {
+        setError('Não foi possível preparar o documento. Recarregue a página e tente de novo.')
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
         setError(null)
-        await renderAllPages()
+        const pdf = pdfDocRef.current
+        if (!pdf) return
+        const containerW = measurePdfContainerWidth(stackRef.current)
+        const rendered = await renderPdfPagesToCanvases(pdf, canvasRefs.current, containerW)
+        if (cancelled) return
+        if (rendered < numPages) {
+          setError(`Só ${rendered} de ${numPages} páginas carregaram. Recarregue e tente novamente.`)
+        }
+        setPagesRendered(rendered)
       } catch (e) {
         console.error(e)
         if (!cancelled) {
           setError(
-            'Não foi possível carregar o PDF para posicionar a assinatura. Verifique se o arquivo está público e tente novamente.'
+            'Não foi possível carregar o PDF para posicionar a assinatura. Verifique sua conexão e tente novamente.'
           )
         }
       } finally {
@@ -204,7 +199,7 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
     return () => {
       cancelled = true
     }
-  }, [numPages, pdfUrl, renderAllPages])
+  }, [numPages, pdfUrl])
 
   /** Caixa proporcional ao tamanho real da imagem da assinatura (página ativa). */
   useEffect(() => {
@@ -393,7 +388,7 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
                 </p>
                 <div className="flex justify-center p-1 sm:p-2">
                   <div className="relative inline-block align-top max-w-full">
-                    {loading && (
+                    {loading && pagesRendered <= i && (
                       <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 rounded-lg min-h-[120px]">
                         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
                       </div>

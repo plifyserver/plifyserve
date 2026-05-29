@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import SignatureCanvas, { type SignatureData } from '@/components/contracts/SignatureCanvas'
+import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
 import ContractSignaturePlacement, { type SignaturePlacement } from '@/components/contracts/ContractSignaturePlacement'
 import ContractUploader from '@/components/contracts/ContractUploader'
 import { generateSignedPDF, downloadPDF } from '@/lib/pdf-generator'
@@ -822,12 +823,8 @@ export default function DocumentosPage() {
               )}
 
               {viewContract.file_url && (
-                <div className="flex-1 min-h-[400px] rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
-                  <iframe
-                    src={viewContract.file_url}
-                    title={viewContract.title}
-                    className="w-full h-full min-h-[400px]"
-                  />
+                <div className="flex-1 min-h-[200px] rounded-xl border border-slate-200 overflow-hidden bg-slate-50 max-h-[70vh] overflow-y-auto">
+                  <ContractPdfViewer pdfUrl={`/api/contracts/${viewContract.id}/pdf`} />
                 </div>
               )}
               {!viewContract.file_url && (
@@ -1067,7 +1064,7 @@ export default function DocumentosPage() {
               data-signature-placement-scroll
             >
               <ContractSignaturePlacement
-                pdfUrl={toSafeExternalUrl(selected.file_url) ?? selected.file_url}
+                pdfUrl={`/api/contracts/${selected.id}/pdf`}
                 signatureDataUrl={pendingSignData.signatureImage}
                 onConfirm={handlePlacementConfirm}
                 onBack={handlePlacementBack}
