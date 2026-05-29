@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2, Move } from 'lucide-react'
 
@@ -20,6 +20,9 @@ type Props = {
   onBack: () => void
 }
 
+const PDFJS_WORKER = 'https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs'
+const MAX_RENDER_SCALE = 1.55
+
 /**
  * Tamanho normalizado (0–1) da caixa no canvas, proporcional à imagem da assinatura,
  * com leve margem e limite máximo para não ocupar a página inteira.
@@ -38,7 +41,6 @@ function computeNormalizedSignatureBox(
   const k = Math.min(maxWpx / iw, maxHpx / ih, 1)
   let w = (iw * k * margin) / canvasW
   let h = (ih * k * margin) / canvasH
-  /** 40% menor que o cálculo proporcional (pedido do produto). */
   const scaleDown = 0.6
   w *= scaleDown
   h *= scaleDown
@@ -63,83 +65,154 @@ function findVerticalScrollParent(el: HTMLElement | null): HTMLElement | null {
     : null
 }
 
+/** Qual página do PDF está sob o cursor (para arrastar entre páginas). */
+function pageIndexAtPoint(
+  clientX: number,
+  clientY: number,
+  wraps: (HTMLDivElement | null)[]
+): number | null {
+  for (let i = 0; i < wraps.length; i++) {
+    const wrap = wraps[i]
+    if (!wrap) continue
+    const rect = wrap.getBoundingClientRect()
+    if (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    ) {
+      return i
+    }
+  }
+  return null
+}
+
+function coordsOnPageCanvas(
+  clientX: number,
+  clientY: number,
+  canvas: HTMLCanvasElement
+): { nx: number; ny: number } | null {
+  const rect = canvas.getBoundingClientRect()
+  if (rect.width < 1 || rect.height < 1) return null
+  return {
+    nx: (clientX - rect.left) / rect.width,
+    ny: (clientY - rect.top) / rect.height,
+  }
+}
+
 export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, onConfirm, onBack }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
+  const stackRef = useRef<HTMLDivElement>(null)
+  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
+  const pageWrapRefs = useRef<(HTMLDivElement | null)[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [numPages, setNumPages] = useState(1)
-  const [pageIndex, setPageIndex] = useState(0)
+  const [numPages, setNumPages] = useState(0)
   const [placement, setPlacement] = useState<SignaturePlacement>({
     pageIndex: 0,
     x: 0.35,
     y: 0.28,
-    /** Substituído após medir a imagem; placeholder (~40% menor que antes) */
     w: 0.12,
     h: 0.05,
   })
   const overlayRef = useRef<HTMLDivElement>(null)
-  /** Arraste por “ponto de agarra” em coordenadas normalizadas no canvas (estável com scroll). */
   const dragRef = useRef<{ active: boolean; grabX: number; grabY: number } | null>(null)
   const scrollParentRef = useRef<HTMLElement | null>(null)
   const placementRef = useRef(placement)
   placementRef.current = placement
 
-  const renderPage = useCallback(
-    async (pdfjs: typeof import('pdfjs-dist'), pageIdx: number) => {
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const loadingTask = pdfjs.getDocument({ url: pdfUrl, withCredentials: false })
-      const pdf = await loadingTask.promise
-      setNumPages(pdf.numPages)
-      const page = await pdf.getPage(pageIdx + 1)
-      const scale = 1.55
+  const activePage = placement.pageIndex
+
+  const renderAllPages = useCallback(async () => {
+    const pdfjs = await import('pdfjs-dist')
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER
+    const pdf = await pdfjs.getDocument({ url: pdfUrl, withCredentials: false }).promise
+    const count = pdf.numPages
+    setNumPages(count)
+
+    const containerW =
+      stackRef.current?.clientWidth ??
+      (typeof window !== 'undefined' ? Math.min(window.innerWidth - 48, 720) : 360)
+
+    for (let i = 0; i < count; i++) {
+      const canvas = canvasRefs.current[i]
+      if (!canvas) continue
+      const page = await pdf.getPage(i + 1)
+      const baseVp = page.getViewport({ scale: 1 })
+      const scale = Math.min(MAX_RENDER_SCALE, Math.max(0.45, (containerW - 8) / baseVp.width))
       const viewport = page.getViewport({ scale })
       const ctx = canvas.getContext('2d')
-      if (!ctx) return
+      if (!ctx) continue
       canvas.width = viewport.width
       canvas.height = viewport.height
-      const task = page.render({ canvasContext: ctx, viewport })
-      await task.promise
-    },
-    [pdfUrl]
-  )
+      await page.render({ canvasContext: ctx, viewport }).promise
+    }
+  }, [pdfUrl])
 
+  /** Descobre quantas páginas existem e monta os slots no DOM. */
   useEffect(() => {
     let cancelled = false
+    canvasRefs.current = []
+    pageWrapRefs.current = []
+    setNumPages(0)
+    setLoading(true)
+    setError(null)
     ;(async () => {
       try {
-        setLoading(true)
-        setError(null)
         const pdfjs = await import('pdfjs-dist')
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`
+        pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER
+        const pdf = await pdfjs.getDocument({ url: pdfUrl, withCredentials: false }).promise
         if (cancelled) return
-        await renderPage(pdfjs, pageIndex)
+        setNumPages(pdf.numPages)
       } catch (e) {
         console.error(e)
-        setError(
-          'Não foi possível carregar o PDF para posicionar a assinatura. Verifique se o arquivo está público e tente novamente.'
-        )
-      } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setError(
+            'Não foi possível carregar o PDF para posicionar a assinatura. Verifique se o arquivo está público e tente novamente.'
+          )
+          setLoading(false)
+        }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [pdfUrl, pageIndex, renderPage])
+  }, [pdfUrl])
 
-  useEffect(() => {
-    setPlacement((p) => ({ ...p, pageIndex }))
-  }, [pageIndex])
+  /** Desenha todas as páginas nos canvas após o DOM ter os refs. */
+  useLayoutEffect(() => {
+    if (numPages < 1) return
+    let cancelled = false
+    const run = async () => {
+      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+      if (cancelled) return
+      try {
+        setLoading(true)
+        setError(null)
+        await renderAllPages()
+      } catch (e) {
+        console.error(e)
+        if (!cancelled) {
+          setError(
+            'Não foi possível carregar o PDF para posicionar a assinatura. Verifique se o arquivo está público e tente novamente.'
+          )
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [numPages, pdfUrl, renderAllPages])
 
-  /** Caixa proporcional ao tamanho real da imagem da assinatura (e à página atual do PDF). */
+  /** Caixa proporcional ao tamanho real da imagem da assinatura (página ativa). */
   useEffect(() => {
     if (loading || error || !signatureDataUrl) return
     const img = new Image()
     img.onload = () => {
       requestAnimationFrame(() => {
-        const canvas = canvasRef.current
+        const canvas = canvasRefs.current[activePage]
         if (!canvas?.width) return
         const { w, h } = computeNormalizedSignatureBox(
           canvas.width,
@@ -158,27 +231,21 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
         })
       })
     }
-    img.onerror = () => {
-      /* mantém placeholder */
-    }
     img.src = signatureDataUrl
-  }, [loading, error, pageIndex, signatureDataUrl])
+  }, [loading, error, activePage, signatureDataUrl])
 
-  /** Garante que a caixa de assinatura entre na área visível após carregar o PDF. */
   useEffect(() => {
     if (loading || error) return
     const t = window.setTimeout(() => {
-      overlayRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    }, 100)
+      pageWrapRefs.current[activePage]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }, 120)
     return () => window.clearTimeout(t)
-  }, [loading, error, pageIndex])
+  }, [loading, error, activePage])
 
-  /** Pointermove no window: posição recalculada pelo retângulo do canvas a cada frame (cobre a página inteira e scroll). */
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       const d = dragRef.current
-      const canvas = canvasRef.current
-      if (!d?.active || !canvas) return
+      if (!d?.active) return
       e.preventDefault()
       const scroller = scrollParentRef.current
       if (scroller) {
@@ -191,16 +258,20 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
           scroller.scrollTop -= step
         }
       }
-      const rect = canvas.getBoundingClientRect()
-      if (rect.width < 1 || rect.height < 1) return
-      const nx = (e.clientX - rect.left) / rect.width
-      const ny = (e.clientY - rect.top) / rect.height
+
+      const pageIdx = pageIndexAtPoint(e.clientX, e.clientY, pageWrapRefs.current)
+      if (pageIdx === null) return
+      const canvas = canvasRefs.current[pageIdx]
+      if (!canvas) return
+      const coords = coordsOnPageCanvas(e.clientX, e.clientY, canvas)
+      if (!coords) return
+
       const p = placementRef.current
-      let x = nx - d.grabX
-      let y = ny - d.grabY
+      let x = coords.nx - d.grabX
+      let y = coords.ny - d.grabY
       x = Math.min(1 - p.w, Math.max(0, x))
       y = Math.min(1 - p.h, Math.max(0, y))
-      setPlacement({ ...p, x, y })
+      setPlacement({ ...p, pageIndex: pageIdx, x, y })
     }
     const onUp = () => {
       if (dragRef.current?.active) {
@@ -219,20 +290,18 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
   }, [])
 
   const onPointerDown = (e: React.PointerEvent) => {
-    const canvas = canvasRef.current
+    const canvas = canvasRefs.current[activePage]
     if (!canvas) return
     scrollParentRef.current = findVerticalScrollParent(canvas)
-    const rect = canvas.getBoundingClientRect()
-    if (rect.width < 1 || rect.height < 1) return
+    const coords = coordsOnPageCanvas(e.clientX, e.clientY, canvas)
+    if (!coords) return
     e.preventDefault()
     e.stopPropagation()
     const p = placementRef.current
-    const nx = (e.clientX - rect.left) / rect.width
-    const ny = (e.clientY - rect.top) / rect.height
     dragRef.current = {
       active: true,
-      grabX: nx - p.x,
-      grabY: ny - p.y,
+      grabX: coords.nx - p.x,
+      grabY: coords.ny - p.y,
     }
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
@@ -248,14 +317,30 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
     }
   }
 
+  /** Toque no canvas de outra página move a assinatura para lá. */
+  const onInactivePagePointerDown = (pageIdx: number) => (e: React.PointerEvent) => {
+    if (placementRef.current.pageIndex === pageIdx) return
+    const canvas = canvasRefs.current[pageIdx]
+    if (!canvas) return
+    const coords = coordsOnPageCanvas(e.clientX, e.clientY, canvas)
+    if (!coords) return
+    e.preventDefault()
+    const p = placementRef.current
+    let x = coords.nx - p.w / 2
+    let y = coords.ny - p.h / 2
+    x = Math.max(0, Math.min(1 - p.w, x))
+    y = Math.max(0, Math.min(1 - p.h, y))
+    setPlacement({ ...p, pageIndex: pageIdx, x, y })
+  }
+
   return (
     <div className="flex flex-col gap-4 min-h-0">
       <div className="flex flex-wrap gap-2 justify-end sm:justify-between sm:items-start gap-y-3 order-first">
         <div className="w-full sm:w-auto sm:flex-1 min-w-0 order-2 sm:order-1">
           <h3 className="text-lg font-semibold text-slate-900">Posicione sua assinatura no documento</h3>
           <p className="text-sm text-slate-500 mt-1">
-            Arraste o retângulo para qualquer ponto do PDF. Se o documento for mais alto que a tela, role esta janela
-            para baixo ou, ao arrastar, encoste o cursor na borda inferior da área visível para rolar automaticamente.
+            Role para ver todas as páginas do PDF. Arraste o retângulo da assinatura ou toque na página desejada
+            para colocá-la ali. Ao arrastar perto da borda da tela, a área rola automaticamente.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 justify-end w-full sm:w-auto order-1 sm:order-2 shrink-0">
@@ -266,85 +351,103 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
             type="button"
             className="rounded-xl bg-indigo-600 hover:bg-indigo-700"
             disabled={loading || !!error}
-            onClick={() => onConfirm({ ...placement, pageIndex })}
+            onClick={() => onConfirm(placement)}
           >
             Confirmar posição
           </Button>
         </div>
       </div>
 
-      {numPages > 1 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-slate-600">Página:</span>
-          <select
-            value={pageIndex}
-            onChange={(e) => setPageIndex(Number(e.target.value))}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
-          >
-            {Array.from({ length: numPages }, (_, i) => (
-              <option key={i} value={i}>
-                {i + 1} de {numPages}
-              </option>
-            ))}
-          </select>
-        </div>
+      {numPages > 1 && !loading && !error && (
+        <p className="text-sm text-slate-600">
+          Documento com <strong>{numPages} páginas</strong> — assinatura na página{' '}
+          <strong>{activePage + 1}</strong>
+        </p>
       )}
 
       {error && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error}</div>
       )}
 
-      {/*
-        Sem max-height/overflow interno: o canvas costuma ser mais alto que a tela; um painel interno com scroll
-        impede que clientY alcance a parte inferior do PDF (coordenada normalizada trava). O scroll fica no modal/página.
-      */}
       <div className="rounded-2xl border border-slate-200 bg-slate-100 mx-auto p-2 sm:p-3 flex justify-center w-full min-w-0">
-        <div ref={wrapRef} className="relative inline-block align-top">
-          {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 rounded-lg">
+        <div ref={stackRef} className="flex flex-col gap-4 sm:gap-5 w-full max-w-full items-center">
+          {loading && numPages === 0 && (
+            <div className="flex items-center justify-center py-16 w-full">
               <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
             </div>
           )}
-          <canvas ref={canvasRef} className="block max-w-full h-auto w-auto select-none" draggable={false} />
-          {!loading && !error && (
-            <>
+
+          {numPages > 0 &&
+            Array.from({ length: numPages }, (_, i) => (
               <div
-                ref={overlayRef}
-                className="absolute border-2 border-indigo-600 ring-2 ring-indigo-400/35 shadow-md rounded-lg overflow-hidden cursor-grab active:cursor-grabbing flex items-center justify-center touch-none z-20 bg-transparent"
-                style={{
-                  left: `${placement.x * 100}%`,
-                  top: `${placement.y * 100}%`,
-                  width: `${placement.w * 100}%`,
-                  height: `${placement.h * 100}%`,
+                key={i}
+                ref={(el) => {
+                  pageWrapRefs.current[i] = el
                 }}
-                onPointerDown={onPointerDown}
-                onPointerUp={onPointerUpLocal}
-                onPointerCancel={onPointerUpLocal}
+                className={`w-full max-w-full rounded-lg shadow-sm bg-white ${
+                  activePage === i ? 'ring-2 ring-indigo-400/50' : ''
+                }`}
               >
-                <img
-                  src={signatureDataUrl}
-                  alt=""
-                  className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
-                />
+                <p className="text-center text-[11px] font-medium text-slate-500 py-1.5 px-2 border-b border-slate-100">
+                  Página {i + 1} de {numPages}
+                </p>
+                <div className="flex justify-center p-1 sm:p-2">
+                  <div className="relative inline-block align-top max-w-full">
+                    {loading && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 rounded-lg min-h-[120px]">
+                        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                      </div>
+                    )}
+                    <canvas
+                      ref={(el) => {
+                        canvasRefs.current[i] = el
+                      }}
+                      className="block max-w-full h-auto w-auto select-none"
+                      draggable={false}
+                      onPointerDown={activePage !== i ? onInactivePagePointerDown(i) : undefined}
+                    />
+                  {!loading && !error && activePage === i && (
+                    <>
+                      <div
+                        ref={overlayRef}
+                        className="absolute border-2 border-indigo-600 ring-2 ring-indigo-400/35 shadow-md rounded-lg overflow-hidden cursor-grab active:cursor-grabbing flex items-center justify-center touch-none z-20 bg-transparent"
+                        style={{
+                          left: `${placement.x * 100}%`,
+                          top: `${placement.y * 100}%`,
+                          width: `${placement.w * 100}%`,
+                          height: `${placement.h * 100}%`,
+                        }}
+                        onPointerDown={onPointerDown}
+                        onPointerUp={onPointerUpLocal}
+                        onPointerCancel={onPointerUpLocal}
+                      >
+                        <img
+                          src={signatureDataUrl}
+                          alt=""
+                          className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                        />
+                      </div>
+                      <div
+                        className="absolute z-[21] flex justify-center pointer-events-none"
+                        style={{
+                          left: `${placement.x * 100}%`,
+                          width: `${placement.w * 100}%`,
+                          top: `${(placement.y + placement.h) * 100}%`,
+                          marginTop: 6,
+                        }}
+                      >
+                        <span className="text-[9px] text-indigo-700 font-medium flex items-center gap-1 whitespace-nowrap rounded bg-white/95 px-1.5 py-0.5 shadow-sm border border-indigo-100">
+                          <Move className="w-3 h-3 shrink-0" /> Arrastar
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  </div>
+                </div>
               </div>
-              <div
-                className="absolute z-[21] flex justify-center pointer-events-none"
-                style={{
-                  left: `${placement.x * 100}%`,
-                  width: `${placement.w * 100}%`,
-                  top: `${(placement.y + placement.h) * 100}%`,
-                  marginTop: 6,
-                }}
-              >
-                <span className="text-[9px] text-indigo-700 font-medium flex items-center gap-1 whitespace-nowrap rounded bg-white/95 px-1.5 py-0.5 shadow-sm border border-indigo-100">
-                  <Move className="w-3 h-3 shrink-0" /> Arrastar
-                </span>
-              </div>
-            </>
-          )}
+            ))}
         </div>
       </div>
-
     </div>
   )
 }

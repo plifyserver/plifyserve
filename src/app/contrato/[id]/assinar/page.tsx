@@ -478,14 +478,13 @@ export default function AssinarContratoPage() {
           </div>
         )}
 
-        {/* PDF em destaque - proporcional à moldura (view=FitH para preencher largura) */}
-        <div className={`flex-1 min-h-[70vh] bg-white shadow-sm overflow-hidden border border-slate-200 flex flex-col ${signatoryIndex >= 0 ? 'rounded-b-2xl' : 'rounded-2xl'}`}>
+        {/* PDF em destaque — scroll interno para ver todas as páginas (sem FitH, que no mobile corta na 1ª) */}
+        <div className={`flex-1 min-h-[70vh] bg-white shadow-sm overflow-auto border border-slate-200 flex flex-col ${signatoryIndex >= 0 ? 'rounded-b-2xl' : 'rounded-2xl'}`}>
           {contract?.file_url ? (
             <iframe
-              src={`${contract.file_url}#view=FitH`}
-              className="w-full flex-1 min-h-[70vh]"
+              src={contract.file_url}
+              className="w-full h-[min(85vh,900px)] min-h-[400px] border-0"
               title={contract?.title ?? 'Contrato'}
-              style={{ minHeight: '70vh' }}
             />
           ) : (
             <div className="h-[50vh] flex items-center justify-center text-slate-500">
