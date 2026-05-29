@@ -397,7 +397,7 @@ export default function ContractSignaturePlacement({ pdfUrl, signatureDataUrl, o
                       ref={(el) => {
                         canvasRefs.current[i] = el
                       }}
-                      className="block max-w-full h-auto w-auto select-none"
+                      className="block max-w-full select-none"
                       draggable={false}
                       onPointerDown={activePage !== i ? onInactivePagePointerDown(i) : undefined}
                     />

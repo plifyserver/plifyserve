@@ -3,7 +3,14 @@ import type { PDFDocumentProxy } from 'pdfjs-dist'
 export const CONTRACT_PDFJS_WORKER =
   'https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs'
 
-export const CONTRACT_PDF_MAX_SCALE = 1.55
+export const CONTRACT_PDF_MAX_SCALE = 2
+
+/** Escala física do canvas (Retina). Limitada para não estourar memória em PDFs longos. */
+export function getContractPdfOutputScale(): number {
+  if (typeof window === 'undefined') return 1
+  const dpr = window.devicePixelRatio || 1
+  return Math.min(2.5, Math.max(1, dpr))
+}
 
 export function viewportScaleForWidth(
   pageWidthAtScale1: number,
@@ -58,6 +65,7 @@ export async function renderPdfPagesToCanvases(
   containerWidth: number
 ): Promise<number> {
   const count = pdf.numPages
+  const outputScale = getContractPdfOutputScale()
   let rendered = 0
   for (let i = 0; i < count; i++) {
     const canvas = canvases[i]
@@ -66,11 +74,25 @@ export async function renderPdfPagesToCanvases(
     const baseVp = page.getViewport({ scale: 1 })
     const scale = viewportScaleForWidth(baseVp.width, containerWidth)
     const viewport = page.getViewport({ scale })
+
     const ctx = canvas.getContext('2d')
     if (!ctx) continue
-    canvas.width = viewport.width
-    canvas.height = viewport.height
-    await page.render({ canvasContext: ctx, viewport }).promise
+
+    const cssW = Math.floor(viewport.width)
+    const cssH = Math.floor(viewport.height)
+    canvas.width = Math.floor(cssW * outputScale)
+    canvas.height = Math.floor(cssH * outputScale)
+    canvas.style.width = `${cssW}px`
+    canvas.style.height = `${cssH}px`
+
+    const transform: [number, number, number, number, number, number] | undefined =
+      outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined
+
+    await page.render({
+      canvasContext: ctx,
+      viewport,
+      transform,
+    }).promise
     rendered++
   }
   return rendered

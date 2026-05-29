@@ -146,7 +146,7 @@ export default function ContractPdfViewer({ pdfUrl, className = '', hint }: Prop
                     ref={(el) => {
                       canvasRefs.current[i] = el
                     }}
-                    className="block max-w-full h-auto w-auto"
+                    className="block max-w-full"
                     aria-label={`Página ${i + 1} do contrato`}
                   />
                 </div>
