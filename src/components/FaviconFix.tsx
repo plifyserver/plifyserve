@@ -10,6 +10,7 @@ const FAVICON_HREF = '/icone-site.ico'
  */
 export function FaviconFix() {
   useEffect(() => {
+    if (window.location.hostname.includes('palhaweddings')) return
     const apply = () => {
       const all = document.querySelectorAll<HTMLLinkElement>("link[rel='icon'], link[rel='shortcut icon']")
       all.forEach((l) => {
