@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    proxyClientMaxBodySize: "200mb",
   },
   images: {
     remotePatterns: [
@@ -23,6 +24,7 @@ const nextConfig: NextConfig = {
       { pathname: "/imagem_dashboard.jpeg" },
       { pathname: "/homemfogo.jpeg" },
       { pathname: "/plify.png" },
+      { pathname: "/palhaweddings/**" },
     ],
   },
 };

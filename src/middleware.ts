@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { isPalhaWeddingsHost } from '@/lib/hosts'
+import { isLocalDevHost, isPalhaWeddingsHost } from '@/lib/hosts'
+import { updatePalhaSession } from '@/lib/palha/supabase/middleware'
 import { updateSession } from '@/lib/supabase/middleware'
 
 const PALHA_PREFIX = '/palhaweddings'
@@ -12,10 +13,13 @@ export async function middleware(request: NextRequest) {
     if (!pathname.startsWith(PALHA_PREFIX)) {
       url.pathname = pathname === '/' ? PALHA_PREFIX : `${PALHA_PREFIX}${pathname}`
     }
-    return NextResponse.rewrite(url)
+    return updatePalhaSession(request, url)
   }
 
   if (pathname === PALHA_PREFIX || pathname.startsWith(`${PALHA_PREFIX}/`)) {
+    if (isLocalDevHost(request)) {
+      return updatePalhaSession(request)
+    }
     return new NextResponse(null, { status: 404 })
   }
 
@@ -24,6 +28,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|logopreto.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|logopreto.ico|api|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

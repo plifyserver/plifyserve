@@ -13,6 +13,11 @@ export function hostnameFromRequest(request: NextRequest): string {
   return hostHeader.split(':')[0].toLowerCase()
 }
 
+export function isLocalDevHost(request: NextRequest): boolean {
+  const host = hostnameFromRequest(request)
+  return host === 'localhost' || host === '127.0.0.1'
+}
+
 export function isPalhaWeddingsHost(request: NextRequest): boolean {
   return PALHA_HOSTS.has(hostnameFromRequest(request))
 }
