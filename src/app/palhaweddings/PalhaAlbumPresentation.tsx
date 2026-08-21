@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { formatPalhaEventDate, type PalhaAlbum, type PalhaMediaItem } from '@/lib/palha/site-settings-shared'
 
 function fileNameFromUrl(url: string, fallback: string) {
@@ -12,21 +12,55 @@ function fileNameFromUrl(url: string, fallback: string) {
   }
 }
 
+function downloadHref(item: PalhaMediaItem, index: number) {
+  const fallback = item.kind === 'video' ? `video-${index + 1}.mp4` : `foto-${index + 1}.jpg`
+  const name = fileNameFromUrl(item.url, fallback)
+  return `/api/palha/download?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(name)}`
+}
+
 async function downloadMedia(item: PalhaMediaItem, index: number) {
   const fallback = item.kind === 'video' ? `video-${index + 1}.mp4` : `foto-${index + 1}.jpg`
   const name = fileNameFromUrl(item.url, fallback)
+  const endpoint = downloadHref(item, index)
+
   try {
-    const res = await fetch(item.url)
+    const res = await fetch(endpoint, { credentials: 'include' })
     if (!res.ok) throw new Error('download')
     const blob = await res.blob()
+    const type =
+      blob.type && blob.type !== 'application/octet-stream'
+        ? blob.type
+        : item.kind === 'video'
+          ? 'video/mp4'
+          : 'image/jpeg'
+    const file = new File([blob], name, { type })
+
+    if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: name })
+        return
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
+      }
+    }
+
     const href = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = href
     link.download = name
+    link.rel = 'noopener'
+    document.body.appendChild(link)
     link.click()
-    URL.revokeObjectURL(href)
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(href), 2500)
   } catch {
-    window.open(item.url, '_blank', 'noreferrer')
+    const link = document.createElement('a')
+    link.href = endpoint
+    link.download = name
+    link.rel = 'noopener'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
   }
 }
 
@@ -38,12 +72,38 @@ export function PalhaAlbumPresentation({
   preview?: boolean
 }) {
   const [selectedId, setSelectedId] = useState(album.subalbums[0]?.id || '')
+  const [viewer, setViewer] = useState<{ item: PalhaMediaItem; index: number } | null>(null)
+  const [savingId, setSavingId] = useState('')
   const selected = useMemo(
     () => album.subalbums.find((sub) => sub.id === selectedId) ?? album.subalbums[0],
     [album.subalbums, selectedId],
   )
   const dateLabel = formatPalhaEventDate(album.eventDate)
   const cover = album.coverUrl
+
+  useEffect(() => {
+    if (!viewer) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setViewer(null)
+    }
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = previous
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [viewer])
+
+  async function saveMedia(item: PalhaMediaItem, index: number) {
+    if (savingId) return
+    setSavingId(item.id)
+    try {
+      await downloadMedia(item, index)
+    } finally {
+      setSavingId('')
+    }
+  }
 
   return (
     <div
@@ -103,7 +163,10 @@ export function PalhaAlbumPresentation({
                 key={sub.id}
                 type="button"
                 className={sub.id === selected?.id ? 'is-current' : undefined}
-                onClick={() => setSelectedId(sub.id)}
+                onClick={() => {
+                  setSelectedId(sub.id)
+                  setViewer(null)
+                }}
               >
                 {sub.name}
               </button>
@@ -114,16 +177,39 @@ export function PalhaAlbumPresentation({
         {selected?.items.length ? (
           <div className={`palha-ag palha-ag-${album.theme.grid} palha-ag-${album.theme.thumb}`}>
             {selected.items.map((item, index) => (
-              <article key={item.id} className="palha-ag-item">
+              <article
+                key={item.id}
+                className={`palha-ag-item${!preview ? ' is-openable' : ''}`}
+                onClick={!preview ? () => setViewer({ item, index }) : undefined}
+              >
                 {item.kind === 'video' ? (
-                  <video src={item.url} controls playsInline preload="metadata" />
+                  <video src={item.url} playsInline preload="metadata" muted />
                 ) : (
                   <img src={item.url} alt={item.caption || ''} />
                 )}
+                {item.kind === 'video' ? <span className="palha-ag-play" aria-hidden="true" /> : null}
                 {!preview ? (
-                  <button type="button" className="palha-ag-download" onClick={() => void downloadMedia(item, index)}>
-                    Baixar
-                  </button>
+                  <div className="palha-ag-actions">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        setViewer({ item, index })
+                      }}
+                    >
+                      Visualizar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingId === item.id}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void saveMedia(item, index)
+                      }}
+                    >
+                      {savingId === item.id ? 'Salvando…' : 'Baixar'}
+                    </button>
+                  </div>
                 ) : null}
               </article>
             ))}
@@ -132,6 +218,27 @@ export function PalhaAlbumPresentation({
           <p className="palha-present-empty">{preview ? 'As fotos entram aqui.' : 'Este álbum ainda não tem mídia.'}</p>
         )}
       </section>
+
+      {viewer && !preview ? (
+        <div className="palha-lightbox" role="dialog" aria-modal="true" aria-label="Visualizar mídia">
+          <button type="button" className="palha-lightbox-backdrop" aria-label="Fechar" onClick={() => setViewer(null)} />
+          <div className="palha-lightbox-card">
+            <button type="button" className="palha-lightbox-close" onClick={() => setViewer(null)}>
+              Fechar
+            </button>
+            {viewer.item.kind === 'video' ? (
+              <video src={viewer.item.url} controls autoPlay playsInline preload="metadata" />
+            ) : (
+              <img src={viewer.item.url} alt={viewer.item.caption || album.name || ''} />
+            )}
+            <div className="palha-lightbox-tools">
+              <button type="button" disabled={savingId === viewer.item.id} onClick={() => void saveMedia(viewer.item, viewer.index)}>
+                {savingId === viewer.item.id ? 'Salvando…' : 'Baixar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

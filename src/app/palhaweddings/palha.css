@@ -661,17 +661,63 @@
     text-align: left;
   }
 
+  .palha-cover {
+    min-height: 0;
+  }
+
+  .palha-cover.is-centro,
+  .palha-cover.is-esquerda,
+  .palha-cover.is-baixo,
+  .palha-cover.is-moldura {
+    display: grid;
+    grid-template: auto / minmax(0, 1fr);
+  }
+
+  .palha-cover.is-centro .palha-cover-photo,
+  .palha-cover.is-esquerda .palha-cover-photo,
+  .palha-cover.is-baixo .palha-cover-photo,
+  .palha-cover.is-moldura .palha-cover-photo {
+    position: relative;
+    inset: auto;
+    grid-area: 1 / 1;
+  }
+
   .palha-cover.is-romance .palha-cover-copy,
   .palha-cover.is-centro .palha-cover-copy,
   .palha-cover.is-esquerda .palha-cover-copy,
   .palha-cover.is-baixo .palha-cover-copy,
   .palha-cover.is-moldura .palha-cover-copy {
-    min-height: auto;
-    padding: 3.2rem 1.25rem;
+    grid-area: 1 / 1;
+    min-height: 0;
+    width: 100%;
+    padding: 1.4rem 1.25rem 2.1rem;
   }
 
-  .palha-cover.is-romance .palha-cover-photo {
-    min-height: 58vh;
+  .palha-cover.is-romance .palha-cover-copy {
+    grid-area: auto;
+    color: inherit;
+  }
+
+  .palha-cover-photo img,
+  .palha-cover-photo span {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .palha-cover.is-romance,
+  .palha-cover.is-vintage {
+    min-height: 0;
+    grid-template-rows: auto;
+  }
+
+  .palha-cover.is-romance .palha-cover-photo,
+  .palha-cover.is-vintage .palha-cover-photo {
+    min-height: 0;
+  }
+
+  .palha-cover-logo {
+    height: 56px;
   }
 
   .palha-cover h1 {
@@ -2539,6 +2585,10 @@
   min-height: 0;
 }
 
+.palha-ag-item.is-openable {
+  cursor: pointer;
+}
+
 .palha-ag-item img,
 .palha-ag-item video {
   display: block;
@@ -2569,10 +2619,17 @@
   grid-column: span 3;
 }
 
-.palha-ag-download {
+.palha-ag-actions {
   position: absolute;
   right: 0.55rem;
   bottom: 0.55rem;
+  z-index: 2;
+  display: flex;
+  gap: 0.35rem;
+  opacity: 0;
+}
+
+.palha-ag-actions button {
   border: 1px solid #fff;
   background: rgba(20, 20, 20, 0.55);
   color: #fff;
@@ -2582,16 +2639,103 @@
   font-size: 0.62rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  opacity: 0;
 }
 
-.palha-ag-item:hover .palha-ag-download,
-.palha-ag-item:focus-within .palha-ag-download {
+.palha-ag-item:hover .palha-ag-actions,
+.palha-ag-item:focus-within .palha-ag-actions {
   opacity: 1;
 }
 
+.palha-ag-play {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.palha-ag-play::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 10px 0 10px 16px;
+  border-color: transparent transparent transparent #fff;
+  transform: translate(-30%, -50%);
+  filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.45));
+}
+
+.palha-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.1rem;
+}
+
+.palha-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(18, 16, 14, 0.72);
+  cursor: pointer;
+}
+
+.palha-lightbox-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.85rem;
+  width: min(72rem, 100%);
+  max-height: min(92dvh, 100%);
+  padding: 0.85rem 0.85rem 1rem;
+  background: #f7f3ec;
+  box-shadow: 0 28px 80px rgba(20, 16, 12, 0.28);
+}
+
+.palha-lightbox-card img,
+.palha-lightbox-card video {
+  display: block;
+  width: 100%;
+  max-height: min(74dvh, 100%);
+  object-fit: contain;
+  background: #111;
+}
+
+.palha-lightbox-close {
+  justify-self: end;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--palha-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--p-muted, #7a736c);
+}
+
+.palha-lightbox-tools {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.palha-lightbox-tools button {
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  font-family: var(--palha-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 @media (hover: none) {
-  .palha-ag-download {
+  .palha-ag-actions {
     opacity: 1;
   }
 }
@@ -2636,6 +2780,19 @@
   .palha-theme-editor,
   .palha-cover.is-romance {
     grid-template-columns: 1fr;
+  }
+
+  .palha-cover.is-romance {
+    min-height: 0;
+  }
+
+  .palha-cover.is-romance .palha-cover-photo {
+    min-height: 0;
+  }
+
+  .palha-cover.is-romance .palha-cover-photo img {
+    height: auto;
+    object-fit: contain;
   }
 
   .palha-theme-options,

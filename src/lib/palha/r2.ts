@@ -1,6 +1,7 @@
 import {
   CreateBucketCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadBucketCommand,
   ListObjectsV2Command,
   PutBucketCorsCommand,
@@ -209,6 +210,12 @@ async function listPalhaR2Keys(prefix: string) {
 
 export function palhaR2KeyFromUrl(url: string) {
   return palhaR2KeyFromPublicUrl(url)
+}
+
+export async function getPalhaR2Object(key: string) {
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  return s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
 }
 
 export async function purgeRemovedPalhaR2Media(_previous: PalhaSiteSettings, next: PalhaSiteSettings) {
