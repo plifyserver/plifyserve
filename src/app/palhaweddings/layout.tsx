@@ -51,6 +51,11 @@ export const metadata: Metadata = {
   },
   description: 'Galerias de fotos e filmes de casamento.',
   manifest: undefined,
+  icons: {
+    icon: '/palhaweddings/logo.png',
+    shortcut: '/palhaweddings/logo.png',
+    apple: '/palhaweddings/logo.png',
+  },
 }
 
 export default async function PalhaWeddingsLayout({

@@ -228,8 +228,8 @@ const emptyCopy = (): PalhaCopyBlock => ({
 })
 
 export const DEFAULT_PALHA_SITE_SETTINGS: PalhaSiteSettings = {
-  instagramUrl: 'https://instagram.com',
-  facebookUrl: 'https://facebook.com',
+  instagramUrl: '',
+  facebookUrl: '',
   whatsapp: '',
   photos: {
     hero: '/palhaweddings/hero.webp',
@@ -275,11 +275,17 @@ export const DEFAULT_PALHA_SITE_SETTINGS: PalhaSiteSettings = {
   },
 }
 
-export function whatsappHref(raw: string) {
-  const digits = raw.replace(/\D/g, '')
-  if (!digits) return ''
+export function whatsappHref(raw: string, message = '') {
+  const trimmed = String(raw || '').trim()
+  if (!trimmed) return ''
+  const waUrl = trimmed.match(/https?:\/\/(?:wa\.me|api\.whatsapp\.com)\/[^\s]+/i)
+  if (waUrl) return waUrl[0]
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length < 10) return ''
   const withCountry = digits.startsWith('55') ? digits : `55${digits}`
-  return `https://wa.me/${withCountry}`
+  const href = `https://wa.me/${withCountry}`
+  const text = message.trim()
+  return text ? `${href}?text=${encodeURIComponent(text)}` : href
 }
 
 function mergeCopy(raw: unknown, fallback: PalhaCopyBlock): PalhaCopyBlock {
@@ -366,13 +372,33 @@ function mergeGallery(raw: unknown, fallback: PalhaGallery): PalhaGallery {
   }
 }
 
+export function palhaInstagramHref(raw: string) {
+  const value = String(raw || '').trim()
+  if (!value) return ''
+  const handle = value.replace(/^@/, '')
+  if (/^[a-zA-Z0-9._]{1,30}$/.test(handle) && !handle.includes('://')) {
+    return `https://www.instagram.com/${handle}/`
+  }
+  const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`
+  try {
+    const url = new URL(withProtocol)
+    const host = url.hostname.replace(/^www\./, '').toLowerCase()
+    if (host !== 'instagram.com' && host !== 'instagr.am') return ''
+    const path = url.pathname.replace(/\/+$/, '')
+    if (!path || path === '/') return ''
+    return `https://www.instagram.com${path}/`
+  } catch {
+    return ''
+  }
+}
+
 export function mergePalhaSiteSettings(raw: unknown): PalhaSiteSettings {
   const data = (raw && typeof raw === 'object' ? raw : {}) as Partial<PalhaSiteSettings> & {
     copy?: Partial<PalhaSiteSettings['copy']>
   }
   return {
-    instagramUrl: String(data.instagramUrl ?? DEFAULT_PALHA_SITE_SETTINGS.instagramUrl),
-    facebookUrl: String(data.facebookUrl ?? DEFAULT_PALHA_SITE_SETTINGS.facebookUrl),
+    instagramUrl: palhaInstagramHref(String(data.instagramUrl ?? '')),
+    facebookUrl: '',
     whatsapp: String(data.whatsapp ?? ''),
     photos: {
       ...DEFAULT_PALHA_SITE_SETTINGS.photos,

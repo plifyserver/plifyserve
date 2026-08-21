@@ -1,34 +1,43 @@
 'use client'
 
 import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 
-const FAVICON_HREF = '/icone-site.ico'
+const PLIFY_FAVICON = '/icone-site.ico'
+const PALHA_FAVICON = '/palhaweddings/logo.png'
 
 /**
- * Garante um único favicon fixo (icone-site.ico). Remove qualquer link para
- * favicon.ico (ex.: padrão Next/Vercel) que faça o ícone "piscar" ao navegar.
+ * Garante um único favicon. Na Palha usa a logo; no restante, icone-site.ico.
  */
 export function FaviconFix() {
+  const pathname = usePathname()
+
   useEffect(() => {
-    if (window.location.hostname.includes('palhaweddings')) return
+    const palha =
+      window.location.hostname.includes('palhaweddings') || pathname.startsWith('/palhaweddings')
+    const href = palha ? PALHA_FAVICON : PLIFY_FAVICON
+    const type = palha ? 'image/png' : 'image/x-icon'
+
     const apply = () => {
-      const all = document.querySelectorAll<HTMLLinkElement>("link[rel='icon'], link[rel='shortcut icon']")
-      all.forEach((l) => {
-        if (l.href && (l.href.includes('favicon.ico') || l.href.includes('favicon.'))) l.remove()
-      })
+      document
+        .querySelectorAll<HTMLLinkElement>("link[rel='icon'], link[rel='shortcut icon']")
+        .forEach((link) => {
+          if (link.href && (link.href.includes('favicon.ico') || link.href.includes('favicon.'))) {
+            link.remove()
+          }
+        })
       let link = document.querySelector<HTMLLinkElement>("link[rel='icon']")
       if (!link) {
         link = document.createElement('link')
         link.rel = 'icon'
-        link.type = 'image/x-icon'
         document.head.appendChild(link)
       }
-      link.type = 'image/x-icon'
-      link.href = FAVICON_HREF
+      link.type = type
+      link.href = href
     }
     apply()
     const t = setTimeout(apply, 100)
     return () => clearTimeout(t)
-  }, [])
+  }, [pathname])
   return null
 }

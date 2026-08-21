@@ -97,11 +97,36 @@
   height: auto;
   margin: 1.2rem auto 1.8rem;
 }
+.palha-cta .palha-btn {
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.palha-cta-btn {
+  gap: 0.65rem;
+  color: #fff;
+  border-color: #fff;
+  background: rgba(20, 20, 20, 0.28);
+}
+
+.palha-cta-btn svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
 .palha-socials {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 0.7rem;
+  min-width: 0;
+}
+
+.palha-social-wa {
+  display: inline-flex;
+  color: var(--palha-ink);
 }
 
 .palha-socials svg {
@@ -257,12 +282,42 @@
 }
 
 .palha-footer {
-  padding: 4.5rem 5vw 3.2rem;
+  padding: 5.4rem 5vw 2.8rem;
+  background:
+    linear-gradient(#f7f3ec, #f7f3ec) padding-box,
+    linear-gradient(90deg, transparent, #c9c1b4 18%, #c9c1b4 82%, transparent) border-box;
+  border-top: 1px solid transparent;
+  text-align: center;
 }
 
-.palha-footer-top {
+.palha-footer-mark {
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 0.7rem;
+  margin-bottom: 1.1rem;
+}
+
+.palha-footer-mark span {
+  width: 2.4rem;
+  height: 1px;
+  background: #c9c1b4;
+}
+
+.palha-footer-mark i {
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.palha-footer-script {
+  margin: 0 0 1.35rem;
+  font-family: var(--palha-script);
+  font-size: clamp(2.6rem, 5.4vw, 4.1rem);
+  line-height: 0.78;
+  font-weight: 400;
+  color: #4a463f;
 }
 
 .palha-footer-brand {
@@ -272,42 +327,77 @@
 
 .palha-footer-logo {
   display: block;
-  height: 72px;
+  height: 92px;
   width: auto;
+}
+
+.palha-footer-kicker {
+  margin: 1rem 0 0;
+  font-family: var(--palha-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--palha-muted);
 }
 
 .palha-footer-rule {
   display: flex;
   align-items: center;
-  gap: 1.1rem;
-  margin: 3.2rem 0 1.4rem;
-  font-family: var(--palha-sans);
-  font-size: 0.72rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
+  gap: 0.85rem;
+  margin: 2.4rem auto 1.6rem;
+  max-width: 34rem;
 }
 
 .palha-footer-rule-line {
   flex: 1;
   height: 1px;
-  background: currentColor;
+  background: #c9c1b4;
 }
 
-.palha-footer-always {
-  letter-spacing: 0.28em;
-  white-space: nowrap;
+.palha-footer-diamond {
+  width: 8px;
+  height: 8px;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+  flex: none;
 }
 
 .palha-footer-socials {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1.15rem;
+  gap: 0.75rem;
+}
+
+.palha-footer-socials a {
+  display: grid;
+  place-items: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border: 1px solid #c9c1b4;
+  border-radius: 999px;
+  color: var(--palha-ink);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.palha-footer-socials a:hover {
+  background: var(--palha-ink);
+  border-color: var(--palha-ink);
+  color: #f7f3ec;
 }
 
 .palha-footer-socials svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
+}
+
+.palha-footer-copy {
+  margin: 1.55rem 0 0;
+  font-family: var(--palha-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--palha-muted);
 }
 
 .palha-hero {
@@ -502,13 +592,16 @@
     min-height: 58vh;
   }
 
-  .palha-footer-logo {
-    height: 56px;
+  .palha-footer {
+    padding: 4.2rem 1.3rem 2.4rem;
   }
 
-  .palha-footer-always {
-    letter-spacing: 0.14em;
-    font-size: 0.62rem;
+  .palha-footer-logo {
+    height: 72px;
+  }
+
+  .palha-footer-script {
+    font-size: 2.5rem;
   }
 
   .palha-admin-shell {
@@ -516,8 +609,53 @@
   }
 
   .palha-admin-side {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    position: static;
+    height: auto;
+    gap: 0.85rem 1.2rem;
+    padding: 1rem 1.1rem;
     border-right: 0;
-    border-bottom: 1px solid var(--palha-line);
+    border-bottom: 1px solid #e4ddd2;
+  }
+
+  .palha-admin-side-mid {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem 1.2rem;
+    margin: 0;
+    flex: 1;
+  }
+
+  .palha-admin-side-brand {
+    margin: 0;
+  }
+
+  .palha-admin-side-brand img {
+    height: 52px;
+  }
+
+  .palha-admin-side-brand span {
+    display: none;
+  }
+
+  .palha-admin-side nav {
+    position: static;
+    display: flex;
+    flex: 1;
+    align-self: auto;
+    gap: 0.35rem;
+  }
+
+  .palha-admin-side nav a {
+    padding: 0.45rem 0.7rem;
+  }
+
+  .palha-admin-signout {
+    margin-top: 0;
+    margin-left: auto;
   }
 }
 
@@ -527,28 +665,64 @@
 }
 
 .palha-admin-login {
-  max-width: 28rem;
-  margin: 0 auto;
-  padding: 5.5rem 1.5rem 4rem;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.2rem;
+}
+
+.palha-admin-login-card {
+  width: min(24rem, 100%);
+  padding: 2rem 1.7rem 1.8rem;
+  background: rgba(255, 252, 247, 0.92);
+  border: 1px solid #e4ddd2;
+  box-shadow: 0 18px 50px rgba(50, 44, 36, 0.08);
+  text-align: center;
+}
+
+.palha-admin-login-logo {
+  display: block;
+  height: 58px;
+  width: auto;
+  margin: 0 auto 1rem;
+}
+
+.palha-admin-login-kicker {
+  margin: 0;
+  font-family: var(--palha-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--palha-muted);
+}
+
+.palha-admin-login-card h1 {
+  margin: 0.4rem 0 1.35rem;
+  font-family: var(--palha-display);
+  font-size: clamp(1.55rem, 3vw, 1.9rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 
 .palha-admin-form {
   display: grid;
   gap: 1rem;
+  text-align: left;
 }
 
 .palha-admin-form label {
   display: grid;
   gap: 0.4rem;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  color: var(--palha-muted);
 }
 
 .palha-admin-form input {
   width: 100%;
-  padding: 0.75rem 0.85rem;
-  border: 1px solid var(--palha-line);
+  padding: 0.85rem 0.9rem;
+  border: 1px solid #ddd4c6;
   background: #fff;
   color: var(--palha-ink);
   font-family: var(--palha-sans);
@@ -557,9 +731,26 @@
   text-transform: none;
 }
 
+.palha-admin-form input:focus {
+  outline: none;
+  border-color: var(--palha-ink);
+}
+
+.palha-admin-form input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+}
+
 .palha-admin-form .palha-btn {
-  margin-top: 0.4rem;
+  margin-top: 0.45rem;
+  width: 100%;
+  min-width: 0;
   cursor: pointer;
+}
+
+.palha-admin-form .palha-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .palha-admin-error {
@@ -581,69 +772,110 @@
   text-underline-offset: 0.28em;
 }
 
-.palha-admin-bar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.2rem;
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid rgba(50, 50, 50, 0.1);
-}
-
-.palha-admin-bar .palha-admin-logo {
-  grid-column: 2;
-}
-
-.palha-admin-bar .palha-btn {
-  grid-column: 3;
-  justify-self: end;
-}
-
-.palha-admin-logo {
-  display: block;
-  height: 58px;
-  width: auto;
-}
-
 .palha-admin-shell {
   display: grid;
-  grid-template-columns: 14.5rem minmax(0, 1fr);
+  grid-template-columns: 15.5rem minmax(0, 1fr);
+  align-items: start;
   min-height: 100vh;
 }
 
 .palha-admin-side {
-  padding: 1.5rem 1rem 2rem;
-  background: #ebe3d4;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  padding: 1.8rem 1.15rem 1.4rem;
+  background: #f3eee6;
+  border-right: 1px solid #e4ddd2;
 }
 
-.palha-admin-brand {
-  margin: 0 0.35rem 1.4rem;
-  font-family: var(--palha-display);
-  font-size: 1.15rem;
-  font-weight: 400;
+.palha-admin-side-mid {
+  display: grid;
+  gap: 1.5rem;
+  margin: auto 0;
+}
+
+.palha-admin-side-brand {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  margin: 0;
+  text-align: center;
+}
+
+.palha-admin-side-brand img {
+  display: block;
+  height: 78px;
+  width: auto;
+  max-width: 100%;
+}
+
+.palha-admin-side-brand span {
+  font-family: var(--palha-script);
+  font-size: 1.85rem;
+  line-height: 0.8;
+  color: #6f6a62;
 }
 
 .palha-admin-side nav {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.2rem;
   font-family: var(--palha-sans);
-  font-size: 0.74rem;
-  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .palha-admin-side nav a {
-  padding: 0.7rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.72rem 0.85rem;
+  color: #6f6a62;
+  border-radius: 2px;
+}
+
+.palha-admin-side nav a::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+  opacity: 0.28;
+  flex: none;
+}
+
+.palha-admin-side nav a:hover {
+  color: var(--palha-ink);
 }
 
 .palha-admin-side a[aria-current='page'] {
-  background: #fff;
-  text-decoration: none;
+  background: transparent;
+  color: var(--palha-ink);
+}
+
+.palha-admin-side a[aria-current='page']::before {
+  background: currentColor;
+  opacity: 1;
+}
+
+.palha-admin-signout {
+  margin-top: 0;
+  padding: 0.85rem 0.85rem 0.2rem;
+  font-family: var(--palha-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8a847b;
+}
+
+.palha-admin-signout:hover {
+  color: var(--palha-ink);
 }
 
 .palha-admin-main {
-  padding: 1rem 1.5rem 2.4rem;
+  padding: 1.6rem 1.8rem 2.6rem;
 }
 
 .palha-admin-page {
@@ -882,19 +1114,9 @@
 .palha-gallery-album-cover {
   display: block;
   background: #f4efe6;
-  overflow: hidden;
 }
 
-.palha-album-card-cover {
-  aspect-ratio: 3 / 4;
-}
-
-.palha-album-card-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
+.palha-album-card-cover img,
 .palha-gallery-album-cover img {
   display: block;
   width: 100%;

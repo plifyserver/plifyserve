@@ -49,38 +49,39 @@ export default function PalhaAdminLoginPage() {
 
   return (
     <main className="palha-admin-login">
-      <p className="palha-label">Admin</p>
-      <h1 className="palha-kicker" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)', margin: '0.8rem 0 1.6rem' }}>
-        Entrar
-      </h1>
-      <form className="palha-admin-form" onSubmit={onSubmit}>
-        <label>
-          E-mail
-          <input
-            name="email"
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Senha
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </label>
-        {error ? <p className="palha-admin-error">{error}</p> : null}
-        <button type="submit" className="palha-btn" disabled={loading}>
-          {loading ? 'Aguarde…' : 'Entrar'}
-        </button>
-      </form>
+      <div className="palha-admin-login-card">
+        <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-admin-login-logo" />
+        <p className="palha-admin-login-kicker">Área restrita</p>
+        <h1>Entrar no ateliê</h1>
+        <form className="palha-admin-form" onSubmit={onSubmit}>
+          <label>
+            E-mail
+            <input
+              name="email"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Senha
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
+          {error ? <p className="palha-admin-error">{error}</p> : null}
+          <button type="submit" className="palha-btn is-solid" disabled={loading}>
+            {loading ? 'Aguarde…' : 'Entrar'}
+          </button>
+        </form>
+      </div>
     </main>
   )
 }

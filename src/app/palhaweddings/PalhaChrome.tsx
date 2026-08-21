@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PalhaReveal } from './PalhaReveal'
-import { whatsappHref, type PalhaSiteSettings } from '@/lib/palha/site-settings-shared'
+import { palhaInstagramHref, whatsappHref, type PalhaSiteSettings } from '@/lib/palha/site-settings-shared'
 
 const PRIMARY = [
   { href: '/', label: 'Inicio' },
@@ -64,42 +64,62 @@ function InstagramIcon() {
   )
 }
 
-function FacebookIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-      <path d="M14.5 8H17V5h-2.5C12 5 11 6.7 11 9v2H8v3h3v8h3v-8h2.7l.3-3H14V9.2c0-.6.4-1.2 1.2-1.2H14.5Z" />
-    </svg>
-  )
-}
-
 function WhatsAppIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-      <path d="M12.04 3C7.35 3 3.54 6.74 3.54 11.35c0 1.85.54 3.58 1.47 5.03L3 21l4.78-1.94c1.37.74 2.94 1.16 4.26 1.16 4.69 0 8.5-3.74 8.5-8.35S16.73 3 12.04 3Zm0 15.28c-1.13 0-2.48-.37-3.55-.99l-.25-.14-2.84 1.15.98-2.7-.16-.27a6.7 6.7 0 0 1-1.12-3.73c0-3.7 3.08-6.71 6.94-6.71 3.86 0 6.94 3.01 6.94 6.71 0 3.7-3.08 6.68-6.94 6.68Zm3.8-4.96c-.21-.1-1.23-.6-1.42-.67-.19-.07-.33-.1-.47.1-.14.21-.54.67-.66.81-.12.14-.24.15-.45.05-.21-.1-.88-.32-1.67-.99-.62-.54-1.03-1.2-1.15-1.41-.12-.21-.01-.32.09-.42.09-.09.21-.24.31-.35.1-.12.14-.21.21-.35.07-.14.03-.26-.02-.36-.05-.1-.47-1.12-.64-1.53-.17-.41-.34-.35-.47-.35h-.4c-.14 0-.36.05-.55.26-.19.21-.72.7-.72 1.7s.74 1.97.84 2.11c.1.14 1.45 2.32 3.58 3.16.5.21.89.33 1.2.42.5.16.96.14 1.32.08.4-.06 1.23-.5 1.4-.98.17-.48.17-.89.12-.98-.05-.08-.19-.14-.4-.24Z" />
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+      <path d="M12.04 2.8A9.2 9.2 0 0 0 2.9 11.9c0 1.62.43 3.2 1.24 4.6L2 22l5.66-1.48a9.2 9.2 0 0 0 4.38 1.12h.01A9.2 9.2 0 0 0 21.2 12 9.2 9.2 0 0 0 12.04 2.8Zm0 16.84h-.01a7.64 7.64 0 0 1-3.89-1.06l-.28-.17-3.36.88.9-3.27-.18-.3a7.64 7.64 0 0 1-1.17-4.07 7.66 7.66 0 0 1 7.64-7.65 7.66 7.66 0 0 1 7.65 7.64 7.66 7.66 0 0 1-7.3 7.99Zm4.2-5.72c-.23-.12-1.36-.67-1.57-.75-.21-.08-.36-.12-.52.12-.15.23-.6.75-.73.9-.13.15-.27.17-.5.06-.23-.12-.97-.36-1.85-1.14-.68-.61-1.14-1.36-1.28-1.59-.13-.23-.01-.36.1-.47.1-.1.23-.27.34-.4.12-.13.15-.23.23-.38.08-.15.04-.29-.02-.4-.06-.12-.52-1.25-.71-1.71-.19-.45-.38-.39-.52-.4h-.44c-.15 0-.4.06-.61.29-.21.23-.8.78-.8 1.9s.82 2.2.93 2.36c.12.15 1.61 2.46 3.9 3.45.55.24.97.38 1.3.48.55.18 1.05.15 1.44.09.44-.07 1.36-.55 1.55-1.09.19-.53.19-.99.13-1.08-.05-.1-.21-.15-.44-.27Z" />
     </svg>
   )
 }
 
 function SocialLinks({ settings }: { settings: PalhaSiteSettings }) {
   const wa = whatsappHref(settings.whatsapp)
+  const instagram = palhaInstagramHref(settings.instagramUrl)
   return (
     <>
-      {settings.instagramUrl ? (
-        <a href={settings.instagramUrl} target="_blank" rel="noreferrer" aria-label="Instagram">
-          <InstagramIcon />
-        </a>
-      ) : null}
-      {settings.facebookUrl ? (
-        <a href={settings.facebookUrl} target="_blank" rel="noreferrer" aria-label="Facebook">
-          <FacebookIcon />
-        </a>
-      ) : null}
       {wa ? (
-        <a href={wa} target="_blank" rel="noreferrer" aria-label="WhatsApp">
+        <a href={wa} target="_blank" rel="noreferrer" className="palha-social-wa" aria-label="WhatsApp">
           <WhatsAppIcon />
         </a>
       ) : null}
+      {instagram ? (
+        <a href={instagram} target="_blank" rel="noreferrer" aria-label="Instagram">
+          <InstagramIcon />
+        </a>
+      ) : null}
     </>
+  )
+}
+
+function PalhaFooter({ prefix, settings }: { prefix: string; settings: PalhaSiteSettings }) {
+  return (
+    <footer className="palha-footer">
+      <PalhaReveal>
+        <div className="palha-footer-mark" aria-hidden="true">
+          <span />
+          <i />
+          <span />
+        </div>
+        <p className="palha-footer-script">always, forever</p>
+        <Link href={palhaHref(prefix, '/')} className="palha-footer-brand" aria-label="Palha Weddings">
+          <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-footer-logo" />
+        </Link>
+        <p className="palha-footer-kicker">Wedding films &amp; photographs</p>
+      </PalhaReveal>
+      <PalhaReveal delay={140}>
+        <div className="palha-footer-rule">
+          <span className="palha-footer-rule-line" />
+          <span className="palha-footer-diamond" aria-hidden="true" />
+          <span className="palha-footer-rule-line" />
+        </div>
+      </PalhaReveal>
+      <PalhaReveal delay={240}>
+        <div className="palha-footer-socials" aria-label="Redes">
+          <SocialLinks settings={settings} />
+        </div>
+        <p className="palha-footer-copy">© {new Date().getFullYear()} Palha Weddings</p>
+      </PalhaReveal>
+    </footer>
   )
 }
 
@@ -131,7 +151,12 @@ export function PalhaChrome({
   }
 
   if (isPalhaAlbumPublic(pathname)) {
-    return <div className="palha-root palha-present-root">{children}</div>
+    return (
+      <div className="palha-root palha-present-root">
+        {children}
+        <PalhaFooter prefix={prefix} settings={settings} />
+      </div>
+    )
   }
 
   return (
@@ -151,29 +176,7 @@ export function PalhaChrome({
         </div>
       </header>
       {children}
-      <footer className="palha-footer">
-        <PalhaReveal>
-          <div className="palha-footer-top">
-            <Link href={palhaHref(prefix, '/')} className="palha-footer-brand" aria-label="Palha Weddings">
-              <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-footer-logo" />
-            </Link>
-          </div>
-        </PalhaReveal>
-        <PalhaReveal delay={160}>
-          <div className="palha-footer-rule">
-            <span>01</span>
-            <span className="palha-footer-rule-line" />
-            <span className="palha-footer-always">Always, Forever</span>
-            <span className="palha-footer-rule-line" />
-            <span>04</span>
-          </div>
-        </PalhaReveal>
-        <PalhaReveal delay={280}>
-          <div className="palha-footer-socials" aria-label="Redes">
-            <SocialLinks settings={settings} />
-          </div>
-        </PalhaReveal>
-      </footer>
+      <PalhaFooter prefix={prefix} settings={settings} />
     </div>
   )
 }

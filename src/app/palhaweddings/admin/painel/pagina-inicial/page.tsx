@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import {
   DEFAULT_PALHA_SITE_SETTINGS,
   PALHA_PAGE_BLOCKS,
+  palhaInstagramHref,
   whatsappHref,
   type PalhaCopyBlock,
   type PalhaPhotoSlot,
@@ -19,7 +20,7 @@ export default function PalhaPaginaInicialAdmin() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/palha/site')
+    fetch('/api/palha/site', { cache: 'no-store' })
       .then((r) => r.json())
       .then((data: PalhaSiteSettings) => setSettings(data))
       .catch(() => setError('Não foi possível carregar as configurações.'))
@@ -43,7 +44,11 @@ export default function PalhaPaginaInicialAdmin() {
       const res = await fetch('/api/palha/site', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        cache: 'no-store',
+        body: JSON.stringify({
+          ...settings,
+          instagramUrl: palhaInstagramHref(settings.instagramUrl),
+        }),
       })
       const data = (await res.json()) as PalhaSiteSettings & { error?: string }
       if (!res.ok) {
@@ -78,7 +83,6 @@ export default function PalhaPaginaInicialAdmin() {
         ...data.settings!,
         copy: current.copy,
         instagramUrl: current.instagramUrl,
-        facebookUrl: current.facebookUrl,
         whatsapp: current.whatsapp,
         photos: data.settings!.photos,
       }))
@@ -112,19 +116,10 @@ export default function PalhaPaginaInicialAdmin() {
         <label>
           Instagram
           <input
-            type="url"
-            placeholder="https://instagram.com/seu-perfil"
+            type="text"
+            placeholder="@seu-perfil ou https://instagram.com/seu-perfil"
             value={settings.instagramUrl}
             onChange={(e) => setSettings((s) => ({ ...s, instagramUrl: e.target.value }))}
-          />
-        </label>
-        <label>
-          Facebook
-          <input
-            type="url"
-            placeholder="https://facebook.com/sua-pagina"
-            value={settings.facebookUrl}
-            onChange={(e) => setSettings((s) => ({ ...s, facebookUrl: e.target.value }))}
           />
         </label>
         <label>

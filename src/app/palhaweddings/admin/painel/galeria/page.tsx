@@ -25,6 +25,9 @@ export default function PalhaGaleriaAdmin() {
   const [eventDate, setEventDate] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
+  const [adminPassword, setAdminPassword] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -105,20 +108,39 @@ export default function PalhaGaleriaAdmin() {
     }
   }
 
-  async function removeAlbum(id: string) {
-    if (!window.confirm('Excluir esta coleção? As fotos não serão apagadas do armazenamento, mas saem do site.')) return
+  async function removeAlbum() {
+    if (!pendingDelete) return
+    if (!adminPassword.trim()) {
+      setError('Digite a senha do admin para excluir.')
+      return
+    }
+    setDeleting(true)
     setError('')
     try {
+      const confirmRes = await fetch('/api/palha/auth/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        credentials: 'include',
+        body: JSON.stringify({ password: adminPassword }),
+      })
+      const confirmData = (await confirmRes.json()) as { error?: string }
+      if (!confirmRes.ok) throw new Error(confirmData.error || 'Senha incorreta.')
+
       await persist({
         ...settings,
         gallery: {
           ...settings.gallery,
-          albums: settings.gallery.albums.filter((album) => album.id !== id),
+          albums: settings.gallery.albums.filter((album) => album.id !== pendingDelete.id),
         },
       })
+      setPendingDelete(null)
+      setAdminPassword('')
       setMessage('Coleção removida.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível remover.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -170,7 +192,15 @@ export default function PalhaGaleriaAdmin() {
                   {albumMediaCount(album)} arquivo{albumMediaCount(album) === 1 ? '' : 's'}
                   {album.passwordProtected ? ' · com senha' : ''}
                 </p>
-                <button type="button" className="palha-admin-mini" onClick={() => void removeAlbum(album.id)}>
+                <button
+                  type="button"
+                  className="palha-admin-mini"
+                  onClick={() => {
+                    setError('')
+                    setAdminPassword('')
+                    setPendingDelete({ id: album.id, name: album.name })
+                  }}
+                >
                   Excluir
                 </button>
               </div>
@@ -181,7 +211,44 @@ export default function PalhaGaleriaAdmin() {
         <p className="palha-copy">Nenhuma coleção ainda. Crie a primeira com o nome do álbum e a data do evento.</p>
       )}
 
-      {error ? <p className="palha-admin-error">{error}</p> : null}
+      {pendingDelete ? (
+        <div className="palha-modal-backdrop" onClick={() => !deleting && setPendingDelete(null)}>
+          <form
+            className="palha-modal palha-admin-form"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => {
+              e.preventDefault()
+              void removeAlbum()
+            }}
+          >
+            <h2 className="palha-label">Excluir coleção</h2>
+            <p className="palha-copy" style={{ margin: '0 0 0.4rem' }}>
+              Para excluir <strong>{pendingDelete.name || 'este álbum'}</strong>, digite a senha do admin.
+            </p>
+            <label>
+              Senha do admin
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                autoComplete="current-password"
+                autoFocus
+              />
+            </label>
+            {error ? <p className="palha-admin-error">{error}</p> : null}
+            <div className="palha-modal-actions">
+              <button type="button" className="palha-btn" onClick={() => setPendingDelete(null)} disabled={deleting}>
+                Cancelar
+              </button>
+              <button type="submit" className="palha-btn is-solid" disabled={deleting}>
+                {deleting ? 'Excluindo…' : 'Excluir álbum'}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {!pendingDelete && error ? <p className="palha-admin-error">{error}</p> : null}
       {message ? <p className="palha-copy">{message}</p> : null}
 
       {open ? (
