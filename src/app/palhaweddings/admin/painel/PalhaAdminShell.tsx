@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 const MENU = [
   { href: '/painel/pagina-inicial', label: 'Página inicial' },
   { href: '/painel/galeria', label: 'Galeria' },
+  { href: '/painel/controle-de-dados', label: 'Controle de dados' },
 ]
 
 export function PalhaAdminShell({ children }: { children: React.ReactNode }) {

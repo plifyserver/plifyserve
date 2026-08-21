@@ -10,6 +10,7 @@ import {
   type PalhaSiteSettings,
 } from '@/lib/palha/site-settings-shared'
 import { hashPalhaAlbumPassword } from '@/lib/palha/album-password'
+import { encryptPalhaAlbumPassword } from '@/lib/palha/album-secret'
 import { createPalhaR2SignedUpload, purgeRemovedPalhaR2Media, uploadPalhaR2Object } from '@/lib/palha/r2'
 
 export {
@@ -105,13 +106,14 @@ export async function setPalhaAlbumPassword(albumId: string, password: string) {
     if (!album) throw new Error('Álbum não encontrado')
     const trimmed = password.trim()
     const passwordHash = trimmed ? await hashPalhaAlbumPassword(trimmed) : ''
+    const accessSecret = trimmed ? encryptPalhaAlbumPassword(trimmed) : ''
     const next: PalhaSiteSettings = {
       ...current,
       gallery: {
         ...current.gallery,
         albums: current.gallery.albums.map((item) =>
           item.id === albumId
-            ? { ...item, passwordHash, passwordProtected: Boolean(passwordHash) }
+            ? { ...item, passwordHash, accessSecret, passwordProtected: Boolean(passwordHash) }
             : item,
         ),
       },

@@ -268,7 +268,7 @@ export default function PalhaAlbumStudioPage() {
   }
 
   return (
-    <main className="palha-admin-page palha-album-page">
+    <main className={`palha-admin-page palha-album-page${tab === 'apresentacao' ? ' is-apresentacao' : ''}`}>
       <div className="palha-album-top">
         <Link href={`${prefix}/painel/galeria`} className="palha-admin-back">
           Coleções
@@ -356,7 +356,7 @@ export default function PalhaAlbumStudioPage() {
       </nav>
 
       {tab === 'apresentacao' && album ? (
-        <div>
+        <div className="palha-theme-stage">
           {error || message || saving ? (
             <p className={`palha-album-status${error ? ' is-error' : ''}`}>
               {error || (saving ? 'Salvando…' : message)}

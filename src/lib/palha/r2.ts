@@ -176,25 +176,39 @@ async function deletePalhaR2Key(key: string) {
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
 }
 
-async function listPalhaR2Keys(prefix: string) {
+export type PalhaR2ObjectUsage = {
+  key: string
+  size: number
+}
+
+export async function listPalhaR2Usage(prefix = '') {
+  await ensurePalhaR2Bucket()
   const s3 = palhaR2Client()
   const { bucket } = getPalhaR2Config()
-  const keys: string[] = []
+  const objects: PalhaR2ObjectUsage[] = []
   let token: string | undefined
   do {
     const listed = await s3.send(
       new ListObjectsV2Command({
         Bucket: bucket,
-        Prefix: prefix,
+        Prefix: prefix || undefined,
         ContinuationToken: token,
       }),
     )
     for (const object of listed.Contents || []) {
-      if (object.Key) keys.push(object.Key)
+      if (object.Key) objects.push({ key: object.Key, size: Number(object.Size || 0) })
     }
     token = listed.IsTruncated ? listed.NextContinuationToken : undefined
   } while (token)
-  return keys
+  return objects
+}
+
+async function listPalhaR2Keys(prefix: string) {
+  return (await listPalhaR2Usage(prefix)).map((object) => object.key)
+}
+
+export function palhaR2KeyFromUrl(url: string) {
+  return palhaR2KeyFromPublicUrl(url)
 }
 
 export async function purgeRemovedPalhaR2Media(_previous: PalhaSiteSettings, next: PalhaSiteSettings) {

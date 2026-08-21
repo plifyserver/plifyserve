@@ -97,7 +97,9 @@ export type PalhaAlbum = {
   theme: PalhaAlbumTheme
   subalbums: PalhaSubAlbum[]
   passwordProtected: boolean
+  createdAt?: string
   passwordHash?: string
+  accessSecret?: string
 }
 
 export type PalhaGallery = {
@@ -126,6 +128,7 @@ export function createPalhaAlbum(name: string, eventDate: string): PalhaAlbum {
     coverUrl: '',
     theme: { ...DEFAULT_PALHA_ALBUM_THEME },
     passwordProtected: false,
+    createdAt: new Date().toISOString(),
     subalbums: [{ id: newPalhaId('sub'), name: 'Destaques', items: [] }],
   }
 }
@@ -135,7 +138,7 @@ export function albumHasPassword(album: PalhaAlbum) {
 }
 
 export function stripAlbumSecrets(album: PalhaAlbum): PalhaAlbum {
-  const { passwordHash: _passwordHash, ...rest } = album
+  const { passwordHash: _passwordHash, accessSecret: _accessSecret, ...rest } = album
   return {
     ...rest,
     passwordProtected: albumHasPassword(album),
@@ -176,12 +179,24 @@ export function publicizeSiteSettings(
 }
 
 export function preserveAlbumPasswordHashes(incoming: PalhaAlbum[], current: PalhaAlbum[]): PalhaAlbum[] {
-  const hashes = new Map(current.map((album) => [album.id, album.passwordHash || '']))
+  const previous = new Map(
+    current.map((album) => [
+      album.id,
+      {
+        passwordHash: album.passwordHash || '',
+        accessSecret: album.accessSecret || '',
+        createdAt: album.createdAt || '',
+      },
+    ]),
+  )
   return incoming.map((album) => {
-    const passwordHash = album.passwordHash || hashes.get(album.id) || ''
+    const saved = previous.get(album.id)
+    const passwordHash = album.passwordHash || saved?.passwordHash || ''
     return {
       ...album,
       passwordHash,
+      accessSecret: album.accessSecret || saved?.accessSecret || '',
+      createdAt: album.createdAt || saved?.createdAt || '',
       passwordProtected: Boolean(passwordHash),
     }
   })
@@ -333,8 +348,10 @@ function mergeAlbum(raw: unknown, index: number): PalhaAlbum | null {
     name: String(data.name || 'Álbum'),
     eventDate: String(data.eventDate || ''),
     coverUrl: String(data.coverUrl || ''),
+    createdAt: String(data.createdAt || ''),
     theme: mergePalhaAlbumTheme(data.theme),
     passwordHash,
+    accessSecret: String(data.accessSecret || ''),
     passwordProtected: Boolean(passwordHash),
     subalbums: subalbums.length ? subalbums : [{ id: `destaques-${index}`, name: 'Destaques', items: [] }],
   }
@@ -363,6 +380,7 @@ function mergeGallery(raw: unknown, fallback: PalhaGallery): PalhaGallery {
               name: 'Destaques',
               eventDate: '',
               coverUrl: legacyItems[0]?.url || '',
+              createdAt: '',
               theme: { ...DEFAULT_PALHA_ALBUM_THEME },
               passwordProtected: false,
               subalbums: [{ id: 'destaques', name: 'Destaques', items: legacyItems }],
