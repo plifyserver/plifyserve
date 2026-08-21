@@ -23,21 +23,27 @@ async function downloadMedia(item: PalhaMediaItem, index: number) {
   const name = fileNameFromUrl(item.url, fallback)
   const endpoint = downloadHref(item, index)
 
+  const metaRes = await fetch(endpoint, { credentials: 'include', cache: 'no-store' })
+  const meta = (await metaRes.json()) as {
+    url?: string
+    filename?: string
+    contentType?: string
+    error?: string
+  }
+  if (!metaRes.ok || !meta.url) throw new Error(meta.error || 'download')
+
+  const filename = meta.filename || name
   try {
-    const res = await fetch(endpoint, { credentials: 'include' })
-    if (!res.ok) throw new Error('download')
-    const blob = await res.blob()
-    const type =
-      blob.type && blob.type !== 'application/octet-stream'
-        ? blob.type
-        : item.kind === 'video'
-          ? 'video/mp4'
-          : 'image/jpeg'
-    const file = new File([blob], name, { type })
+    const fileRes = await fetch(meta.url, { cache: 'no-store' })
+    if (!fileRes.ok) throw new Error('download')
+    const buffer = await fileRes.arrayBuffer()
+    const type = meta.contentType || fileRes.headers.get('content-type') || 'application/octet-stream'
+    const blob = new Blob([buffer], { type })
+    const file = new File([buffer], filename, { type })
 
     if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
       try {
-        await navigator.share({ files: [file], title: name })
+        await navigator.share({ files: [file], title: filename })
         return
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return
@@ -47,20 +53,14 @@ async function downloadMedia(item: PalhaMediaItem, index: number) {
     const href = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = href
-    link.download = name
+    link.download = filename
     link.rel = 'noopener'
     document.body.appendChild(link)
     link.click()
     link.remove()
-    window.setTimeout(() => URL.revokeObjectURL(href), 2500)
+    window.setTimeout(() => URL.revokeObjectURL(href), 4000)
   } catch {
-    const link = document.createElement('a')
-    link.href = endpoint
-    link.download = name
-    link.rel = 'noopener'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
+    window.location.assign(meta.url)
   }
 }
 
@@ -100,6 +100,8 @@ export function PalhaAlbumPresentation({
     setSavingId(item.id)
     try {
       await downloadMedia(item, index)
+    } catch {
+      // O fallback do download já tenta o arquivo original.
     } finally {
       setSavingId('')
     }

@@ -242,6 +242,37 @@ const emptyCopy = (): PalhaCopyBlock => ({
   button: '',
 })
 
+const LEGACY_ENGLISH_COPY: PalhaSiteSettings['copy'] = {
+  hero: {
+    label: "Hello, I'm PALHA.",
+    title: 'A storyteller *for* the wildly in love',
+    subtitle: 'the woman behind the lens...',
+    text: "I believe that your love story is a work of art, and I am endlessly inspired by the honor of preserving it. For as long as I can remember, I have been drawn to the quiet, graceful moments—the kinds that often go unnoticed but hold the most meaning. It's the gentle squeeze of a hand, a tear brushed away during the vows, the shared glance across a candlelit room. This is where the magic lives, and this is what I seek to capture.\n\nMy journey into photography was born from a love of classic novels and art history, where every detail has a purpose and every frame tells a story. I bring that same intentionality to your wedding day, creating images that are not only beautiful today but will become more precious with every passing year.",
+    button: '',
+  },
+  promise: {
+    label: 'My artistic promise',
+    title: 'Timeless imagery *for* the modern romantic',
+    subtitle: '',
+    text: 'My style is a delicate blend of fine art and photojournalism. For your portraits, I offer gentle guidance to help you feel comfortable and look your most beautiful, creating elegant, artfully composed images. For the rest of your day, I take a documentary approach, capturing authentic moments as they unfold naturally. The result is a gallery filled with light, emotion, and an effortless sophistication that will stand the test of time.',
+    button: '',
+  },
+  beyond: {
+    label: 'Beyond the lens',
+    title: "When I'm not behind camera",
+    subtitle: 'a few of my favorite things...',
+    text: "My weekly visit to the farmer's market for fresh flowers.\nPlanning my next trip to the English countryside or the coast of Italy.\nCurling up with my golden retriever, Leo, and a classic film.\nStarting the day slowly with a cup of tea and my journal.\nWandering through a new city with no destination in mind.\nThe scent of peonies and old books.",
+    button: '',
+  },
+  cta: {
+    label: '',
+    title: 'Lets start your chapter',
+    subtitle: 'make magic happen.',
+    text: '',
+    button: 'Reserve minha data',
+  },
+}
+
 export const DEFAULT_PALHA_SITE_SETTINGS: PalhaSiteSettings = {
   instagramUrl: '',
   facebookUrl: '',
@@ -255,36 +286,36 @@ export const DEFAULT_PALHA_SITE_SETTINGS: PalhaSiteSettings = {
   },
   copy: {
     hero: {
-      label: "Hello, I'm PALHA.",
-      title: 'A storyteller *for* the wildly in love',
-      subtitle: 'the woman behind the lens...',
-      text: "I believe that your love story is a work of art, and I am endlessly inspired by the honor of preserving it. For as long as I can remember, I have been drawn to the quiet, graceful moments—the kinds that often go unnoticed but hold the most meaning. It's the gentle squeeze of a hand, a tear brushed away during the vows, the shared glance across a candlelit room. This is where the magic lives, and this is what I seek to capture.\n\nMy journey into photography was born from a love of classic novels and art history, where every detail has a purpose and every frame tells a story. I bring that same intentionality to your wedding day, creating images that are not only beautiful today but will become more precious with every passing year.",
+      label: 'Olá, eu sou a Palha.',
+      title: 'Uma narradora *para* os loucamente apaixonados',
+      subtitle: 'a mulher por trás da lente...',
+      text: 'Eu acredito que a história de vocês é uma obra de arte — e é uma honra poder preservá-la. Desde sempre fui atraída pelos momentos quietos, aqueles que passam quase despercebidos e ainda assim guardam o sentido inteiro. O aperto de mão antes do altar, a lágrima enxugada no voto, o olhar que se encontra no meio da festa. É ali que mora a magia. É isso que eu busco fotografar.\n\nMinha fotografia nasceu do amor por livros clássicos e pela história da arte, onde cada detalhe tem um propósito e cada quadro conta uma história. Levo essa mesma intenção para o dia do casamento: imagens belas hoje, e ainda mais preciosas com o passar dos anos.',
       button: '',
     },
     promise: {
-      label: 'My artistic promise',
-      title: 'Timeless imagery *for* the modern romantic',
+      label: 'Minha promessa artística',
+      title: 'Imagens atemporais *para* o romântico de agora',
       subtitle: '',
-      text: 'My style is a delicate blend of fine art and photojournalism. For your portraits, I offer gentle guidance to help you feel comfortable and look your most beautiful, creating elegant, artfully composed images. For the rest of your day, I take a documentary approach, capturing authentic moments as they unfold naturally. The result is a gallery filled with light, emotion, and an effortless sophistication that will stand the test of time.',
+      text: 'Meu olhar mistura arte e documental. Nos retratos, eu conduzo com calma para que vocês se sintam à vontade e apareçam no seu melhor — imagens elegantes, compostas com cuidado. No restante do dia, acompanho o que acontece de verdade, sem forçar a cena. O resultado é uma galeria cheia de luz, emoção e uma sofisticação leve, que continua bonita daqui a muitos anos.',
       button: '',
     },
     beyond: {
-      label: 'Beyond the lens',
-      title: "When I'm not behind camera",
-      subtitle: 'a few of my favorite things...',
-      text: "My weekly visit to the farmer's market for fresh flowers.\nPlanning my next trip to the English countryside or the coast of Italy.\nCurling up with my golden retriever, Leo, and a classic film.\nStarting the day slowly with a cup of tea and my journal.\nWandering through a new city with no destination in mind.\nThe scent of peonies and old books.",
+      label: 'Além da lente',
+      title: 'Quando não estou atrás da câmera',
+      subtitle: 'algumas coisas que eu amo...',
+      text: 'A visita à feira para escolher flores frescas.\nPlanejar a próxima viagem — uma estrada no interior ou a beira de algum mar.\nUm filme antigo no sofá, sem pressa.\nComeçar o dia devagar, com chá e um caderno aberto.\nCaminhar por uma cidade nova sem destino certo.\nO cheiro de peônia e de livro antigo.',
       button: '',
     },
     cta: {
       label: '',
-      title: 'Lets start your chapter',
-      subtitle: 'make magic happen.',
+      title: 'Vamos começar o seu capítulo',
+      subtitle: 'é hora de fazer magia.',
       text: '',
       button: 'Reserve minha data',
     },
   },
   gallery: {
-    title: 'Galeria',
+    title: 'Álbuns',
     subtitle: 'Momentos que merecem ser revistos.',
     albums: [],
   },
@@ -303,13 +334,18 @@ export function whatsappHref(raw: string, message = '') {
   return text ? `${href}?text=${encodeURIComponent(text)}` : href
 }
 
-function mergeCopy(raw: unknown, fallback: PalhaCopyBlock): PalhaCopyBlock {
+function mergeCopy(raw: unknown, fallback: PalhaCopyBlock, legacy?: PalhaCopyBlock): PalhaCopyBlock {
   const data = (raw && typeof raw === 'object' ? raw : {}) as Partial<PalhaCopyBlock>
-  return {
+  const merged: PalhaCopyBlock = {
     ...emptyCopy(),
     ...fallback,
     ...data,
   }
+  if (!legacy) return merged
+  ;(Object.keys(merged) as (keyof PalhaCopyBlock)[]).forEach((key) => {
+    if (String(data[key] ?? '') === legacy[key]) merged[key] = fallback[key]
+  })
+  return merged
 }
 
 function mergeMedia(raw: unknown, index: number): PalhaMediaItem | null {
@@ -423,10 +459,10 @@ export function mergePalhaSiteSettings(raw: unknown): PalhaSiteSettings {
       ...(data.photos ?? {}),
     },
     copy: {
-      hero: mergeCopy(data.copy?.hero, DEFAULT_PALHA_SITE_SETTINGS.copy.hero),
-      promise: mergeCopy(data.copy?.promise, DEFAULT_PALHA_SITE_SETTINGS.copy.promise),
-      beyond: mergeCopy(data.copy?.beyond, DEFAULT_PALHA_SITE_SETTINGS.copy.beyond),
-      cta: mergeCopy(data.copy?.cta, DEFAULT_PALHA_SITE_SETTINGS.copy.cta),
+      hero: mergeCopy(data.copy?.hero, DEFAULT_PALHA_SITE_SETTINGS.copy.hero, LEGACY_ENGLISH_COPY.hero),
+      promise: mergeCopy(data.copy?.promise, DEFAULT_PALHA_SITE_SETTINGS.copy.promise, LEGACY_ENGLISH_COPY.promise),
+      beyond: mergeCopy(data.copy?.beyond, DEFAULT_PALHA_SITE_SETTINGS.copy.beyond, LEGACY_ENGLISH_COPY.beyond),
+      cta: mergeCopy(data.copy?.cta, DEFAULT_PALHA_SITE_SETTINGS.copy.cta, LEGACY_ENGLISH_COPY.cta),
     },
     gallery: mergeGallery(data.gallery, DEFAULT_PALHA_SITE_SETTINGS.gallery),
   }

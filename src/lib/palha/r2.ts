@@ -3,6 +3,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutBucketCorsCommand,
   PutObjectCommand,
@@ -216,6 +217,36 @@ export async function getPalhaR2Object(key: string) {
   const s3 = palhaR2Client()
   const { bucket } = getPalhaR2Config()
   return s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
+}
+
+function downloadFileName(name: string, fallback: string) {
+  const cleaned = name.replace(/["\r\n\\]/g, '').trim() || fallback
+  return cleaned.slice(0, 160)
+}
+
+export async function createPalhaR2OriginalDownload(key: string, filename: string) {
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+  const name = downloadFileName(filename || key.split('/').pop() || '', 'arquivo')
+  const ascii = name.replace(/[^\w.\- ]+/g, '_') || 'arquivo'
+  const contentType = head.ContentType || 'application/octet-stream'
+  const url = await getSignedUrl(
+    s3,
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ResponseContentDisposition: `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+      ResponseContentType: contentType,
+    }),
+    { expiresIn: 300 },
+  )
+  return {
+    url,
+    filename: name,
+    contentType,
+    bytes: Number(head.ContentLength || 0),
+  }
 }
 
 export async function purgeRemovedPalhaR2Media(_previous: PalhaSiteSettings, next: PalhaSiteSettings) {
