@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
+import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import {
   DEFAULT_PALHA_SITE_SETTINGS,
   newPalhaId,
@@ -16,7 +17,29 @@ import {
 } from '@/lib/palha/site-settings-shared'
 import { uploadPalhaMediaFile } from '@/lib/palha/upload-client'
 import { PalhaThemeEditor } from './PalhaThemeEditor'
-import type { PalhaAlbumTheme } from '@/lib/palha/album-theme'
+import { type PalhaAlbumTheme, type PalhaMediaFrame } from '@/lib/palha/album-theme'
+
+async function readMediaSize(file: File) {
+  return new Promise<{ width?: number; height?: number }>((resolve) => {
+    const href = URL.createObjectURL(file)
+    const done = (width?: number, height?: number) => {
+      URL.revokeObjectURL(href)
+      resolve(width && height ? { width, height } : {})
+    }
+    if (file.type.startsWith('video/')) {
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+      video.onloadedmetadata = () => done(video.videoWidth, video.videoHeight)
+      video.onerror = () => done()
+      video.src = href
+      return
+    }
+    const image = new Image()
+    image.onload = () => done(image.naturalWidth, image.naturalHeight)
+    image.onerror = () => done()
+    image.src = href
+  })
+}
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/heic,video/mp4,video/webm,video/quicktime'
 
@@ -150,11 +173,15 @@ export default function PalhaAlbumStudioPage() {
         setUploading(`Enviando ${index + 1}/${list.length}…`)
         const file = list[index]
         const uploaded = await uploadPalhaMediaFile(file, `gallery/${album.id}/${selected.id}`)
+        const size = await readMediaSize(file)
         added.push({
           id: newPalhaId('media'),
           url: uploaded.url,
           kind: uploaded.kind,
           caption: '',
+          frame: 'auto',
+          width: size.width,
+          height: size.height,
         })
       }
       const nextAlbum: PalhaAlbum = {
@@ -201,6 +228,45 @@ export default function PalhaAlbumStudioPage() {
     const subalbums = album.subalbums.filter((sub) => sub.id !== id)
     await patchAlbum({ ...album, subalbums })
     if (selectedId === id) setSelectedId(subalbums[0].id)
+  }
+
+  function patchSelectedItems(items: PalhaMediaItem[], okMessage = 'Álbum atualizado.') {
+    if (!album || !selected) return
+    const nextAlbum = {
+      ...album,
+      subalbums: album.subalbums.map((sub) => (sub.id === selected.id ? { ...sub, items } : sub)),
+    }
+    const gallery = updateAlbum(settingsRef.current.gallery, albumId, nextAlbum)
+    settingsRef.current = { ...settingsRef.current, gallery }
+    setSettings(settingsRef.current)
+    schedulePersist(okMessage)
+  }
+
+  function onMediaDragEnd(result: DropResult) {
+    if (!selected || !result.destination) return
+    const from = result.source.index
+    const to = result.destination.index
+    if (from === to) return
+    const items = selected.items.slice()
+    const [moved] = items.splice(from, 1)
+    items.splice(to, 0, moved)
+    patchSelectedItems(items, 'Ordem salva.')
+  }
+
+  function setItemFrame(id: string, frame: PalhaMediaFrame) {
+    const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
+    if (!currentAlbum) return
+    const nextAlbum = {
+      ...currentAlbum,
+      subalbums: currentAlbum.subalbums.map((sub) => ({
+        ...sub,
+        items: sub.items.map((item) => (item.id === id ? { ...item, frame } : item)),
+      })),
+    }
+    const gallery = updateAlbum(settingsRef.current.gallery, albumId, nextAlbum)
+    settingsRef.current = { ...settingsRef.current, gallery }
+    setSettings(settingsRef.current)
+    schedulePersist('Enquadramento salvo.')
   }
 
   async function removeMedia(id: string) {
@@ -378,7 +444,7 @@ export default function PalhaAlbumStudioPage() {
               {error || (saving ? 'Salvando…' : message)}
             </p>
           ) : null}
-          <PalhaThemeEditor album={album} onChange={saveTheme} />
+          <PalhaThemeEditor album={album} onChange={saveTheme} onFrameChange={setItemFrame} />
         </div>
       ) : null}
 
@@ -460,31 +526,53 @@ export default function PalhaAlbumStudioPage() {
           <div
             className={`palha-album-drop${dragging ? ' is-over' : ''}`}
             onDragOver={(e) => {
+              if (![...e.dataTransfer.types].includes('Files')) return
               e.preventDefault()
               setDragging(true)
             }}
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => {
+              if (![...e.dataTransfer.types].includes('Files')) return
               e.preventDefault()
               setDragging(false)
               void addFiles(e.dataTransfer.files)
             }}
           >
             {selected?.items.length ? (
-              <div className="palha-admin-gallery-grid">
-                {selected.items.map((item) => (
-                  <article key={item.id} className="palha-admin-gallery-card">
-                    {item.kind === 'video' ? (
-                      <video src={item.url} muted playsInline />
-                    ) : (
-                      <img src={item.url} alt="" />
+              <>
+                <p className="palha-album-order-hint">Arraste as fotos para definir a ordem. O enquadramento fica na aba Apresentação, no preview.</p>
+                <DragDropContext onDragEnd={onMediaDragEnd}>
+                  <Droppable droppableId="album-media">
+                    {(provided) => (
+                      <div className="palha-admin-gallery-grid" ref={provided.innerRef} {...provided.droppableProps}>
+                        {selected.items.map((item, index) => (
+                          <Draggable key={item.id} draggableId={item.id} index={index}>
+                            {(drag, snapshot) => (
+                              <article
+                                ref={drag.innerRef}
+                                {...drag.draggableProps}
+                                className={`palha-admin-gallery-card${snapshot.isDragging ? ' is-dragging' : ''}`}
+                              >
+                                <div className="palha-admin-drag" {...drag.dragHandleProps}>
+                                  {item.kind === 'video' ? (
+                                    <video src={item.url} muted playsInline />
+                                  ) : (
+                                    <img src={item.url} alt="" />
+                                  )}
+                                </div>
+                                <button type="button" className="palha-admin-mini" onClick={() => void removeMedia(item.id)}>
+                                  Remover
+                                </button>
+                              </article>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
                     )}
-                    <button type="button" className="palha-admin-mini" onClick={() => void removeMedia(item.id)}>
-                      Remover
-                    </button>
-                  </article>
-                ))}
-              </div>
+                  </Droppable>
+                </DragDropContext>
+              </>
             ) : (
               <label className="palha-album-empty">
                 <svg viewBox="0 0 64 52" width="56" height="46" aria-hidden="true">

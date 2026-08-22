@@ -8,6 +8,7 @@ import {
   PALHA_THUMB_SIZES,
   PALHA_TYPOGRAPHIES,
   type PalhaAlbumTheme,
+  type PalhaMediaFrame,
 } from '@/lib/palha/album-theme'
 import { PalhaAlbumPresentation } from '@/app/palhaweddings/PalhaAlbumPresentation'
 import type { PalhaAlbum } from '@/lib/palha/site-settings-shared'
@@ -15,9 +16,11 @@ import type { PalhaAlbum } from '@/lib/palha/site-settings-shared'
 export function PalhaThemeEditor({
   album,
   onChange,
+  onFrameChange,
 }: {
   album: PalhaAlbum
   onChange: (theme: PalhaAlbumTheme) => void
+  onFrameChange: (id: string, frame: PalhaMediaFrame) => void
 }) {
   const [theme, setTheme] = useState(album.theme)
   const previewAlbum = { ...album, theme }
@@ -96,6 +99,9 @@ export function PalhaThemeEditor({
         <section>
           <h3>Grade</h3>
           <h4>Estilo da grade</h4>
+          <p className="palha-theme-note">
+            Justificada fecha a linha como no Pixieset. O enquadramento de cada foto se muda no preview.
+          </p>
           <div className="palha-theme-grid">
             {PALHA_GRID_STYLES.map((item) => (
               <button
@@ -132,7 +138,8 @@ export function PalhaThemeEditor({
 
       <div className="palha-theme-preview">
         <p className="palha-label">Prévia da página pública</p>
-        <PalhaAlbumPresentation album={previewAlbum} preview />
+        <p className="palha-theme-note">Em cada foto do preview, escolha Auto, Larga, Quadrada ou Inteira.</p>
+        <PalhaAlbumPresentation album={previewAlbum} preview onFrameChange={onFrameChange} />
       </div>
     </div>
   )

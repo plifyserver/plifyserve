@@ -1174,6 +1174,45 @@
   background: #f3f3f3;
 }
 
+.palha-admin-gallery-card.is-dragging {
+  z-index: 4;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+
+.palha-admin-drag {
+  cursor: grab;
+}
+
+.palha-admin-drag:active {
+  cursor: grabbing;
+}
+
+.palha-album-order-hint {
+  margin: 0 0 0.9rem;
+  color: var(--palha-muted);
+  font-size: 0.86rem;
+}
+
+.palha-admin-frame {
+  display: grid;
+  gap: 0.28rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.palha-admin-frame select {
+  width: 100%;
+  border: 1px solid var(--palha-ink);
+  background: #fff;
+  color: var(--palha-ink);
+  padding: 0.4rem 0.45rem;
+  font-family: var(--palha-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .palha-admin-gallery-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2526,6 +2565,53 @@
   grid-row: 1 / span 2;
 }
 
+.palha-theme-note {
+  margin: 0 0 0.75rem;
+  color: var(--palha-muted);
+  font-size: 0.82rem;
+}
+
+.palha-theme-card.is-justificado .palha-grid-icon {
+  grid-template-columns: 1.3fr 0.85fr 0.95fr;
+  grid-template-rows: 1fr 1.15fr;
+}
+
+.palha-theme-card.is-justificado .palha-grid-icon i:nth-child(1) {
+  grid-column: 1 / span 2;
+}
+
+.palha-theme-card.is-justificado .palha-grid-icon i:nth-child(n + 6) {
+  display: none;
+}
+
+.palha-theme-card.is-colunas2 .palha-grid-icon {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.palha-theme-card.is-colunas2 .palha-grid-icon i:nth-child(n + 5) {
+  display: none;
+}
+
+.palha-theme-card.is-colunas3 .palha-grid-icon {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.palha-theme-card.is-quadrado .palha-grid-icon {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.palha-theme-card.is-mosaico .palha-grid-icon {
+  grid-template-columns: 1.4fr 0.8fr 0.8fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.palha-theme-card.is-mosaico .palha-grid-icon i:nth-child(1) {
+  grid-row: 1 / span 2;
+}
+
 .palha-theme-preview {
   position: relative;
   min-width: 0;
@@ -2806,7 +2892,10 @@
 }
 
 .palha-present-gallery {
-  padding: 3rem 5vw 5rem;
+  padding: 3rem 1.2rem 5rem;
+  max-width: 1240px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .palha-present-subs {
@@ -2841,9 +2930,64 @@
   border-bottom-color: currentColor;
 }
 
+.palha-ag-shell.is-preview-scale {
+  overflow: hidden;
+}
+
+.palha-ag-page {
+  will-change: transform;
+}
+
 .palha-ag {
   column-gap: 0.5rem;
   column-fill: balance;
+}
+
+.palha-ag-justified {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.palha-ag-row {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.palha-ag-justified .palha-ag-item {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.palha-ag-justified .palha-ag-item img,
+.palha-ag-justified .palha-ag-item video {
+  width: 100%;
+  height: 100%;
+}
+
+.palha-ag-frame-quadrado img,
+.palha-ag-frame-quadrado video {
+  object-fit: cover;
+}
+
+.palha-ag-vertical .palha-ag-frame-largo,
+.palha-ag-horizontal .palha-ag-frame-largo {
+  column-span: all;
+}
+
+.palha-ag-vertical .palha-ag-frame-quadrado,
+.palha-ag-horizontal .palha-ag-frame-quadrado {
+  aspect-ratio: 1;
+}
+
+.palha-ag-vertical .palha-ag-frame-quadrado img,
+.palha-ag-horizontal .palha-ag-frame-quadrado img,
+.palha-ag-vertical .palha-ag-frame-quadrado video,
+.palha-ag-horizontal .palha-ag-frame-quadrado video {
+  height: 100%;
+  object-fit: cover;
 }
 
 .palha-ag-item {
@@ -2917,6 +3061,38 @@
 .palha-ag-item:hover .palha-ag-actions,
 .palha-ag-item:focus-within .palha-ag-actions {
   opacity: 1;
+}
+
+.palha-ag-framebar {
+  position: absolute;
+  left: 0.4rem;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  z-index: 3;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.35rem 0.4rem;
+  background: rgba(20, 20, 20, 0.72);
+  color: #fff;
+  font-family: var(--palha-sans);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transform: scale(var(--palha-frame-unscale, 1));
+  transform-origin: bottom left;
+  max-width: 11rem;
+}
+
+.palha-ag-framebar select {
+  width: 100%;
+  border: 0;
+  background: #fff;
+  color: #111;
+  padding: 0.28rem 0.3rem;
+  font-family: var(--palha-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .palha-ag-play {
@@ -3081,8 +3257,10 @@
     border-right: 0;
   }
 
-  .palha-ag-regular,
-  .palha-ag-grande {
+  .palha-ag-vertical.palha-ag-regular,
+  .palha-ag-vertical.palha-ag-grande,
+  .palha-ag-horizontal.palha-ag-regular,
+  .palha-ag-horizontal.palha-ag-grande {
     column-count: 2;
   }
 }

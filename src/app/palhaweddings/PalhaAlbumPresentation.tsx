@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { PalhaAlbumGrid } from '@/app/palhaweddings/PalhaAlbumGrid'
+import type { PalhaMediaFrame } from '@/lib/palha/album-theme'
 import { formatPalhaEventDate, type PalhaAlbum, type PalhaMediaItem } from '@/lib/palha/site-settings-shared'
 
 function fileNameFromUrl(url: string, fallback: string) {
@@ -67,9 +69,11 @@ async function downloadMedia(item: PalhaMediaItem, index: number) {
 export function PalhaAlbumPresentation({
   album,
   preview = false,
+  onFrameChange,
 }: {
   album: PalhaAlbum
   preview?: boolean
+  onFrameChange?: (id: string, frame: PalhaMediaFrame) => void
 }) {
   const [selectedId, setSelectedId] = useState(album.subalbums[0]?.id || '')
   const [viewer, setViewer] = useState<{ item: PalhaMediaItem; index: number } | null>(null)
@@ -177,45 +181,41 @@ export function PalhaAlbumPresentation({
         ) : null}
 
         {selected?.items.length ? (
-          <div className={`palha-ag palha-ag-${album.theme.grid} palha-ag-${album.theme.thumb}`}>
-            {selected.items.map((item, index) => (
-              <article
-                key={item.id}
-                className={`palha-ag-item${!preview ? ' is-openable' : ''}`}
-                onClick={!preview ? () => setViewer({ item, index }) : undefined}
-              >
-                {item.kind === 'video' ? (
-                  <video src={item.url} playsInline preload="metadata" muted />
-                ) : (
-                  <img src={item.url} alt={item.caption || ''} />
-                )}
-                {item.kind === 'video' ? <span className="palha-ag-play" aria-hidden="true" /> : null}
-                {!preview ? (
-                  <div className="palha-ag-actions">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        setViewer({ item, index })
-                      }}
-                    >
-                      Visualizar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={savingId === item.id}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        void saveMedia(item, index)
-                      }}
-                    >
-                      {savingId === item.id ? 'Salvando…' : 'Baixar'}
-                    </button>
-                  </div>
-                ) : null}
-              </article>
-            ))}
-          </div>
+          <PalhaAlbumGrid
+            items={selected.items}
+            grid={album.theme.grid}
+            thumb={album.theme.thumb}
+            preview={preview}
+            onFrameChange={preview ? onFrameChange : undefined}
+            onOpen={!preview ? (item, index) => setViewer({ item, index }) : undefined}
+            renderActions={
+              preview
+                ? undefined
+                : (item, index) => (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setViewer({ item, index })
+                        }}
+                      >
+                        Visualizar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingId === item.id}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          void saveMedia(item, index)
+                        }}
+                      >
+                        {savingId === item.id ? 'Salvando…' : 'Baixar'}
+                      </button>
+                    </>
+                  )
+            }
+          />
         ) : (
           <p className="palha-present-empty">{preview ? 'As fotos entram aqui.' : 'Este álbum ainda não tem mídia.'}</p>
         )}

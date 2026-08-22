@@ -28,8 +28,20 @@ export const PALHA_PALETTES = [
 ] as const
 
 export const PALHA_GRID_STYLES = [
+  { id: 'justificado', label: 'Justificada' },
+  { id: 'colunas2', label: '2 colunas' },
+  { id: 'colunas3', label: '3 colunas' },
   { id: 'vertical', label: 'Vertical' },
   { id: 'horizontal', label: 'Horizontal' },
+  { id: 'quadrado', label: 'Quadrada' },
+  { id: 'mosaico', label: 'Mosaico' },
+] as const
+
+export const PALHA_MEDIA_FRAMES = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'largo', label: 'Larga' },
+  { id: 'quadrado', label: 'Quadrada' },
+  { id: 'inteira', label: 'Inteira' },
 ] as const
 
 export const PALHA_THUMB_SIZES = [
@@ -42,6 +54,7 @@ export type PalhaTypography = (typeof PALHA_TYPOGRAPHIES)[number]['id']
 export type PalhaPalette = (typeof PALHA_PALETTES)[number]['id']
 export type PalhaGridStyle = (typeof PALHA_GRID_STYLES)[number]['id']
 export type PalhaThumbSize = (typeof PALHA_THUMB_SIZES)[number]['id']
+export type PalhaMediaFrame = (typeof PALHA_MEDIA_FRAMES)[number]['id']
 
 export type PalhaAlbumTheme = {
   cover: PalhaCoverLayout
@@ -55,7 +68,7 @@ export const DEFAULT_PALHA_ALBUM_THEME: PalhaAlbumTheme = {
   cover: 'centro',
   typography: 'serif',
   palette: 'claro',
-  grid: 'vertical',
+  grid: 'justificado',
   thumb: 'grande',
 }
 
@@ -66,10 +79,7 @@ const GRID_IDS = new Set(PALHA_GRID_STYLES.map((item) => item.id))
 const THUMB_IDS = new Set(PALHA_THUMB_SIZES.map((item) => item.id))
 
 const LEGACY_GRID: Record<string, { grid: PalhaGridStyle; thumb: PalhaThumbSize }> = {
-  quadrado: { grid: 'vertical', thumb: 'regular' },
-  mosaico: { grid: 'vertical', thumb: 'grande' },
-  livre: { grid: 'vertical', thumb: 'grande' },
-  horizontal: { grid: 'horizontal', thumb: 'regular' },
+  livre: { grid: 'justificado', thumb: 'grande' },
 }
 
 export function mergePalhaAlbumTheme(raw: unknown): PalhaAlbumTheme {

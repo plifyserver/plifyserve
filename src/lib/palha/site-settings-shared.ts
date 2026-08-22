@@ -1,4 +1,10 @@
-import { DEFAULT_PALHA_ALBUM_THEME, mergePalhaAlbumTheme, type PalhaAlbumTheme } from '@/lib/palha/album-theme'
+import {
+  DEFAULT_PALHA_ALBUM_THEME,
+  PALHA_MEDIA_FRAMES,
+  mergePalhaAlbumTheme,
+  type PalhaAlbumTheme,
+  type PalhaMediaFrame,
+} from '@/lib/palha/album-theme'
 
 export const PALHA_SITE_BUCKET = 'palha-site'
 
@@ -81,6 +87,9 @@ export type PalhaMediaItem = {
   url: string
   kind: PalhaMediaKind
   caption: string
+  frame?: PalhaMediaFrame
+  width?: number
+  height?: number
 }
 
 export type PalhaSubAlbum = {
@@ -354,11 +363,17 @@ function mergeCopy(raw: unknown, fallback: PalhaCopyBlock, legacy?: PalhaCopyBlo
 function mergeMedia(raw: unknown, index: number): PalhaMediaItem | null {
   if (!raw || typeof raw !== 'object' || !('url' in raw)) return null
   const item = raw as Partial<PalhaMediaItem> & { caption?: string }
+  const frameIds = new Set(PALHA_MEDIA_FRAMES.map((frame) => frame.id))
+  const width = Number(item.width)
+  const height = Number(item.height)
   return {
     id: String(item.id || `media-${index}`),
     url: String(item.url),
     kind: item.kind === 'video' ? 'video' : 'image',
     caption: String(item.caption ?? ''),
+    frame: frameIds.has(item.frame as PalhaMediaFrame) ? (item.frame as PalhaMediaFrame) : 'auto',
+    width: Number.isFinite(width) && width > 0 ? Math.round(width) : undefined,
+    height: Number.isFinite(height) && height > 0 ? Math.round(height) : undefined,
   }
 }
 
