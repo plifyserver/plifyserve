@@ -3,9 +3,12 @@ import { createPalhaServiceClient } from '@/lib/palha/supabase/server'
 import {
   DEFAULT_PALHA_SITE_SETTINGS,
   PALHA_SITE_BUCKET,
+  createPalhaAlbum,
+  collectPalhaMediaUrls,
   mergePalhaSiteSettings,
   preserveAlbumPasswordHashes,
   publicizeSiteSettings,
+  type PalhaAlbum,
   type PalhaPhotoSlot,
   type PalhaSiteSettings,
 } from '@/lib/palha/site-settings-shared'
@@ -29,6 +32,12 @@ export {
 const SETTINGS_PATH = 'settings.json'
 
 let settingsWrite: Promise<unknown> = Promise.resolve()
+let memorySettings: { at: number; data: PalhaSiteSettings } | null = null
+
+function rememberWrittenSettings(data: PalhaSiteSettings) {
+  memorySettings = { at: Date.now(), data }
+  return data
+}
 
 function enqueueSettingsWrite<T>(fn: () => Promise<T>): Promise<T> {
   const run = settingsWrite.then(fn, fn)
@@ -48,11 +57,15 @@ async function ensureBucket() {
 }
 
 async function readPalhaSiteSettings(): Promise<PalhaSiteSettings> {
+  if (memorySettings && Date.now() - memorySettings.at < 15_000) {
+    return memorySettings.data
+  }
   const supabase = createPalhaServiceClient()
   const { data, error } = await supabase.storage.from(PALHA_SITE_BUCKET).download(SETTINGS_PATH)
-  if (error || !data) return DEFAULT_PALHA_SITE_SETTINGS
+  if (error || !data) return memorySettings?.data ?? DEFAULT_PALHA_SITE_SETTINGS
   const text = await data.text()
-  return mergePalhaSiteSettings(JSON.parse(text) as unknown)
+  const parsed = mergePalhaSiteSettings(JSON.parse(text) as unknown)
+  return rememberWrittenSettings(parsed)
 }
 
 export async function getPalhaSiteSettings(): Promise<PalhaSiteSettings> {
@@ -75,11 +88,16 @@ async function writePalhaSiteSettings(merged: PalhaSiteSettings) {
       cacheControl: '0',
     })
   if (error) throw new Error(error.message)
-  return merged
+  return rememberWrittenSettings(merged)
 }
 
 export async function savePalhaSiteSettings(settings: PalhaSiteSettings) {
   return enqueueSettingsWrite(async () => {
+    const pendingPasswords = new Map<string, string>()
+    for (const album of settings.gallery?.albums ?? []) {
+      const pending = album.pendingPassword?.trim()
+      if (pending) pendingPasswords.set(album.id, pending)
+    }
     const current = await readPalhaSiteSettings()
     const merged = mergePalhaSiteSettings({
       ...current,
@@ -89,13 +107,58 @@ export async function savePalhaSiteSettings(settings: PalhaSiteSettings) {
       gallery: settings.gallery ?? current.gallery,
     })
     merged.gallery.albums = preserveAlbumPasswordHashes(merged.gallery.albums, current.gallery.albums)
+    if (pendingPasswords.size) {
+      merged.gallery.albums = await Promise.all(
+        merged.gallery.albums.map(async (album) => {
+          const pending = pendingPasswords.get(album.id)
+          if (!pending) return album
+          const passwordHash = await hashPalhaAlbumPassword(pending)
+          const accessSecret = encryptPalhaAlbumPassword(pending)
+          return { ...album, passwordHash, accessSecret, passwordProtected: true }
+        }),
+      )
+    }
     const saved = await writePalhaSiteSettings(merged)
-    try {
-      await purgeRemovedPalhaR2Media(current, saved)
-    } catch {
-      // A exclusão no R2 não pode desfazer o save.
+    const previousUrls = collectPalhaMediaUrls(current)
+    const nextUrls = collectPalhaMediaUrls(saved)
+    const removedMedia = [...previousUrls].some((url) => !nextUrls.has(url))
+    if (removedMedia) {
+      try {
+        await purgeRemovedPalhaR2Media(current, saved)
+      } catch {
+        // A exclusão no R2 não pode desfazer o save.
+      }
     }
     return saved
+  })
+}
+
+export async function createPalhaAlbumRecord(input: {
+  name: string
+  eventDate: string
+  password?: string
+}): Promise<{ settings: PalhaSiteSettings; album: PalhaAlbum }> {
+  const trimmedPassword = String(input.password || '').trim()
+  if (trimmedPassword && trimmedPassword.length < 4) {
+    throw new Error('A senha precisa ter pelo menos 4 caracteres.')
+  }
+  return enqueueSettingsWrite(async () => {
+    const current = await readPalhaSiteSettings()
+    const album = createPalhaAlbum(input.name, input.eventDate)
+    if (trimmedPassword) {
+      album.passwordHash = await hashPalhaAlbumPassword(trimmedPassword)
+      album.accessSecret = encryptPalhaAlbumPassword(trimmedPassword)
+      album.passwordProtected = true
+    }
+    const next: PalhaSiteSettings = {
+      ...current,
+      gallery: {
+        ...current.gallery,
+        albums: [...current.gallery.albums, album],
+      },
+    }
+    const settings = await writePalhaSiteSettings(next)
+    return { settings, album }
   })
 }
 

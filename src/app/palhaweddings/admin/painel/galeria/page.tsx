@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   DEFAULT_PALHA_SITE_SETTINGS,
   albumMediaCount,
-  createPalhaAlbum,
   formatPalhaEventDate,
   palhaAdminPrefix,
   type PalhaSiteSettings,
 } from '@/lib/palha/site-settings-shared'
+import { rememberPalhaAdminSettings } from '@/lib/palha/admin-settings-cache'
 import { PalhaFormatField } from '../PalhaFormatField'
 
 export default function PalhaGaleriaAdmin() {
@@ -20,6 +20,7 @@ export default function PalhaGaleriaAdmin() {
   const [settings, setSettings] = useState<PalhaSiteSettings>(DEFAULT_PALHA_SITE_SETTINGS)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
+  const creatingRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [eventDate, setEventDate] = useState('')
@@ -46,6 +47,7 @@ export default function PalhaGaleriaAdmin() {
     })
     const data = (await res.json()) as PalhaSiteSettings & { error?: string }
     if (!res.ok) throw new Error(data.error || 'Não foi possível salvar.')
+    rememberPalhaAdminSettings(data)
     setSettings(data)
     return data
   }
@@ -65,6 +67,7 @@ export default function PalhaGaleriaAdmin() {
   }
 
   async function createCollection() {
+    if (creatingRef.current) return
     if (!name.trim()) {
       setError('Digite o nome do álbum.')
       return
@@ -77,33 +80,42 @@ export default function PalhaGaleriaAdmin() {
       setError('As senhas não coincidem.')
       return
     }
+    creatingRef.current = true
     setCreating(true)
     setError('')
+    setMessage('')
     try {
-      const album = createPalhaAlbum(name, eventDate)
-      const next = {
-        ...settings,
-        gallery: { ...settings.gallery, albums: [...settings.gallery.albums, album] },
+      const res = await fetch('/api/palha/albums', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        credentials: 'include',
+        body: JSON.stringify({
+          name: name.trim(),
+          eventDate,
+          password: password.trim(),
+        }),
+      })
+      const data = (await res.json()) as {
+        error?: string
+        album?: { id: string }
+        settings?: PalhaSiteSettings
       }
-      await persist(next)
-      if (password.trim()) {
-        const res = await fetch(`/api/palha/albums/${album.id}/password`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: password.trim() }),
-        })
-        const data = (await res.json()) as { error?: string }
-        if (!res.ok) throw new Error(data.error || 'Álbum criado, mas a senha não foi salva.')
+      if (!res.ok || !data.album?.id) throw new Error(data.error || 'Não foi possível criar a coleção.')
+      if (data.settings) {
+        rememberPalhaAdminSettings(data.settings)
+        setSettings(data.settings)
       }
       setOpen(false)
       setName('')
       setEventDate('')
       setPassword('')
       setPasswordConfirm('')
-      router.push(`${prefix}/painel/galeria/${album.id}`)
+      router.push(`${prefix}/painel/galeria/${data.album.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível criar a coleção.')
     } finally {
+      creatingRef.current = false
       setCreating(false)
     }
   }
@@ -168,7 +180,15 @@ export default function PalhaGaleriaAdmin() {
 
       <div className="palha-album-list-head">
         <h2 className="palha-label">Coleções</h2>
-        <button type="button" className="palha-btn is-solid" onClick={() => setOpen(true)}>
+        <button
+          type="button"
+          className="palha-btn is-solid"
+          onClick={() => {
+            setError('')
+            setMessage('')
+            setOpen(true)
+          }}
+        >
           Criar nova coleção
         </button>
       </div>
@@ -245,7 +265,7 @@ export default function PalhaGaleriaAdmin() {
         </div>
       ) : null}
 
-      {!pendingDelete && error ? <p className="palha-admin-error">{error}</p> : null}
+      {!pendingDelete && !open && error ? <p className="palha-admin-error">{error}</p> : null}
       {message ? <p className="palha-copy">{message}</p> : null}
 
       {open ? (
@@ -290,6 +310,7 @@ export default function PalhaGaleriaAdmin() {
             <p className="palha-copy" style={{ margin: '-0.2rem 0 0.4rem', fontSize: '0.88rem' }}>
               Quem abrir o link do álbum vai precisar desta senha.
             </p>
+            {error ? <p className="palha-admin-error">{error}</p> : null}
             <div className="palha-modal-actions">
               <button type="button" className="palha-btn" onClick={() => setOpen(false)} disabled={creating}>
                 Cancelar

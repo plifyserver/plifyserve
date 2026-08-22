@@ -111,6 +111,8 @@ export type PalhaAlbum = {
   createdAt?: string
   passwordHash?: string
   accessSecret?: string
+  /** Só no PUT de criação; o servidor hasheia e não persiste este campo. */
+  pendingPassword?: string
 }
 
 export type PalhaGallery = {
@@ -150,7 +152,12 @@ export function albumHasPassword(album: PalhaAlbum) {
 }
 
 export function stripAlbumSecrets(album: PalhaAlbum): PalhaAlbum {
-  const { passwordHash: _passwordHash, accessSecret: _accessSecret, ...rest } = album
+  const {
+    passwordHash: _passwordHash,
+    accessSecret: _accessSecret,
+    pendingPassword: _pendingPassword,
+    ...rest
+  } = album
   return {
     ...rest,
     passwordProtected: albumHasPassword(album),

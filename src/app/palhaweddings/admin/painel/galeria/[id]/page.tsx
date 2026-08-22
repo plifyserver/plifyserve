@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
-import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import {
   DEFAULT_PALHA_SITE_SETTINGS,
   newPalhaId,
@@ -16,6 +15,9 @@ import {
   type PalhaSubAlbum,
 } from '@/lib/palha/site-settings-shared'
 import { uploadPalhaMediaFile } from '@/lib/palha/upload-client'
+import { preferPalhaAdminSettings, readPalhaAdminSettings, rememberPalhaAdminSettings } from '@/lib/palha/admin-settings-cache'
+import { PalhaMediaSortGrid } from './PalhaMediaSortGrid'
+import { PalhaSubalbumSortList } from './PalhaSubalbumSortList'
 import { PalhaThemeEditor } from './PalhaThemeEditor'
 import { type PalhaAlbumTheme, type PalhaMediaFrame } from '@/lib/palha/album-theme'
 
@@ -74,6 +76,7 @@ export default function PalhaAlbumStudioPage() {
   const settingsRef = useRef(settings)
   const saveGen = useRef(0)
   const persistTimer = useRef<number | null>(null)
+  const dirtyRef = useRef(false)
   settingsRef.current = settings
 
   const album = useMemo(
@@ -83,25 +86,58 @@ export default function PalhaAlbumStudioPage() {
   const selected = album?.subalbums.find((sub) => sub.id === selectedId) ?? album?.subalbums[0] ?? null
 
   useEffect(() => {
-    fetch('/api/palha/site', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((data: PalhaSiteSettings) => {
-        setSettings(data)
-        const found = data.gallery.albums.find((item) => item.id === albumId)
-        setSelectedId(found?.subalbums[0]?.id || '')
-        setLoaded(true)
-      })
-      .catch(() => {
-        setError('Não foi possível carregar o álbum.')
-        setLoaded(true)
-      })
+    let cancelled = false
+    const cached = readPalhaAdminSettings()
+    const cachedAlbum = cached?.gallery.albums.find((item) => item.id === albumId)
+    if (cached && cachedAlbum) {
+      setSettings(cached)
+      setSelectedId(cachedAlbum.subalbums[0]?.id || '')
+      setLoaded(true)
+    }
+
+    async function load() {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        try {
+          const res = await fetch('/api/palha/site', { cache: 'no-store' })
+          const data = (await res.json()) as PalhaSiteSettings
+          if (cancelled) return
+          if (dirtyRef.current) {
+            setLoaded(true)
+            return
+          }
+          const next = preferPalhaAdminSettings(data, albumId)
+          const found = next.gallery.albums.find((item) => item.id === albumId)
+          if (found) {
+            setSettings(next)
+            setSelectedId(found.subalbums[0]?.id || '')
+            setLoaded(true)
+            return
+          }
+          if (attempt === 7) {
+            setLoaded(true)
+            setError('Álbum não encontrado.')
+            return
+          }
+        } catch {
+          if (attempt === 7 && !cancelled) {
+            setError('Não foi possível carregar o álbum.')
+            setLoaded(true)
+            return
+          }
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 280 * (attempt + 1)))
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
   }, [albumId])
 
-  async function persistGallery(gallery: PalhaGallery, okMessage = 'Álbum atualizado.') {
+  async function persistGallery(okMessage = 'Álbum atualizado.') {
     const gen = ++saveGen.current
-    const next = { ...settingsRef.current, gallery }
-    settingsRef.current = next
-    setSettings(next)
+    const next = settingsRef.current
     setSaving(true)
     setError('')
     try {
@@ -114,8 +150,7 @@ export default function PalhaAlbumStudioPage() {
       const data = (await res.json()) as PalhaSiteSettings & { error?: string }
       if (!res.ok) throw new Error(data.error || 'Não foi possível salvar.')
       if (gen !== saveGen.current) return data
-      settingsRef.current = data
-      setSettings(data)
+      rememberPalhaAdminSettings(settingsRef.current)
       setMessage(okMessage)
       return data
     } catch (err) {
@@ -131,13 +166,15 @@ export default function PalhaAlbumStudioPage() {
   function schedulePersist(okMessage = 'Álbum atualizado.') {
     if (persistTimer.current) window.clearTimeout(persistTimer.current)
     persistTimer.current = window.setTimeout(() => {
-      void persistGallery(settingsRef.current.gallery, okMessage)
-    }, 400)
+      void persistGallery(okMessage)
+    }, 700)
   }
 
   function patchAlbumFields(patch: Partial<PalhaAlbum>) {
     const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
     if (!currentAlbum) return
+    dirtyRef.current = true
+    saveGen.current += 1
     const gallery = updateAlbum(settingsRef.current.gallery, albumId, { ...currentAlbum, ...patch })
     settingsRef.current = { ...settingsRef.current, gallery }
     setSettings(settingsRef.current)
@@ -145,19 +182,25 @@ export default function PalhaAlbumStudioPage() {
   }
 
   function patchAlbum(nextAlbum: PalhaAlbum) {
+    dirtyRef.current = true
+    saveGen.current += 1
     const gallery = updateAlbum(settingsRef.current.gallery, albumId, nextAlbum)
-    return persistGallery(gallery)
+    settingsRef.current = { ...settingsRef.current, gallery }
+    setSettings(settingsRef.current)
+    return persistGallery()
   }
 
   function saveTheme(theme: PalhaAlbumTheme) {
     const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
     if (!currentAlbum) return
+    dirtyRef.current = true
+    saveGen.current += 1
     const gallery = updateAlbum(settingsRef.current.gallery, albumId, { ...currentAlbum, theme })
     settingsRef.current = { ...settingsRef.current, gallery }
     setSettings(settingsRef.current)
     if (persistTimer.current) window.clearTimeout(persistTimer.current)
     persistTimer.current = window.setTimeout(() => {
-      void persistGallery(settingsRef.current.gallery, 'Apresentação salva no link público.')
+      void persistGallery('Apresentação salva no link público.')
     }, 250)
   }
 
@@ -230,6 +273,15 @@ export default function PalhaAlbumStudioPage() {
     if (selectedId === id) setSelectedId(subalbums[0].id)
   }
 
+  function reorderSubalbums(from: number, to: number) {
+    const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
+    if (!currentAlbum || from === to) return
+    const subalbums = currentAlbum.subalbums.slice()
+    const [moved] = subalbums.splice(from, 1)
+    subalbums.splice(to, 0, moved)
+    void patchAlbum({ ...currentAlbum, subalbums })
+  }
+
   function patchSelectedItems(items: PalhaMediaItem[], okMessage = 'Álbum atualizado.') {
     if (!album || !selected) return
     const nextAlbum = {
@@ -239,14 +291,13 @@ export default function PalhaAlbumStudioPage() {
     const gallery = updateAlbum(settingsRef.current.gallery, albumId, nextAlbum)
     settingsRef.current = { ...settingsRef.current, gallery }
     setSettings(settingsRef.current)
+    dirtyRef.current = true
+    saveGen.current += 1
     schedulePersist(okMessage)
   }
 
-  function onMediaDragEnd(result: DropResult) {
-    if (!selected || !result.destination) return
-    const from = result.source.index
-    const to = result.destination.index
-    if (from === to) return
+  function reorderMedia(from: number, to: number) {
+    if (!selected || from === to) return
     const items = selected.items.slice()
     const [moved] = items.splice(from, 1)
     items.splice(to, 0, moved)
@@ -266,6 +317,8 @@ export default function PalhaAlbumStudioPage() {
     const gallery = updateAlbum(settingsRef.current.gallery, albumId, nextAlbum)
     settingsRef.current = { ...settingsRef.current, gallery }
     setSettings(settingsRef.current)
+    dirtyRef.current = true
+    saveGen.current += 1
     schedulePersist('Enquadramento salvo.')
   }
 
@@ -360,7 +413,7 @@ export default function PalhaAlbumStudioPage() {
             className="palha-album-name"
             value={album.name}
             onChange={(e) => patchAlbumFields({ name: e.target.value })}
-            onBlur={() => void persistGallery(settingsRef.current.gallery)}
+            onBlur={() => void persistGallery()}
           />
           <label className="palha-album-date">
             Data
@@ -368,7 +421,7 @@ export default function PalhaAlbumStudioPage() {
               type="date"
               value={album.eventDate}
               onChange={(e) => patchAlbumFields({ eventDate: e.target.value })}
-              onBlur={() => void persistGallery(settingsRef.current.gallery)}
+              onBlur={() => void persistGallery()}
             />
           </label>
         </div>
@@ -379,7 +432,7 @@ export default function PalhaAlbumStudioPage() {
             value={album.summary || ''}
             placeholder="Texto que aparece ao lado da capa na página Álbuns…"
             onChange={(e) => patchAlbumFields({ summary: e.target.value })}
-            onBlur={() => void persistGallery(settingsRef.current.gallery)}
+            onBlur={() => void persistGallery()}
           />
         </label>
       </div>
@@ -470,21 +523,13 @@ export default function PalhaAlbumStudioPage() {
               + Nova
             </button>
           </div>
-          <ul className="palha-album-sublist">
-            {album.subalbums.map((sub) => (
-              <li key={sub.id} className={sub.id === selected?.id ? 'is-current' : undefined}>
-                <button type="button" onClick={() => setSelectedId(sub.id)}>
-                  <strong>{sub.name}</strong>
-                  <em>{sub.items.length}</em>
-                </button>
-                {album.subalbums.length > 1 ? (
-                  <button type="button" className="palha-album-sub-remove" onClick={() => void removeSubalbum(sub.id)}>
-                    ×
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          <PalhaSubalbumSortList
+            items={album.subalbums}
+            selectedId={selected?.id || ''}
+            onSelect={setSelectedId}
+            onReorder={reorderSubalbums}
+            onRemove={(id) => void removeSubalbum(id)}
+          />
         </aside>
 
         <div className="palha-album-main">
@@ -494,17 +539,20 @@ export default function PalhaAlbumStudioPage() {
               value={selected?.name || ''}
               onChange={(e) => {
                 if (!selected) return
-                setSettings((current) => ({
-                  ...current,
-                  gallery: updateAlbum(current.gallery, album.id, {
-                    ...album,
-                    subalbums: album.subalbums.map((sub) =>
-                      sub.id === selected.id ? { ...sub, name: e.target.value } : sub,
-                    ),
-                  }),
-                }))
+                const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === album.id)
+                if (!currentAlbum) return
+                dirtyRef.current = true
+                saveGen.current += 1
+                const gallery = updateAlbum(settingsRef.current.gallery, album.id, {
+                  ...currentAlbum,
+                  subalbums: currentAlbum.subalbums.map((sub) =>
+                    sub.id === selected.id ? { ...sub, name: e.target.value } : sub,
+                  ),
+                })
+                settingsRef.current = { ...settingsRef.current, gallery }
+                setSettings(settingsRef.current)
               }}
-              onBlur={() => void persistGallery(settings.gallery)}
+              onBlur={() => void persistGallery()}
             />
             {selected?.items.length ? (
               <label className="palha-album-tool palha-album-add-media">
@@ -540,38 +588,14 @@ export default function PalhaAlbumStudioPage() {
           >
             {selected?.items.length ? (
               <>
-                <p className="palha-album-order-hint">Arraste as fotos para definir a ordem. O enquadramento fica na aba Apresentação, no preview.</p>
-                <DragDropContext onDragEnd={onMediaDragEnd}>
-                  <Droppable droppableId="album-media">
-                    {(provided) => (
-                      <div className="palha-admin-gallery-grid" ref={provided.innerRef} {...provided.droppableProps}>
-                        {selected.items.map((item, index) => (
-                          <Draggable key={item.id} draggableId={item.id} index={index}>
-                            {(drag, snapshot) => (
-                              <article
-                                ref={drag.innerRef}
-                                {...drag.draggableProps}
-                                className={`palha-admin-gallery-card${snapshot.isDragging ? ' is-dragging' : ''}`}
-                              >
-                                <div className="palha-admin-drag" {...drag.dragHandleProps}>
-                                  {item.kind === 'video' ? (
-                                    <video src={item.url} muted playsInline />
-                                  ) : (
-                                    <img src={item.url} alt="" />
-                                  )}
-                                </div>
-                                <button type="button" className="palha-admin-mini" onClick={() => void removeMedia(item.id)}>
-                                  Remover
-                                </button>
-                              </article>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
+                <p className="palha-album-order-hint">
+                  Arraste uma foto e solte em cima do lugar onde ela deve ficar. As outras não saem do lugar até você soltar.
+                </p>
+                <PalhaMediaSortGrid
+                  items={selected.items}
+                  onReorder={reorderMedia}
+                  onRemove={(id) => void removeMedia(id)}
+                />
               </>
             ) : (
               <label className="palha-album-empty">
