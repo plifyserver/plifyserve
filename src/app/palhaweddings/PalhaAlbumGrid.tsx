@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { PALHA_MEDIA_FRAMES, type PalhaGridStyle, type PalhaMediaFrame, type PalhaThumbSize } from '@/lib/palha/album-theme'
 import { PALHA_GALLERY_MAX_WIDTH, layoutPalhaGrid } from '@/lib/palha/justified-grid'
 import type { PalhaMediaItem } from '@/lib/palha/site-settings-shared'
+import { PalhaVideoThumb } from './PalhaVideoThumb'
 
 function FramePicker({
   item,
@@ -93,11 +94,8 @@ export function PalhaAlbumGrid({
     const onImage = (event: SyntheticEvent<HTMLImageElement>) => {
       rememberSize(item.id, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
     }
-    const onVideo = (event: SyntheticEvent<HTMLVideoElement>) => {
-      rememberSize(item.id, event.currentTarget.videoWidth, event.currentTarget.videoHeight)
-    }
     if (item.kind === 'video') {
-      return <video src={item.url} playsInline preload="metadata" muted onLoadedMetadata={onVideo} style={{ objectFit }} />
+      return <PalhaVideoThumb url={item.url} objectFit={objectFit} onReady={(w, h) => rememberSize(item.id, w, h)} />
     }
     return <img src={item.url} alt={item.caption || ''} onLoad={onImage} style={{ objectFit }} />
   }
