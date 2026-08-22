@@ -2842,20 +2842,19 @@
 }
 
 .palha-ag {
-  display: grid;
-  gap: 0.45rem;
-  grid-auto-flow: dense;
-  align-items: start;
-  justify-items: center;
+  column-gap: 0.5rem;
+  column-fill: balance;
 }
 
 .palha-ag-item {
   position: relative;
-  width: max-content;
-  max-width: 100%;
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 0.5rem;
+  break-inside: avoid;
   overflow: hidden;
   background: transparent;
-  min-height: 0;
 }
 
 .palha-ag-item.is-openable {
@@ -2865,27 +2864,32 @@
 .palha-ag-item img,
 .palha-ag-item video {
   display: block;
-  width: auto;
+  width: 100%;
   height: auto;
-  max-width: 100%;
-  max-height: min(52vh, 28rem);
   object-fit: contain;
 }
 
 .palha-ag-grande {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-count: 2;
 }
 
 .palha-ag-regular {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-count: 3;
 }
 
-.palha-ag-horizontal.palha-ag-grande .palha-ag-item:nth-child(3n) {
-  grid-column: 1 / -1;
-}
-
+.palha-ag-horizontal.palha-ag-grande .palha-ag-item:nth-child(3n),
 .palha-ag-horizontal.palha-ag-regular .palha-ag-item:nth-child(4n) {
-  grid-column: 1 / -1;
+  column-span: all;
+}
+
+.palha-ag-horizontal.palha-ag-grande .palha-ag-item:nth-child(3n) img,
+.palha-ag-horizontal.palha-ag-grande .palha-ag-item:nth-child(3n) video,
+.palha-ag-horizontal.palha-ag-regular .palha-ag-item:nth-child(4n) img,
+.palha-ag-horizontal.palha-ag-regular .palha-ag-item:nth-child(4n) video {
+  max-height: min(70vh, 36rem);
+  width: auto;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
 .palha-ag-actions {
@@ -3079,11 +3083,7 @@
 
   .palha-ag-regular,
   .palha-ag-grande {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .palha-ag-horizontal.palha-ag-regular .palha-ag-item:nth-child(4n) {
-    grid-column: 1 / -1;
+    column-count: 2;
   }
 }
 
