@@ -741,9 +741,7 @@
   }
 
   .palha-gallery-albums {
-    gap: 1.5rem;
-    grid-template-columns: 1fr;
-    max-width: 22rem;
+    gap: 1.75rem;
   }
 
   .palha-footer-logo {
@@ -1636,6 +1634,31 @@
   color: var(--palha-ink);
 }
 
+.palha-album-summary-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--palha-muted);
+}
+
+.palha-album-summary-field textarea {
+  width: 100%;
+  min-height: 6.5rem;
+  border: 1px solid rgba(50, 50, 50, 0.14);
+  background: #fff;
+  padding: 0.75rem 0.85rem;
+  font-family: var(--palha-sans);
+  font-size: 0.95rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--palha-ink);
+  line-height: 1.55;
+  resize: vertical;
+}
+
 .palha-album-tools {
   display: flex;
   flex-wrap: wrap;
@@ -1978,11 +2001,10 @@
 }
 
 .palha-gallery-albums {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 320px));
-  justify-content: center;
-  gap: 2rem 1.75rem;
-  max-width: 68rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.75rem;
+  max-width: 58rem;
   margin: 0 auto;
   width: 100%;
 }
@@ -1993,10 +2015,11 @@
 
 .palha-gallery-album-link {
   display: grid;
-  gap: 0.85rem;
-  height: 100%;
-  padding: 0.7rem 0.7rem 1.05rem;
-  background: rgba(255, 252, 248, 0.88);
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  align-items: center;
+  gap: clamp(1.1rem, 3vw, 2.4rem);
+  padding: clamp(0.85rem, 2vw, 1.25rem);
+  background: rgba(255, 252, 248, 0.9);
   border: 1px solid rgba(201, 193, 180, 0.75);
   box-shadow: 0 14px 36px rgba(48, 36, 22, 0.07);
   transition:
@@ -2005,38 +2028,47 @@
     border-color 280ms ease;
 }
 
+.palha-gallery-album.is-flip .palha-gallery-album-link {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+}
+
+.palha-gallery-album.is-flip .palha-gallery-album-cover {
+  order: 2;
+}
+
+.palha-gallery-album.is-flip .palha-gallery-album-meta {
+  order: 1;
+}
+
 .palha-gallery-album-link:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
   border-color: #b8a990;
   box-shadow: 0 22px 48px rgba(48, 36, 22, 0.12);
 }
 
 .palha-gallery-album-cover {
   position: relative;
-  display: block;
+  display: grid;
+  place-items: center;
   overflow: hidden;
+  min-height: clamp(14rem, 34vw, 22rem);
   background: linear-gradient(145deg, #ebe4d8, #f6f1e8);
-  aspect-ratio: 4 / 5;
 }
 
 .palha-gallery-album-cover img {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 480ms ease;
-}
-
-.palha-gallery-album-link:hover .palha-gallery-album-cover img {
-  transform: scale(1.04);
+  height: auto;
+  max-height: clamp(16rem, 42vw, 26rem);
+  object-fit: contain;
+  object-position: center;
 }
 
 .palha-gallery-album-placeholder {
   display: grid;
   place-items: center;
   width: 100%;
-  height: 100%;
-  min-height: 16rem;
+  min-height: 14rem;
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2060,22 +2092,66 @@
 
 .palha-gallery-album-meta {
   display: grid;
-  gap: 0.22rem;
-  padding: 0 0.15rem;
+  gap: 0.45rem;
+  align-content: center;
+  padding: 0.2rem 0.35rem 0.35rem;
+  min-width: 0;
 }
 
 .palha-gallery-album strong {
   font-family: var(--palha-display);
-  font-size: 1.2rem;
+  font-size: clamp(1.35rem, 2.6vw, 1.85rem);
   font-weight: 500;
   color: #2c2823;
+  line-height: 1.15;
 }
 
 .palha-gallery-album em,
 .palha-gallery-album-count {
   font-style: normal;
   color: #7a7166;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
+}
+
+.palha-gallery-album-summary {
+  margin: 0.35rem 0 0.15rem;
+  font-family: var(--palha-sans);
+  font-size: clamp(0.95rem, 1.6vw, 1.05rem);
+  line-height: 1.65;
+  color: #4a463f;
+  white-space: pre-wrap;
+}
+
+.palha-gallery-album-cta {
+  margin-top: 0.55rem;
+  font-family: var(--palha-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #2c2823;
+  text-decoration: underline;
+  text-underline-offset: 0.35em;
+}
+
+@media (max-width: 760px) {
+  .palha-gallery-album-link,
+  .palha-gallery-album.is-flip .palha-gallery-album-link {
+    grid-template-columns: 1fr;
+  }
+
+  .palha-gallery-album.is-flip .palha-gallery-album-cover,
+  .palha-gallery-album.is-flip .palha-gallery-album-meta {
+    order: unset;
+  }
+
+  .palha-gallery-album-cover {
+    min-height: 0;
+  }
+
+  .palha-gallery-album-cover img {
+    max-height: none;
+  }
 }
 
 .palha-gallery-back {

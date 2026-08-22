@@ -300,6 +300,21 @@ export default function PalhaAlbumStudioPage() {
             />
           </label>
         </div>
+        <label className="palha-album-summary-field">
+          Texto na listagem de álbuns
+          <textarea
+            rows={4}
+            value={album.summary || ''}
+            placeholder="Texto que aparece ao lado da capa na página Álbuns…"
+            onChange={(e) =>
+              setSettings((current) => ({
+                ...current,
+                gallery: updateAlbum(current.gallery, album.id, { ...album, summary: e.target.value }),
+              }))
+            }
+            onBlur={() => void persistGallery(settings.gallery)}
+          />
+        </label>
       </div>
 
       <div className="palha-album-tools">

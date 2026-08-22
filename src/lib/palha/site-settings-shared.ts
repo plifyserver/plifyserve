@@ -93,6 +93,8 @@ export type PalhaAlbum = {
   id: string
   name: string
   eventDate: string
+  /** Texto mostrado ao lado da capa na listagem pública de álbuns */
+  summary: string
   coverUrl: string
   theme: PalhaAlbumTheme
   subalbums: PalhaSubAlbum[]
@@ -125,6 +127,7 @@ export function createPalhaAlbum(name: string, eventDate: string): PalhaAlbum {
     id: newPalhaId('album'),
     name: name.trim() || 'Novo álbum',
     eventDate,
+    summary: '',
     coverUrl: '',
     theme: { ...DEFAULT_PALHA_ALBUM_THEME },
     passwordProtected: false,
@@ -383,6 +386,7 @@ function mergeAlbum(raw: unknown, index: number): PalhaAlbum | null {
     id: String(data.id || `album-${index}`),
     name: String(data.name || 'Álbum'),
     eventDate: String(data.eventDate || ''),
+    summary: String(data.summary || ''),
     coverUrl: String(data.coverUrl || ''),
     createdAt: String(data.createdAt || ''),
     theme: mergePalhaAlbumTheme(data.theme),
@@ -415,6 +419,7 @@ function mergeGallery(raw: unknown, fallback: PalhaGallery): PalhaGallery {
               id: 'album-legado',
               name: 'Destaques',
               eventDate: '',
+              summary: '',
               coverUrl: legacyItems[0]?.url || '',
               createdAt: '',
               theme: { ...DEFAULT_PALHA_ALBUM_THEME },

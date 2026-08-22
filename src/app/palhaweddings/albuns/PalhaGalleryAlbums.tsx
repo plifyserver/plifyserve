@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PalhaReveal } from '../PalhaReveal'
+import { PalhaRichText } from '../PalhaRichText'
 import {
   albumMediaCount,
   formatPalhaEventDate,
@@ -26,8 +27,13 @@ export function PalhaGalleryAlbums({ gallery }: { gallery: PalhaGallery }) {
     <div className="palha-gallery-albums">
       {gallery.albums.map((album, index) => {
         const count = albumMediaCount(album)
+        const flip = index % 2 === 1
         return (
-          <PalhaReveal key={album.id} className="palha-gallery-album" delay={Math.min(index * 90, 360)}>
+          <PalhaReveal
+            key={album.id}
+            className={`palha-gallery-album${flip ? ' is-flip' : ''}`}
+            delay={Math.min(index * 90, 360)}
+          >
             <Link href={`${prefix}/albuns/${album.id}`} prefetch={false} className="palha-gallery-album-link">
               <span className="palha-gallery-album-cover">
                 {album.coverUrl ? (
@@ -42,11 +48,17 @@ export function PalhaGalleryAlbums({ gallery }: { gallery: PalhaGallery }) {
               <span className="palha-gallery-album-meta">
                 <strong>{album.name}</strong>
                 {album.eventDate ? <em>{formatPalhaEventDate(album.eventDate)}</em> : null}
+                {album.summary?.trim() ? (
+                  <p className="palha-gallery-album-summary">
+                    <PalhaRichText text={album.summary.trim()} />
+                  </p>
+                ) : null}
                 <span className="palha-gallery-album-count">
                   {album.passwordProtected
                     ? 'Álbum privado'
                     : `${count} arquivo${count === 1 ? '' : 's'}`}
                 </span>
+                <span className="palha-gallery-album-cta">Ver álbum</span>
               </span>
             </Link>
           </PalhaReveal>
