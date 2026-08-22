@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Fraunces, Outfit, Cormorant_Garamond, Oswald, Raleway } from 'next/font/google'
+import { Fraunces, Outfit, Cormorant_Garamond, Oswald, Raleway, Great_Vibes } from 'next/font/google'
 import { PalhaChrome } from './PalhaChrome'
 import { getPalhaSiteSettings } from '@/lib/palha/site-settings'
 import { publicizeSiteSettings } from '@/lib/palha/site-settings-shared'
@@ -42,6 +42,13 @@ const airy = Raleway({
   display: 'swap',
 })
 
+const scriptFill = Great_Vibes({
+  subsets: ['latin', 'latin-ext'],
+  weight: '400',
+  variable: '--font-palha-script-fill',
+  display: 'swap',
+})
+
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
@@ -63,7 +70,7 @@ export default async function PalhaWeddingsLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const settings = publicizeSiteSettings(await getPalhaSiteSettings())
   return (
-    <div className={`${display.variable} ${sans.variable} ${elegant.variable} ${impact.variable} ${airy.variable}`}>
+    <div className={`${display.variable} ${sans.variable} ${elegant.variable} ${impact.variable} ${airy.variable} ${scriptFill.variable}`}>
       <PalhaChrome settings={settings}>{children}</PalhaChrome>
     </div>
   )
