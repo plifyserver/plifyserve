@@ -105,6 +105,22 @@ export default function PalhaAlbumStudioPage() {
     }
   }
 
+  function schedulePersist(okMessage = 'Álbum atualizado.') {
+    if (persistTimer.current) window.clearTimeout(persistTimer.current)
+    persistTimer.current = window.setTimeout(() => {
+      void persistGallery(settingsRef.current.gallery, okMessage)
+    }, 400)
+  }
+
+  function patchAlbumFields(patch: Partial<PalhaAlbum>) {
+    const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
+    if (!currentAlbum) return
+    const gallery = updateAlbum(settingsRef.current.gallery, albumId, { ...currentAlbum, ...patch })
+    settingsRef.current = { ...settingsRef.current, gallery }
+    setSettings(settingsRef.current)
+    schedulePersist()
+  }
+
   function patchAlbum(nextAlbum: PalhaAlbum) {
     const gallery = updateAlbum(settingsRef.current.gallery, albumId, nextAlbum)
     return persistGallery(gallery)
@@ -277,26 +293,16 @@ export default function PalhaAlbumStudioPage() {
           <input
             className="palha-album-name"
             value={album.name}
-            onChange={(e) =>
-              setSettings((current) => ({
-                ...current,
-                gallery: updateAlbum(current.gallery, album.id, { ...album, name: e.target.value }),
-              }))
-            }
-            onBlur={() => void persistGallery(settings.gallery)}
+            onChange={(e) => patchAlbumFields({ name: e.target.value })}
+            onBlur={() => void persistGallery(settingsRef.current.gallery)}
           />
           <label className="palha-album-date">
             Data
             <input
               type="date"
               value={album.eventDate}
-              onChange={(e) =>
-                setSettings((current) => ({
-                  ...current,
-                  gallery: updateAlbum(current.gallery, album.id, { ...album, eventDate: e.target.value }),
-                }))
-              }
-              onBlur={() => void persistGallery(settings.gallery)}
+              onChange={(e) => patchAlbumFields({ eventDate: e.target.value })}
+              onBlur={() => void persistGallery(settingsRef.current.gallery)}
             />
           </label>
         </div>
@@ -306,13 +312,8 @@ export default function PalhaAlbumStudioPage() {
             rows={4}
             value={album.summary || ''}
             placeholder="Texto que aparece ao lado da capa na página Álbuns…"
-            onChange={(e) =>
-              setSettings((current) => ({
-                ...current,
-                gallery: updateAlbum(current.gallery, album.id, { ...album, summary: e.target.value }),
-              }))
-            }
-            onBlur={() => void persistGallery(settings.gallery)}
+            onChange={(e) => patchAlbumFields({ summary: e.target.value })}
+            onBlur={() => void persistGallery(settingsRef.current.gallery)}
           />
         </label>
       </div>

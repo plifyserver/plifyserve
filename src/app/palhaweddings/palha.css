@@ -2165,7 +2165,7 @@
 .palha-gallery-subs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.7rem 1.1rem;
+  gap: 0.4rem 0.35rem;
   justify-content: center;
   margin: 0 0 2rem;
 }
@@ -2175,14 +2175,22 @@
   background: none;
   cursor: pointer;
   font-family: var(--palha-sans);
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
+  font-size: clamp(0.95rem, 2.6vw, 1.2rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  padding: 0.7rem 1.15rem 0.75rem;
+  opacity: 0.55;
+  border-bottom: 3px solid transparent;
+}
+
+.palha-gallery-subs button:hover {
+  opacity: 0.85;
 }
 
 .palha-gallery-subs .is-current {
-  text-decoration: underline;
-  text-underline-offset: 0.28em;
+  opacity: 1;
+  border-bottom-color: currentColor;
 }
 
 @media (max-width: 860px) {
@@ -2777,8 +2785,8 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.8rem 1.2rem;
-  margin-bottom: 1.8rem;
+  gap: 0.4rem 0.35rem;
+  margin-bottom: 2.2rem;
 }
 
 .palha-present-subs button {
@@ -2787,14 +2795,22 @@
   color: inherit;
   cursor: pointer;
   font-family: var(--palha-sans);
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
+  font-size: clamp(0.95rem, 2.6vw, 1.2rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  padding: 0.7rem 1.15rem 0.75rem;
+  opacity: 0.55;
+  border-bottom: 3px solid transparent;
+}
+
+.palha-present-subs button:hover {
+  opacity: 0.85;
 }
 
 .palha-present-subs .is-current {
-  text-decoration: underline;
-  text-underline-offset: 0.28em;
+  opacity: 1;
+  border-bottom-color: currentColor;
 }
 
 .palha-ag {

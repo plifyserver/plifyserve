@@ -5,6 +5,9 @@ import { PalhaGalleryAlbums } from './PalhaGalleryAlbums'
 import { getPalhaSiteSettings } from '@/lib/palha/site-settings'
 import { publicizeSiteSettings } from '@/lib/palha/site-settings-shared'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export const metadata: Metadata = {
   title: 'Álbuns',
 }
