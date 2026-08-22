@@ -2076,6 +2076,61 @@
   width: 100%;
 }
 
+.palha-gallery-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(11rem, 0.8fr) auto;
+  gap: 0.85rem 1rem;
+  align-items: end;
+  padding: 0 0.2rem;
+}
+
+.palha-gallery-tools label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--palha-muted);
+  font-family: var(--palha-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.palha-gallery-tools input {
+  width: 100%;
+  border: 1px solid rgba(201, 193, 180, 0.9);
+  background: rgba(255, 252, 248, 0.95);
+  color: var(--palha-ink);
+  padding: 0.72rem 0.85rem;
+  font-family: var(--palha-sans);
+  font-size: 0.95rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.palha-gallery-tools input:focus {
+  outline: 1px solid #b8a990;
+  border-color: #b8a990;
+}
+
+.palha-gallery-tools-clear {
+  border: 0;
+  background: none;
+  color: var(--palha-ink);
+  cursor: pointer;
+  padding: 0.75rem 0.2rem;
+  font-family: var(--palha-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
+@media (max-width: 720px) {
+  .palha-gallery-tools {
+    grid-template-columns: 1fr;
+  }
+}
+
 .palha-gallery-album {
   min-width: 0;
 }

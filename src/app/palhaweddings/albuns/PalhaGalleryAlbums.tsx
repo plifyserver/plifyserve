@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { PalhaReveal } from '../PalhaReveal'
 import { PalhaRichText } from '../PalhaRichText'
@@ -11,8 +12,27 @@ import {
   type PalhaGallery,
 } from '@/lib/palha/site-settings-shared'
 
+function foldText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
 export function PalhaGalleryAlbums({ gallery }: { gallery: PalhaGallery }) {
   const prefix = palhaPublicPrefix(usePathname())
+  const [query, setQuery] = useState('')
+  const [eventDate, setEventDate] = useState('')
+
+  const albums = useMemo(() => {
+    const name = foldText(query)
+    return gallery.albums.filter((album) => {
+      const matchesName = !name || foldText(album.name).includes(name)
+      const matchesDate = !eventDate || album.eventDate === eventDate
+      return matchesName && matchesDate
+    })
+  }, [gallery.albums, query, eventDate])
 
   if (!gallery.albums.length) {
     return (
@@ -25,7 +45,36 @@ export function PalhaGalleryAlbums({ gallery }: { gallery: PalhaGallery }) {
 
   return (
     <div className="palha-gallery-albums">
-      {gallery.albums.map((album, index) => {
+      <form className="palha-gallery-tools" onSubmit={(event) => event.preventDefault()}>
+        <label>
+          Buscar álbum
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Nome do casal ou do evento"
+          />
+        </label>
+        <label>
+          Data do evento
+          <input type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} />
+        </label>
+        {query || eventDate ? (
+          <button
+            type="button"
+            className="palha-gallery-tools-clear"
+            onClick={() => {
+              setQuery('')
+              setEventDate('')
+            }}
+          >
+            Limpar
+          </button>
+        ) : null}
+      </form>
+
+      {albums.length ? (
+        albums.map((album, index) => {
         const count = albumMediaCount(album)
         const flip = index % 2 === 1
         return (
@@ -63,7 +112,13 @@ export function PalhaGalleryAlbums({ gallery }: { gallery: PalhaGallery }) {
             </Link>
           </PalhaReveal>
         )
-      })}
+        })
+      ) : (
+        <div className="palha-gallery-empty-state">
+          <p className="palha-copy">Nenhum álbum com esse nome ou data.</p>
+          <p className="palha-gallery-empty-hint">Tente outro nome ou limpe o filtro.</p>
+        </div>
+      )}
     </div>
   )
 }
