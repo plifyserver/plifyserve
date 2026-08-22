@@ -2843,8 +2843,9 @@
 
 .palha-ag {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.45rem;
   grid-auto-flow: dense;
+  align-items: start;
 }
 
 .palha-ag-item {
@@ -2862,30 +2863,25 @@
 .palha-ag-item video {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
+  vertical-align: top;
 }
 
 .palha-ag-grande {
-  grid-template-columns: 1.12fr 1fr;
-  grid-auto-rows: minmax(11rem, 26vw);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .palha-ag-regular {
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-auto-rows: minmax(7.5rem, 15vw);
-}
-
-.palha-ag-vertical .palha-ag-item:nth-child(3n + 1) {
-  grid-row: span 2;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .palha-ag-horizontal.palha-ag-grande .palha-ag-item:nth-child(3n) {
-  grid-column: span 2;
+  grid-column: 1 / -1;
 }
 
 .palha-ag-horizontal.palha-ag-regular .palha-ag-item:nth-child(4n) {
-  grid-column: span 3;
+  grid-column: 1 / -1;
 }
 
 .palha-ag-actions {
@@ -3080,11 +3076,10 @@
   .palha-ag-regular,
   .palha-ag-grande {
     grid-template-columns: 1fr 1fr;
-    grid-auto-rows: minmax(7rem, 28vw);
   }
 
   .palha-ag-horizontal.palha-ag-regular .palha-ag-item:nth-child(4n) {
-    grid-column: span 2;
+    grid-column: 1 / -1;
   }
 }
 
