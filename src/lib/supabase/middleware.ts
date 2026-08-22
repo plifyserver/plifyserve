@@ -2,17 +2,16 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { hasActivePaidAccess, type BillingGateProfile } from '@/lib/billing-access'
 
-export async function updateSession(request: NextRequest) {
+export async function updateSession(request: NextRequest, requestHeaders: Headers) {
   const pathname = request.nextUrl.pathname
+  const nextInit = { request: { headers: requestHeaders } }
 
   // Landing e páginas legais estáticas (OAuth / bots): sem Supabase no edge.
   if (pathname === '/' || pathname === '/legal' || pathname.startsWith('/legal/')) {
-    return NextResponse.next({ request })
+    return NextResponse.next(nextInit)
   }
 
-  const supabaseResponse = NextResponse.next({
-    request,
-  })
+  const supabaseResponse = NextResponse.next(nextInit)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -24,8 +24,13 @@ function isPalhaLoginPath(pathname: string) {
   return pathname === '/admin' || pathname === '/palhaweddings/admin'
 }
 
-export async function updatePalhaSession(request: NextRequest, rewriteTo?: URL) {
-  const response = rewriteTo ? NextResponse.rewrite(rewriteTo) : NextResponse.next({ request })
+export async function updatePalhaSession(
+  request: NextRequest,
+  rewriteTo?: URL,
+  requestHeaders?: Headers,
+) {
+  const nextInit = requestHeaders ? { request: { headers: requestHeaders } } : { request }
+  const response = rewriteTo ? NextResponse.rewrite(rewriteTo, nextInit) : NextResponse.next(nextInit)
   const internalPath = rewriteTo?.pathname ?? request.nextUrl.pathname
   if (!isPalhaAdminPath(internalPath)) return response
 

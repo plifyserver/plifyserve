@@ -43,16 +43,72 @@ function tryEvalExpression(expr: string) {
     .replace(/÷/g, '/')
   if (!cleaned) return null
   if (!/^[0-9+\-*/().%]+$/.test(cleaned)) return null
-  // % como percent: "100+10%" -> "100+0.10"
-  const percentReplaced = cleaned.replace(/(\d+(\.\d+)?)%/g, (_, a) => String(Number(a) / 100))
+  const source = cleaned.replace(/(\d+(\.\d+)?)%/g, (_, a) => String(Number(a) / 100))
   try {
-    // eslint-disable-next-line no-new-func
-    const fn = new Function(`return (${percentReplaced});`)
-    const out = fn()
+    const out = evaluateArithmetic(source)
     return typeof out === 'number' && Number.isFinite(out) ? out : null
   } catch {
     return null
   }
+}
+
+function evaluateArithmetic(source: string) {
+  let i = 0
+
+  const peek = () => source[i]
+  const eat = () => source[i++]
+
+  const parseNumber = () => {
+    const start = i
+    if (peek() === '.') eat()
+    while (i < source.length && /[0-9.]/.test(source[i])) eat()
+    const n = Number(source.slice(start, i))
+    if (!Number.isFinite(n) || start === i) throw new Error('número inválido')
+    return n
+  }
+
+  const parseFactor = (): number => {
+    if (peek() === '+') {
+      eat()
+      return parseFactor()
+    }
+    if (peek() === '-') {
+      eat()
+      return -parseFactor()
+    }
+    if (peek() === '(') {
+      eat()
+      const value = parseAdd()
+      if (peek() !== ')') throw new Error('parêntese')
+      eat()
+      return value
+    }
+    return parseNumber()
+  }
+
+  const parseMul = () => {
+    let value = parseFactor()
+    while (peek() === '*' || peek() === '/') {
+      const op = eat()
+      const right = parseFactor()
+      value = op === '*' ? value * right : value / right
+    }
+    return value
+  }
+
+  const parseAdd = () => {
+    let value = parseMul()
+    while (peek() === '+' || peek() === '-') {
+      const op = eat()
+      const right = parseMul()
+      value = op === '+' ? value + right : value - right
+    }
+    return value
+  }
+
+  const result = parseAdd()
+  if (i !== source.length) throw new Error('expressão inválida')
+  return result
 }
 
 function Key({
