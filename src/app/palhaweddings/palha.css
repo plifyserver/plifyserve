@@ -2846,14 +2846,15 @@
   gap: 0.45rem;
   grid-auto-flow: dense;
   align-items: start;
+  justify-items: center;
 }
 
 .palha-ag-item {
   position: relative;
-  display: grid;
-  place-items: center;
+  width: max-content;
+  max-width: 100%;
   overflow: hidden;
-  background: var(--p-surface);
+  background: transparent;
   min-height: 0;
 }
 
