@@ -2850,6 +2850,8 @@
 
 .palha-ag-item {
   position: relative;
+  display: grid;
+  place-items: center;
   overflow: hidden;
   background: var(--p-surface);
   min-height: 0;
@@ -2862,10 +2864,11 @@
 .palha-ag-item img,
 .palha-ag-item video {
   display: block;
-  width: 100%;
+  width: auto;
   height: auto;
+  max-width: 100%;
+  max-height: min(52vh, 28rem);
   object-fit: contain;
-  vertical-align: top;
 }
 
 .palha-ag-grande {
