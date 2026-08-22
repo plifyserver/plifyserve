@@ -146,12 +146,9 @@ export default function PalhaGaleriaAdmin() {
 
   return (
     <main className="palha-admin-page palha-album-list-page">
-      <h1 className="palha-kicker" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', margin: '0 0 0.4rem' }}>
+      <h1 className="palha-kicker" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', margin: '0 0 1.6rem' }}>
         Galeria
       </h1>
-      <p className="palha-copy" style={{ marginBottom: '1.6rem' }}>
-        Crie coleções por casamento. Cada álbum pode ter capa, fotos, vídeos e subálbuns.
-      </p>
 
       <div className="palha-admin-form" style={{ marginBottom: '2rem' }}>
         <PalhaFormatField

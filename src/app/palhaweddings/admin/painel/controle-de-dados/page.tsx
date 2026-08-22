@@ -149,13 +149,9 @@ export default function PalhaControleDadosPage() {
     <main className="palha-admin-page palha-usage-page">
       <header className="palha-usage-head">
         <div>
-          <p className="palha-label">Studio</p>
-          <h1 className="palha-kicker" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', margin: '0.35rem 0 0.4rem' }}>
+          <h1 className="palha-kicker" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', margin: 0 }}>
             Controle de dados
           </h1>
-          <p className="palha-copy" style={{ margin: 0 }}>
-            Uso em tempo real do R2 e do Supabase, com o espaço de cada álbum.
-          </p>
         </div>
         <p className={`palha-usage-live${loading ? ' is-loading' : ''}`}>
           {loading && !data ? 'Lendo armazenamento…' : updated ? `Atualizado às ${updated}` : 'Aguardando leitura'}

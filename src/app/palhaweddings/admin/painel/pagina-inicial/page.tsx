@@ -98,12 +98,9 @@ export default function PalhaPaginaInicialAdmin() {
 
   return (
     <main className="palha-admin-page">
-      <h1 className="palha-kicker" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', margin: '0 0 0.4rem' }}>
+      <h1 className="palha-kicker" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', margin: '0 0 2rem' }}>
         Página Inicial
       </h1>
-      <p className="palha-copy" style={{ marginBottom: '2rem' }}>
-        Redes, fotos e textos de cada bloco. Use N e I nos campos para negrito e itálico.
-      </p>
 
       <form
         className="palha-admin-form"
