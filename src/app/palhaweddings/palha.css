@@ -184,16 +184,16 @@
   text-transform: uppercase;
 }
 
-/* Conectores (*para*) — mesma família, tamanho próximo, alinhados à linha das caps */
+/* *para* nos títulos usa a mesma caps serif do resto da frase */
 .palha-kicker em {
-  font-family: var(--palha-display);
-  font-style: italic;
-  text-transform: none;
-  letter-spacing: 0.01em;
-  font-size: 0.78em;
-  font-weight: 300;
-  vertical-align: 0.06em;
-  margin: 0 0.08em;
+  font-family: inherit;
+  font-style: normal;
+  font-weight: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  vertical-align: baseline;
+  margin: 0;
 }
 
 .palha-copy {
@@ -283,6 +283,11 @@
   background:
     linear-gradient(rgba(20, 20, 20, 0.28), rgba(20, 20, 20, 0.28)),
     var(--palha-cta-image) center / cover no-repeat;
+}
+
+.palha-cta-sub {
+  margin: 0.7rem 0 1.8rem;
+  font-size: clamp(1.35rem, 3.2vw, 2.15rem);
 }
 
 .palha-footer {

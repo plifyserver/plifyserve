@@ -152,7 +152,7 @@ export default async function PalhaAboutPage() {
             </h2>
           ) : null}
           {copy.cta.subtitle ? (
-            <p className="palha-script-lg" style={{ margin: '0.9rem 0 1.8rem' }}>
+            <p className="palha-kicker palha-cta-sub">
               <PalhaRichText text={copy.cta.subtitle} />
             </p>
           ) : null}
