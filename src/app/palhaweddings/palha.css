@@ -4,6 +4,8 @@
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  /* Sem acentos: o OTF desenha o «a» e deixa o «á» cair noutra fonte por cima. */
+  unicode-range: U+0000-007F, U+2026;
 }
 
 .palha-root {
@@ -13,7 +15,7 @@
   --palha-line: #d9d9d9;
   --palha-display: var(--font-palha-display), 'Times New Roman', serif;
   --palha-sans: var(--font-palha-sans), system-ui, sans-serif;
-  --palha-script: 'Thesignature', var(--font-palha-script-fill), cursive;
+  --palha-script: var(--font-palha-script-fill), cursive;
   min-height: 100vh;
   background: var(--palha-bg);
   color: var(--palha-ink);
