@@ -170,8 +170,8 @@
 
 .palha-script-lg {
   font-family: var(--palha-script);
-  font-size: clamp(2.6rem, 6vw, 4.2rem);
-  line-height: 0.7;
+  font-size: clamp(2.1rem, 4.8vw, 3.4rem);
+  line-height: 1.18;
   font-weight: 400;
 }
 
@@ -179,18 +179,21 @@
   font-family: var(--palha-display);
   font-size: clamp(2rem, 5.4vw, 3.8rem);
   font-weight: 400;
-  line-height: 1.08;
+  line-height: 1.14;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
+/* Conectores (*para*) — mesma família, tamanho próximo, alinhados à linha das caps */
 .palha-kicker em {
   font-family: var(--palha-display);
   font-style: italic;
   text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.58em;
-  font-weight: 400;
+  letter-spacing: 0.01em;
+  font-size: 0.78em;
+  font-weight: 300;
+  vertical-align: 0.06em;
+  margin: 0 0.08em;
 }
 
 .palha-copy {
@@ -422,15 +425,17 @@
 }
 
 .palha-kicker-hero {
-  max-width: 11ch;
+  max-width: 12ch;
   margin: 1.1rem 0 0;
   font-size: clamp(2.1rem, 4.6vw, 3.55rem);
-  line-height: 1.05;
+  line-height: 1.12;
 }
 
 .palha-script-overlap {
-  margin: 0.15rem 0 1.6rem 1.5rem;
-  font-size: clamp(2.2rem, 4vw, 3.1rem);
+  margin: 0.95rem 0 1.5rem;
+  font-size: clamp(1.75rem, 3.4vw, 2.55rem);
+  line-height: 1.22;
+  max-width: 18ch;
 }
 
 .palha-about-hero-body {
@@ -498,9 +503,10 @@
 }
 
 .palha-kicker-promise {
-  max-width: 12ch;
+  max-width: 13ch;
   margin: 0.85rem 0 1.35rem;
   font-size: clamp(1.7rem, 3.6vw, 2.85rem);
+  line-height: 1.14;
 }
 
 .palha-promise {
@@ -596,14 +602,16 @@
   .palha-kicker-promise {
     max-width: none;
     font-size: clamp(1.65rem, 8vw, 2.35rem);
+    line-height: 1.16;
   }
 
   .palha-script-lg {
-    line-height: 0.88;
+    line-height: 1.2;
   }
 
   .palha-script-overlap {
-    margin: 0.35rem 0 1.2rem;
+    margin: 0.75rem 0 1.25rem;
+    max-width: none;
   }
 
   .palha-about-hero-photo {
@@ -726,6 +734,16 @@
 
   .palha-footer {
     padding: 3.6rem 1.25rem calc(2.2rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .palha-gallery-page {
+    padding: 2.4rem 1.25rem 4rem;
+  }
+
+  .palha-gallery-albums {
+    gap: 1.5rem;
+    grid-template-columns: 1fr;
+    max-width: 22rem;
   }
 
   .palha-footer-logo {
@@ -1188,21 +1206,65 @@
 }
 
 .palha-gallery-page {
-  padding: 3.5rem 5vw 5rem;
+  position: relative;
+  isolation: isolate;
+  padding: 3.2rem 5vw 5.5rem;
+  min-height: min(72vh, 52rem);
+  background:
+    radial-gradient(ellipse 80% 55% at 12% 8%, rgba(201, 168, 130, 0.18), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 92% 18%, rgba(176, 145, 118, 0.12), transparent 50%),
+    linear-gradient(180deg, #faf7f2 0%, #f3eee6 42%, #efe8de 100%);
+}
+
+.palha-gallery-atmosphere {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.45;
+  background-image: radial-gradient(rgba(80, 62, 42, 0.045) 0.7px, transparent 0.7px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
 }
 
 .palha-gallery-intro {
-  max-width: 40rem;
-  margin: 0 auto 3rem;
+  max-width: 36rem;
+  margin: 0 auto 2.8rem;
   text-align: center;
 }
 
-.palha-gallery-intro .palha-kicker {
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
+.palha-gallery-intro-ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-bottom: 1.15rem;
 }
 
-.palha-gallery-intro .palha-script-lg {
-  margin-top: 0.8rem;
+.palha-gallery-intro-ornament span {
+  width: 2.6rem;
+  height: 1px;
+  background: #c9c1b4;
+}
+
+.palha-gallery-intro-ornament i {
+  width: 7px;
+  height: 7px;
+  border: 1px solid #8a7f70;
+  transform: rotate(45deg);
+}
+
+.palha-gallery-intro .palha-kicker {
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  color: #2c2823;
+}
+
+.palha-gallery-intro .palha-script-lg,
+.palha-gallery-intro-script {
+  margin-top: 0.55rem;
+  color: #5c5348;
+  font-size: clamp(1.85rem, 3.6vw, 2.7rem);
+  line-height: 1.2;
 }
 
 .palha-gallery-grid {
@@ -1225,8 +1287,20 @@
   font-size: 0.92rem;
 }
 
-.palha-gallery-empty {
+.palha-gallery-empty,
+.palha-gallery-empty-state {
   text-align: center;
+  max-width: 28rem;
+  margin: 2rem auto 0;
+  padding: 2.4rem 1.5rem;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(201, 193, 180, 0.65);
+}
+
+.palha-gallery-empty-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.88rem;
+  color: var(--palha-muted);
 }
 
 .palha-album-list-page {
@@ -1431,15 +1505,13 @@
   background: #f4efe6;
 }
 
-.palha-album-card-cover img,
-.palha-gallery-album-cover img {
+.palha-album-card-cover img {
   display: block;
   width: 100%;
   height: auto;
 }
 
-.palha-album-card-cover span,
-.palha-gallery-album-cover span {
+.palha-album-card-cover span {
   display: grid;
   place-items: center;
   min-height: 16rem;
@@ -1907,26 +1979,103 @@
 
 .palha-gallery-albums {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.6rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 320px));
+  justify-content: center;
+  gap: 2rem 1.75rem;
+  max-width: 68rem;
+  margin: 0 auto;
+  width: 100%;
 }
 
-.palha-gallery-album a {
+.palha-gallery-album {
+  min-width: 0;
+}
+
+.palha-gallery-album-link {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.85rem;
+  height: 100%;
+  padding: 0.7rem 0.7rem 1.05rem;
+  background: rgba(255, 252, 248, 0.88);
+  border: 1px solid rgba(201, 193, 180, 0.75);
+  box-shadow: 0 14px 36px rgba(48, 36, 22, 0.07);
+  transition:
+    transform 280ms ease,
+    box-shadow 280ms ease,
+    border-color 280ms ease;
+}
+
+.palha-gallery-album-link:hover {
+  transform: translateY(-5px);
+  border-color: #b8a990;
+  box-shadow: 0 22px 48px rgba(48, 36, 22, 0.12);
+}
+
+.palha-gallery-album-cover {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: linear-gradient(145deg, #ebe4d8, #f6f1e8);
+  aspect-ratio: 4 / 5;
+}
+
+.palha-gallery-album-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 480ms ease;
+}
+
+.palha-gallery-album-link:hover .palha-gallery-album-cover img {
+  transform: scale(1.04);
+}
+
+.palha-gallery-album-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 16rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8a7f70;
+}
+
+.palha-gallery-album-badge {
+  position: absolute;
+  top: 0.7rem;
+  left: 0.7rem;
+  z-index: 1;
+  padding: 0.28rem 0.55rem;
+  background: rgba(44, 40, 35, 0.78);
+  color: #f7f3ec;
+  font-family: var(--palha-sans);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.palha-gallery-album-meta {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0 0.15rem;
 }
 
 .palha-gallery-album strong {
   font-family: var(--palha-display);
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 500;
+  color: #2c2823;
 }
 
 .palha-gallery-album em,
-.palha-gallery-album span {
+.palha-gallery-album-count {
   font-style: normal;
-  color: var(--palha-muted);
-  font-size: 0.92rem;
+  color: #7a7166;
+  font-size: 0.88rem;
 }
 
 .palha-gallery-back {

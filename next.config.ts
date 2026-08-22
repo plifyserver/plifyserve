@@ -13,6 +13,22 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["lucide-react"],
     proxyClientMaxBodySize: "200mb",
   },
+  async redirects() {
+    return [
+      { source: "/portfolio", destination: "/albuns", permanent: true },
+      { source: "/portfolio/:id", destination: "/albuns/:id", permanent: true },
+      {
+        source: "/palhaweddings/portfolio",
+        destination: "/palhaweddings/albuns",
+        permanent: true,
+      },
+      {
+        source: "/palhaweddings/portfolio/:id",
+        destination: "/palhaweddings/albuns/:id",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**", pathname: "/**" },

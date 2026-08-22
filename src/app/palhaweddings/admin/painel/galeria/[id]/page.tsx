@@ -199,7 +199,7 @@ export default function PalhaAlbumStudioPage() {
 
   async function copyPublicLink() {
     const origin = window.location.origin
-    const href = `${origin}${palhaPublicPrefix(pathname)}/portfolio/${albumId}`
+    const href = `${origin}${palhaPublicPrefix(pathname)}/albuns/${albumId}`
     try {
       await navigator.clipboard.writeText(href)
       setCopied(true)

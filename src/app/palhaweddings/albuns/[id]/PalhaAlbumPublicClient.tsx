@@ -90,7 +90,7 @@ export function PalhaAlbumPublicClient({
         <form className="palha-album-lock-card" onSubmit={(event) => void unlock(event)}>
           <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-cover-logo" />
           <p className="palha-label">Álbum privado</p>
-          <h1>{album.name || 'Galeria'}</h1>
+          <h1>{album.name || 'Álbum'}</h1>
           <p>{askPassword ? 'Digite a senha para ver as fotos.' : 'Verificando acesso…'}</p>
           {askPassword ? (
             <>

@@ -7,7 +7,7 @@ import { palhaInstagramHref, whatsappHref, type PalhaSiteSettings } from '@/lib/
 
 const PRIMARY = [
   { href: '/', label: 'Inicio' },
-  { href: '/portfolio', label: 'Albuns' },
+  { href: '/albuns', label: 'Álbuns' },
 ]
 
 function usePalhaPrefix() {
@@ -43,9 +43,17 @@ function NavLink({ href, label }: { href: string; label: string }) {
   const prefix = usePalhaPrefix()
   const dest = palhaHref(prefix, href)
   const home = dest === prefix || dest === '/'
+  const albunsPath = palhaHref(prefix, '/albuns')
+  const onAlbuns =
+    href === '/albuns' &&
+    (pathname === albunsPath ||
+      pathname === '/albuns' ||
+      pathname.startsWith(`${albunsPath}/`) ||
+      pathname.startsWith('/albuns/'))
   const current =
     pathname === dest ||
     pathname === href ||
+    onAlbuns ||
     (home && (pathname === `${prefix}/about` || pathname === '/about'))
   return (
     <Link href={dest} aria-current={current ? 'page' : undefined}>
@@ -124,7 +132,7 @@ function PalhaFooter({ prefix, settings }: { prefix: string; settings: PalhaSite
 }
 
 function isPalhaAlbumPublic(pathname: string) {
-  return /\/portfolio\/[^/]+\/?$/.test(pathname)
+  return /\/(?:albuns|portfolio)\/[^/]+\/?$/.test(pathname)
 }
 
 function isPalhaAdminPath(pathname: string) {
