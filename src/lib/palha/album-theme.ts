@@ -17,13 +17,13 @@ export const PALHA_TYPOGRAPHIES = [
 ] as const
 
 export const PALHA_PALETTES = [
-  { id: 'claro', label: 'Claro', swatches: ['#ffffff', '#f3f1ee', '#2b2b2b'] },
-  { id: 'dourado', label: 'Dourado', swatches: ['#fbf7f0', '#ead9b8', '#8c6b32'] },
-  { id: 'rosa', label: 'Rosa', swatches: ['#fff8f6', '#f3d7d2', '#b06b66'] },
-  { id: 'terracota', label: 'Terracota', swatches: ['#faf4ee', '#e2c8b0', '#9a5a3c'] },
+  { id: 'claro', label: 'Claro', swatches: ['#ffffff', '#ece9e4', '#222222'] },
+  { id: 'dourado', label: 'Dourado', swatches: ['#f4e6c8', '#d7b56a', '#5a3d10'] },
+  { id: 'rosa', label: 'Rosa', swatches: ['#fdecea', '#e7b3ad', '#7a3532'] },
+  { id: 'terracota', label: 'Terracota', swatches: ['#f3e1d2', '#d59a72', '#6b3218'] },
   { id: 'noturno', label: 'Noturno', swatches: ['#141414', '#2a2a2a', '#f4f1ea'] },
-  { id: 'marfim', label: 'Marfim', swatches: ['#f7f1e4', '#d8cbb6', '#6b5a45'] },
-  { id: 'oliva', label: 'Oliva', swatches: ['#f4f3ee', '#d5d4c6', '#6f7a5d'] },
+  { id: 'marfim', label: 'Marfim', swatches: ['#efe2c4', '#cbb07d', '#5c4a28'] },
+  { id: 'oliva', label: 'Oliva', swatches: ['#e7ead8', '#b4c08a', '#3d4a2e'] },
   { id: 'grafite', label: 'Grafite', swatches: ['#1c1c1c', '#3a3a3a', '#c6b089'] },
 ] as const
 
@@ -45,8 +45,10 @@ export const PALHA_MEDIA_FRAMES = [
 ] as const
 
 export const PALHA_THUMB_SIZES = [
+  { id: 'pequeno', label: 'Pequeno' },
   { id: 'regular', label: 'Regular' },
   { id: 'grande', label: 'Grande' },
+  { id: 'enorme', label: 'Enorme' },
 ] as const
 
 export type PalhaCoverLayout = (typeof PALHA_COVER_LAYOUTS)[number]['id']

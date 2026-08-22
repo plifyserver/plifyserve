@@ -22,11 +22,17 @@ export function palhaMediaAspect(item: PalhaMediaItem, sizes?: { width?: number;
 export const PALHA_GALLERY_MAX_WIDTH = 1200
 
 export function palhaTargetRowHeight(grid: PalhaGridStyle, thumb: PalhaThumbSize) {
-  const regular = thumb === 'regular'
-  if (grid === 'colunas2') return regular ? 260 : 360
-  if (grid === 'colunas3') return regular ? 190 : 250
-  if (grid === 'mosaico') return regular ? 210 : 300
-  return regular ? 220 : 310
+  const rank = thumb === 'pequeno' ? 0 : thumb === 'regular' ? 1 : thumb === 'grande' ? 2 : 3
+  const rows: Record<PalhaGridStyle, [number, number, number, number]> = {
+    justificado: [150, 220, 310, 420],
+    colunas2: [190, 260, 360, 480],
+    colunas3: [140, 190, 250, 340],
+    vertical: [150, 220, 310, 420],
+    horizontal: [150, 220, 310, 420],
+    quadrado: [130, 200, 280, 380],
+    mosaico: [150, 210, 300, 400],
+  }
+  return rows[grid][rank]
 }
 
 function scaleRow(entries: { item: PalhaMediaItem; index: number; aspect: number }[], width: number, gap: number) {
@@ -93,7 +99,9 @@ export function layoutPalhaGrid(
   }
 
   if (options.grid === 'quadrado') {
-    const cell = options.thumb === 'regular' ? Math.min(220, (width - gap * 3) / 4) : Math.min(280, (width - gap * 2) / 3)
+    const rank = options.thumb === 'pequeno' ? 0 : options.thumb === 'regular' ? 1 : options.thumb === 'grande' ? 2 : 3
+    const size = [150, 200, 280, 360][rank]
+    const cell = Math.min(size, width / (rank === 0 ? 5 : rank === 1 ? 4 : rank === 2 ? 3 : 2) - gap)
     const perRow = Math.max(2, Math.floor((width + gap) / (cell + gap)))
     return chunk(prepared, perRow).map((row) =>
       row.map((entry) => ({
