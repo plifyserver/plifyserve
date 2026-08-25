@@ -1,3 +1,4 @@
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
 import {
   CreateBucketCommand,
   DeleteObjectCommand,
@@ -99,7 +100,7 @@ async function ensurePalhaR2Bucket() {
             CORSRules: [
               {
                 AllowedOrigins: ['*'],
-                AllowedMethods: ['GET', 'PUT', 'POST', 'HEAD'],
+                AllowedMethods: ['GET', 'PUT', 'POST', 'HEAD', 'OPTIONS'],
                 AllowedHeaders: ['*'],
                 ExposeHeaders: ['ETag', 'Location', 'Content-Type'],
                 MaxAgeSeconds: 3600,
@@ -142,10 +143,35 @@ export async function createPalhaR2SignedUpload(folder: string, filename: string
       ]),
     },
   )
+  let postUrl = ''
+  let postFields: Record<string, string> = {}
+  try {
+    const posted = await createPresignedPost(s3, {
+      Bucket: bucket,
+      Key: key,
+      Expires: 60 * 30,
+      Conditions: [
+        ['content-length-range', 1, 10 * 1024 * 1024 * 1024],
+        ['eq', '$Content-Type', type],
+        ['eq', '$key', key],
+      ],
+      Fields: {
+        key,
+        'Content-Type': type,
+      },
+    })
+    postUrl = posted.url
+    postFields = posted.fields
+  } catch {
+    postUrl = ''
+    postFields = {}
+  }
   return {
     path: key,
     token: signedUrl,
     signedUrl,
+    postUrl,
+    postFields,
     publicUrl: palhaR2PublicUrl(key),
     contentType: type,
   }

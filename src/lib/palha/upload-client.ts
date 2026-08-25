@@ -38,7 +38,18 @@ export function palhaFileKind(file: File): PalhaMediaKind {
 
 async function readResponseJson(res: Response) {
   const text = await res.text()
-  if (!text) return {} as { url?: string; signedUrl?: string; publicUrl?: string; contentType?: string; kind?: string; error?: string }
+  if (!text) {
+    return {} as {
+      url?: string
+      signedUrl?: string
+      publicUrl?: string
+      contentType?: string
+      kind?: string
+      error?: string
+      postUrl?: string
+      postFields?: Record<string, string>
+    }
+  }
   try {
     return JSON.parse(text) as {
       url?: string
@@ -47,6 +58,8 @@ async function readResponseJson(res: Response) {
       contentType?: string
       kind?: string
       error?: string
+      postUrl?: string
+      postFields?: Record<string, string>
     }
   } catch {
     throw new Error('O servidor não devolveu uma resposta válida. Tente de novo.')
@@ -54,6 +67,31 @@ async function readResponseJson(res: Response) {
 }
 
 const SMALL_SERVER_UPLOAD = 3.5 * 1024 * 1024
+
+function postFileWithProgress(
+  url: string,
+  fields: Record<string, string>,
+  file: File,
+  onProgress?: (percent: number) => void,
+) {
+  return new Promise<void>((resolve, reject) => {
+    const form = new FormData()
+    for (const [key, value] of Object.entries(fields)) form.append(key, value)
+    form.append('file', file)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !onProgress) return
+      onProgress(Math.max(1, Math.round((event.loaded / event.total) * 100)))
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve()
+      else reject(new Error(`R2 ${xhr.status}`))
+    }
+    xhr.onerror = () => reject(new Error('cors'))
+    xhr.send(form)
+  })
+}
 
 function putFileWithProgress(url: string, file: File, contentType: string, onProgress?: (percent: number) => void) {
   return new Promise<void>((resolve, reject) => {
@@ -113,21 +151,28 @@ export async function uploadPalhaMediaFile(
   }
 
   onProgress?.(4)
+  const type = signed.contentType || contentType
   try {
-    await putFileWithProgress(signed.signedUrl, file, signed.contentType || contentType, onProgress)
+    if (signed.postUrl && signed.postFields) {
+      await postFileWithProgress(signed.postUrl, signed.postFields, file, onProgress)
+    } else {
+      throw new Error('no-post')
+    }
   } catch {
     try {
-      const put = await fetch(signed.signedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': signed.contentType || contentType },
-        body: file,
-      })
-      if (!put.ok) throw new Error(`R2 ${put.status}`)
+      await putFileWithProgress(signed.signedUrl, file, type, onProgress)
     } catch {
-      if (file.size <= SMALL_SERVER_UPLOAD) return uploadViaServer(file, folder, onProgress)
-      throw new Error(
-        'O vídeo precisa ir direto para o armazenamento. No Cloudflare R2, em CORS do bucket, permita PUT e o cabeçalho Content-Type para o domínio do site.',
-      )
+      try {
+        const put = await fetch(signed.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': type },
+          body: file,
+        })
+        if (!put.ok) throw new Error(`R2 ${put.status}`)
+      } catch {
+        if (file.size <= SMALL_SERVER_UPLOAD) return uploadViaServer(file, folder, onProgress)
+        throw new Error('Não foi possível enviar o vídeo. No CORS do R2, inclua também o método OPTIONS e volte a tentar.')
+      }
     }
   }
 

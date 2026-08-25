@@ -1232,7 +1232,9 @@
 
 .palha-upload-cover p {
   margin: 0;
+  max-width: 16rem;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .palha-upload-cover span {
