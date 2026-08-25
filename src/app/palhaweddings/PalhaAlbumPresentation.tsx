@@ -11,6 +11,7 @@ import {
   type PalhaAlbum,
   type PalhaMediaItem,
 } from '@/lib/palha/site-settings-shared'
+import { downloadPalhaAlbumZip, palhaAlbumZipEntries } from './downloadAlbumZip'
 
 function fileNameFromUrl(url: string, fallback: string) {
   try {
@@ -85,6 +86,8 @@ export function PalhaAlbumPresentation({
   const [selectedId, setSelectedId] = useState(album.subalbums[0]?.id || '')
   const [viewer, setViewer] = useState<{ item: PalhaMediaItem; index: number } | null>(null)
   const [savingId, setSavingId] = useState('')
+  const [zipping, setZipping] = useState('')
+  const [zipError, setZipError] = useState('')
   const selected = useMemo(
     () => album.subalbums.find((sub) => sub.id === selectedId) ?? album.subalbums[0],
     [album.subalbums, selectedId],
@@ -110,6 +113,23 @@ export function PalhaAlbumPresentation({
       document.removeEventListener('keydown', onKey)
     }
   }, [viewer])
+
+  const mediaCount = palhaAlbumZipEntries(album).length
+
+  async function downloadAll() {
+    if (zipping) return
+    setZipError('')
+    setZipping('Preparando…')
+    try {
+      await downloadPalhaAlbumZip(album, (done, total) => {
+        setZipping(done >= total ? 'Gerando arquivo…' : `Baixando ${done + 1} de ${total}…`)
+      })
+    } catch (err) {
+      setZipError(err instanceof Error ? err.message : 'Não foi possível baixar o álbum.')
+    } finally {
+      setZipping('')
+    }
+  }
 
   async function saveMedia(item: PalhaMediaItem, index: number) {
     if (savingId) return
@@ -186,6 +206,14 @@ export function PalhaAlbumPresentation({
       </section>
 
       <section id="galeria" className="palha-present-gallery">
+        {!preview && mediaCount ? (
+          <div className="palha-present-download">
+            <button type="button" className="palha-btn" disabled={Boolean(zipping)} onClick={() => void downloadAll()}>
+              {zipping || `Baixar todas as mídias (${mediaCount})`}
+            </button>
+            {zipError ? <p className="palha-present-download-error">{zipError}</p> : null}
+          </div>
+        ) : null}
         {album.subalbums.length > 1 ? (
           <nav className="palha-present-subs">
             {album.subalbums.map((sub) => (
