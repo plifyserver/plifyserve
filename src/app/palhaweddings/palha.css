@@ -1209,6 +1209,58 @@
   position: relative;
 }
 
+.palha-admin-drag {
+  position: relative;
+}
+
+.palha-upload-cover {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 0.35rem;
+  background: rgba(28, 24, 20, 0.42);
+  color: #fff;
+  text-align: center;
+  padding: 0.7rem;
+  font-family: var(--palha-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.palha-upload-cover p {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.palha-upload-cover span {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+}
+
+.palha-upload-ring {
+  width: 2.7rem;
+  height: 2.7rem;
+  transform: rotate(-90deg);
+}
+
+.palha-upload-ring circle {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 3;
+}
+
+.palha-upload-ring-value {
+  stroke: #fff;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.16s linear;
+}
+
+.palha-admin-mini.is-quiet {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .palha-admin-sort-ghost {
   position: fixed;
   z-index: 80;

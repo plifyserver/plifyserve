@@ -14,7 +14,7 @@ import {
   type PalhaSiteSettings,
   type PalhaSubAlbum,
 } from '@/lib/palha/site-settings-shared'
-import { uploadPalhaMediaFile } from '@/lib/palha/upload-client'
+import { isPalhaMediaFile, palhaFileKind, uploadPalhaMediaFile } from '@/lib/palha/upload-client'
 import { preferPalhaAdminSettings, readPalhaAdminSettings, rememberPalhaAdminSettings } from '@/lib/palha/admin-settings-cache'
 import { PalhaMediaSortGrid } from './PalhaMediaSortGrid'
 import { PalhaSubalbumSortList } from './PalhaSubalbumSortList'
@@ -28,7 +28,7 @@ async function readMediaSize(file: File) {
       URL.revokeObjectURL(href)
       resolve(width && height ? { width, height } : {})
     }
-    if (file.type.startsWith('video/')) {
+    if (file.type.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(file.name)) {
       const video = document.createElement('video')
       video.preload = 'metadata'
       video.onloadedmetadata = () => done(video.videoWidth, video.videoHeight)
@@ -43,7 +43,7 @@ async function readMediaSize(file: File) {
   })
 }
 
-const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/heic,video/mp4,video/webm,video/quicktime'
+const ACCEPT = '.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.mp4,.webm,.mov,.m4v'
 
 function updateAlbum(gallery: PalhaGallery, albumId: string, patch: PalhaAlbum): PalhaGallery {
   return {
@@ -62,6 +62,9 @@ export default function PalhaAlbumStudioPage() {
   const [selectedId, setSelectedId] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState('')
+  const [pendingUploads, setPendingUploads] = useState<
+    { id: string; preview: string; kind: PalhaMediaItem['kind']; percent: number; error?: string }[]
+  >([])
   const [dragging, setDragging] = useState(false)
   const [subName, setSubName] = useState('')
   const [askSub, setAskSub] = useState(false)
@@ -77,6 +80,7 @@ export default function PalhaAlbumStudioPage() {
   const saveGen = useRef(0)
   const persistTimer = useRef<number | null>(null)
   const dirtyRef = useRef(false)
+  const appendLock = useRef(Promise.resolve())
   settingsRef.current = settings
 
   const album = useMemo(
@@ -205,42 +209,91 @@ export default function PalhaAlbumStudioPage() {
   }
 
   async function addFiles(files: FileList | File[]) {
-    if (!album || !selected) return
-    const list = Array.from(files).filter((file) => file.type.startsWith('image/') || file.type.startsWith('video/'))
+    const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
+    const currentSelected =
+      currentAlbum?.subalbums.find((sub) => sub.id === selectedId) ?? currentAlbum?.subalbums[0]
+    if (!currentAlbum || !currentSelected) return
+    const list = Array.from(files).filter(isPalhaMediaFile)
     if (!list.length) return
-    setUploading(`Enviando 0/${list.length}…`)
     setError('')
-    const added: PalhaMediaItem[] = []
-    try {
-      for (let index = 0; index < list.length; index += 1) {
-        setUploading(`Enviando ${index + 1}/${list.length}…`)
-        const file = list[index]
-        const uploaded = await uploadPalhaMediaFile(file, `gallery/${album.id}/${selected.id}`)
-        const size = await readMediaSize(file)
-        added.push({
-          id: newPalhaId('media'),
-          url: uploaded.url,
-          kind: uploaded.kind,
-          caption: '',
-          frame: 'auto',
-          width: size.width,
-          height: size.height,
-        })
-      }
-      const nextAlbum: PalhaAlbum = {
-        ...album,
-        coverUrl: album.coverUrl || added.find((item) => item.kind === 'image')?.url || album.coverUrl,
-        subalbums: album.subalbums.map((sub) =>
-          sub.id === selected.id ? { ...sub, items: [...sub.items, ...added] } : sub,
-        ),
-      }
-      await patchAlbum(nextAlbum)
-      setMessage(`${added.length} arquivo${added.length === 1 ? '' : 's'} adicionado${added.length === 1 ? '' : 's'}.`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha no envio.')
-    } finally {
-      setUploading('')
+    const batch = list.map((file) => ({
+      id: newPalhaId('up'),
+      file,
+      preview: URL.createObjectURL(file),
+      kind: palhaFileKind(file),
+      percent: 0,
+    }))
+    setPendingUploads((current) => [
+      ...current,
+      ...batch.map(({ id, preview, kind, percent }) => ({ id, preview, kind, percent })),
+    ])
+
+    const updateCard = (id: string, patch: { percent?: number; error?: string }) => {
+      setPendingUploads((current) => current.map((card) => (card.id === id ? { ...card, ...patch } : card)))
     }
+    const dropCard = (id: string, preview: string) => {
+      URL.revokeObjectURL(preview)
+      setPendingUploads((current) => current.filter((card) => card.id !== id))
+    }
+
+    let nextIndex = 0
+    const workers = Array.from({ length: Math.min(3, batch.length) }, async () => {
+      while (nextIndex < batch.length) {
+        const job = batch[nextIndex]
+        nextIndex += 1
+        try {
+          const uploaded = await uploadPalhaMediaFile(
+            job.file,
+            `gallery/${currentAlbum.id}/${currentSelected.id}`,
+            (percent) => updateCard(job.id, { percent }),
+          )
+          const size = await readMediaSize(job.file)
+          await (appendLock.current = appendLock.current.then(async () => {
+            const live = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
+            if (!live) throw new Error('Álbum não encontrado')
+            await patchAlbum({
+              ...live,
+              coverUrl: live.coverUrl || (uploaded.kind === 'image' ? uploaded.url : live.coverUrl),
+              subalbums: live.subalbums.map((sub) =>
+                sub.id === currentSelected.id
+                  ? {
+                      ...sub,
+                      items: [
+                        ...sub.items,
+                        {
+                          id: newPalhaId('media'),
+                          url: uploaded.url,
+                          kind: uploaded.kind,
+                          caption: '',
+                          frame: 'auto',
+                          width: size.width,
+                          height: size.height,
+                        },
+                      ],
+                    }
+                  : sub,
+              ),
+            })
+            dropCard(job.id, job.preview)
+          }))
+        } catch (err) {
+          const raw = err instanceof Error ? err.message : 'Falha no envio.'
+          updateCard(job.id, {
+            percent: 0,
+            error: /did not match the expected pattern/i.test(raw)
+              ? 'Este ficheiro não foi aceite. No Mac, use JPEG, PNG, MP4 ou MOV.'
+              : raw,
+          })
+        }
+      }
+    })
+    await Promise.all(workers)
+    setPendingUploads((current) => {
+      if (!current.some((card) => card.error)) {
+        setMessage(`${list.length} arquivo${list.length === 1 ? '' : 's'} adicionado${list.length === 1 ? '' : 's'}.`)
+      }
+      return current
+    })
   }
 
   async function changeCover(file: File | undefined) {
@@ -586,15 +639,23 @@ export default function PalhaAlbumStudioPage() {
               void addFiles(e.dataTransfer.files)
             }}
           >
-            {selected?.items.length ? (
+            {selected?.items.length || pendingUploads.length ? (
               <>
                 <p className="palha-album-order-hint">
                   Arraste uma foto e solte em cima do lugar onde ela deve ficar. As outras não saem do lugar até você soltar.
                 </p>
                 <PalhaMediaSortGrid
-                  items={selected.items}
+                  items={selected?.items || []}
+                  pending={pendingUploads}
                   onReorder={reorderMedia}
                   onRemove={(id) => void removeMedia(id)}
+                  onDismissPending={(id) => {
+                    setPendingUploads((current) => {
+                      const card = current.find((item) => item.id === id)
+                      if (card) URL.revokeObjectURL(card.preview)
+                      return current.filter((item) => item.id !== id)
+                    })
+                  }}
                 />
               </>
             ) : (
