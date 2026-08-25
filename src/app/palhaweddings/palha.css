@@ -1173,10 +1173,10 @@
 .palha-admin-gallery-card video {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 18rem;
+  height: 100%;
+  max-height: none;
   object-fit: contain;
-  background: #f7f3ec;
+  background: transparent;
 }
 
 .palha-admin-gallery-grid.is-sorting {
@@ -1213,6 +1213,9 @@
 
 .palha-admin-drag {
   position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: #f7f3ec;
 }
 
 .palha-upload-cover {
@@ -1354,12 +1357,12 @@
 .palha-admin-gallery-add {
   position: relative;
   display: grid;
-  place-items: center;
   gap: 0.55rem;
-  min-height: 14rem;
-  padding: 1.4rem 1rem;
-  background: #faf7f1;
-  border: 1px dashed rgba(50, 42, 32, 0.22);
+  align-content: start;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
   color: #6f6a62;
   cursor: pointer;
   text-align: center;
@@ -1370,7 +1373,16 @@
   text-transform: uppercase;
 }
 
-.palha-admin-gallery-add:hover {
+.palha-admin-gallery-add-pad {
+  display: grid;
+  place-items: center;
+  gap: 0.55rem;
+  padding: 1rem 0.8rem;
+  border: 1px dashed rgba(50, 42, 32, 0.22);
+  background: #faf7f1;
+}
+
+.palha-admin-gallery-add:hover .palha-admin-gallery-add-pad {
   background: #fff;
   border-color: var(--palha-ink);
   color: var(--palha-ink);
@@ -1378,6 +1390,7 @@
 
 .palha-admin-gallery-add svg {
   display: block;
+  margin: 0 auto;
   opacity: 0.7;
 }
 

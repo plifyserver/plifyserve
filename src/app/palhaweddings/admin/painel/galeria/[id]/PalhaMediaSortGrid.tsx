@@ -156,12 +156,15 @@ export function PalhaMediaSortGrid({
           </article>
         ))}
         {onAdd ? (
-          <label className="palha-admin-gallery-add">
-            <svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true">
-              <rect x="6" y="10" width="36" height="28" rx="3" fill="none" stroke="currentColor" strokeWidth="1.7" />
-              <path d="M24 18v12M18 24h12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-            </svg>
-            Adicionar fotos ou vídeos
+          <label className="palha-admin-gallery-card palha-admin-gallery-add">
+            <span className="palha-admin-drag palha-admin-gallery-add-pad">
+              <svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true">
+                <rect x="6" y="10" width="36" height="28" rx="3" fill="none" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M24 18v12M18 24h12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+              Adicionar fotos ou vídeos
+            </span>
+            <span className="palha-admin-mini is-quiet">Novo arquivo</span>
             <input
               type="file"
               accept={accept}
