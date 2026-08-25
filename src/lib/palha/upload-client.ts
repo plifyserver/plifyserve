@@ -41,6 +41,7 @@ async function readResponseJson(res: Response) {
   if (!text) {
     return {} as {
       url?: string
+      path?: string
       signedUrl?: string
       publicUrl?: string
       contentType?: string
@@ -53,6 +54,7 @@ async function readResponseJson(res: Response) {
   try {
     return JSON.parse(text) as {
       url?: string
+      path?: string
       signedUrl?: string
       publicUrl?: string
       contentType?: string
@@ -68,13 +70,17 @@ async function readResponseJson(res: Response) {
 
 const SMALL_SERVER_UPLOAD = 3.5 * 1024 * 1024
 
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
 function postFileWithProgress(
   url: string,
   fields: Record<string, string>,
   file: File,
   onProgress?: (percent: number) => void,
 ) {
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<void>((resolve) => {
     const form = new FormData()
     for (const [key, value] of Object.entries(fields)) form.append(key, value)
     form.append('file', file)
@@ -82,33 +88,40 @@ function postFileWithProgress(
     xhr.open('POST', url)
     xhr.upload.onprogress = (event) => {
       if (!event.lengthComputable || !onProgress) return
-      onProgress(Math.max(1, Math.round((event.loaded / event.total) * 100)))
+      onProgress(Math.max(1, Math.min(95, Math.round((event.loaded / event.total) * 95))))
     }
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve()
-      else reject(new Error(`R2 ${xhr.status}`))
-    }
-    xhr.onerror = () => reject(new Error('cors'))
+    xhr.onload = () => resolve()
+    xhr.onerror = () => resolve()
     xhr.send(form)
   })
 }
 
-function putFileWithProgress(url: string, file: File, contentType: string, onProgress?: (percent: number) => void) {
-  return new Promise<void>((resolve, reject) => {
+function putFileWithProgress(url: string, file: File, onProgress?: (percent: number) => void) {
+  return new Promise<void>((resolve) => {
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', url)
-    xhr.setRequestHeader('Content-Type', contentType)
     xhr.upload.onprogress = (event) => {
       if (!event.lengthComputable || !onProgress) return
-      onProgress(Math.max(1, Math.round((event.loaded / event.total) * 100)))
+      onProgress(Math.max(1, Math.min(95, Math.round((event.loaded / event.total) * 95))))
     }
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve()
-      else reject(new Error(`R2 ${xhr.status}`))
-    }
-    xhr.onerror = () => reject(new Error('cors'))
+    xhr.onload = () => resolve()
+    xhr.onerror = () => resolve()
     xhr.send(file)
   })
+}
+
+async function confirmR2Object(path: string, contentType: string) {
+  for (let i = 0; i < 50; i++) {
+    const res = await fetch('/api/palha/site/upload-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({ path, contentType }),
+    })
+    if (res.ok) return true
+    await sleep(400)
+  }
+  return false
 }
 
 async function uploadViaServer(file: File, folder: string, onProgress?: (percent: number) => void) {
@@ -134,6 +147,10 @@ export async function uploadPalhaMediaFile(
   onProgress?: (percent: number) => void,
 ) {
   const contentType = guessContentType(file)
+  if (file.size <= SMALL_SERVER_UPLOAD) {
+    return uploadViaServer(file, folder, onProgress)
+  }
+
   const signedRes = await fetch('/api/palha/site/signed-upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -145,35 +162,22 @@ export async function uploadPalhaMediaFile(
     }),
   })
   const signed = await readResponseJson(signedRes)
-  if (!signedRes.ok || !signed.signedUrl || !signed.publicUrl) {
-    if (file.size <= SMALL_SERVER_UPLOAD) return uploadViaServer(file, folder, onProgress)
+  if (!signedRes.ok || !signed.path || !signed.publicUrl) {
     throw new Error(signed.error || 'Não foi possível preparar o envio do vídeo.')
   }
 
   onProgress?.(4)
-  const type = signed.contentType || contentType
-  try {
-    if (signed.postUrl && signed.postFields) {
-      await postFileWithProgress(signed.postUrl, signed.postFields, file, onProgress)
-    } else {
-      throw new Error('no-post')
-    }
-  } catch {
-    try {
-      await putFileWithProgress(signed.signedUrl, file, type, onProgress)
-    } catch {
-      try {
-        const put = await fetch(signed.signedUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': type },
-          body: file,
-        })
-        if (!put.ok) throw new Error(`R2 ${put.status}`)
-      } catch {
-        if (file.size <= SMALL_SERVER_UPLOAD) return uploadViaServer(file, folder, onProgress)
-        throw new Error('Não foi possível enviar o vídeo. No CORS do R2, inclua também o método OPTIONS e volte a tentar.')
-      }
-    }
+  if (signed.postUrl && signed.postFields) {
+    await postFileWithProgress(signed.postUrl, signed.postFields, file, onProgress)
+  } else if (signed.signedUrl) {
+    await putFileWithProgress(signed.signedUrl, file, onProgress)
+  } else {
+    throw new Error('Não foi possível preparar o envio do vídeo.')
+  }
+
+  const ok = await confirmR2Object(signed.path, signed.contentType || contentType)
+  if (!ok) {
+    throw new Error('O vídeo não chegou ao armazenamento. Confira as chaves do R2 e tente de novo.')
   }
 
   onProgress?.(100)

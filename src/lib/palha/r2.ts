@@ -1,5 +1,6 @@
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
 import {
+  CopyObjectCommand,
   CreateBucketCommand,
   DeleteObjectCommand,
   GetObjectCommand,
@@ -102,7 +103,16 @@ async function ensurePalhaR2Bucket() {
               {
                 AllowedOrigins: ['*'],
                 AllowedMethods: ['GET', 'PUT', 'POST', 'HEAD', 'OPTIONS'],
-                AllowedHeaders: ['*'],
+                AllowedHeaders: [
+                  'Content-Type',
+                  'Content-Length',
+                  'Content-MD5',
+                  'Authorization',
+                  'x-amz-content-sha256',
+                  'x-amz-date',
+                  'x-amz-checksum-crc32',
+                  'x-amz-sdk-checksum-algorithm',
+                ],
                 ExposeHeaders: ['ETag', 'Location', 'Content-Type'],
                 MaxAgeSeconds: 3600,
               },
@@ -131,11 +141,12 @@ export async function createPalhaR2SignedUpload(folder: string, filename: string
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
-      ContentType: type,
     }),
     {
       expiresIn: 60 * 30,
+      signableHeaders: new Set(['host']),
       unhoistableHeaders: new Set([
+        'content-type',
         'x-amz-checksum-crc32',
         'x-amz-checksum-crc32c',
         'x-amz-sdk-checksum-algorithm',
@@ -151,15 +162,8 @@ export async function createPalhaR2SignedUpload(folder: string, filename: string
       Bucket: bucket,
       Key: key,
       Expires: 60 * 30,
-      Conditions: [
-        ['content-length-range', 1, 10 * 1024 * 1024 * 1024],
-        ['eq', '$Content-Type', type],
-        ['eq', '$key', key],
-      ],
-      Fields: {
-        key,
-        'Content-Type': type,
-      },
+      Conditions: [['content-length-range', 1, 10 * 1024 * 1024 * 1024]],
+      Fields: { key },
     })
     postUrl = posted.url
     postFields = posted.fields
@@ -247,6 +251,36 @@ async function listPalhaR2Keys(prefix: string) {
 
 export function palhaR2KeyFromUrl(url: string) {
   return palhaR2KeyFromPublicUrl(url)
+}
+
+export function isPalhaGalleryObjectKey(key: string) {
+  return Boolean(key) && key.startsWith('gallery/') && !key.includes('..') && !key.startsWith('/')
+}
+
+export async function palhaR2ObjectExists(key: string) {
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function stampPalhaR2ContentType(key: string, contentType: string) {
+  if (!contentType) return
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  await s3.send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      CopySource: `${bucket}/${key.split('/').map(encodeURIComponent).join('/')}`,
+      ContentType: contentType,
+      MetadataDirective: 'REPLACE',
+    }),
+  )
 }
 
 export async function getPalhaR2Object(key: string) {
