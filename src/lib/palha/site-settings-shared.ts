@@ -242,6 +242,16 @@ export function albumMediaCount(album: PalhaAlbum) {
   return album.subalbums.reduce((total, sub) => total + sub.items.length, 0)
 }
 
+export function palhaAlbumShareImage(album: PalhaAlbum | null | undefined) {
+  if (!album) return ''
+  if (album.coverUrl.trim()) return album.coverUrl.trim()
+  for (const sub of album.subalbums) {
+    const photo = sub.items.find((item) => item.kind === 'image' && item.url)
+    if (photo?.url) return photo.url
+  }
+  return ''
+}
+
 export function collectPalhaMediaUrls(settings: PalhaSiteSettings) {
   const urls = new Set<string>()
   for (const url of Object.values(settings.photos)) {

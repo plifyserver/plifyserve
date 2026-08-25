@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { isAlbumUnlocked } from '@/lib/palha/album-password'
-import { publicizeAlbum, type PalhaAlbum } from '@/lib/palha/site-settings-shared'
+import { palhaAlbumShareImage, publicizeAlbum } from '@/lib/palha/site-settings-shared'
 import { getPalhaSiteSettings } from '@/lib/palha/site-settings'
 import { PalhaAlbumPublicClient } from './PalhaAlbumPublicClient'
 
@@ -11,13 +11,9 @@ type Props = { params: Promise<{ id: string }> }
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function albumShareImage(album: PalhaAlbum) {
-  if (album.coverUrl) return album.coverUrl
-  for (const sub of album.subalbums) {
-    const photo = sub.items.find((item) => item.kind === 'image' && item.url)
-    if (photo?.url) return photo.url
-  }
-  return ''
+function shareVersion(url: string) {
+  const name = url.split('/').pop() || 'capa'
+  return name.replace(/[^\w.-]+/g, '').slice(0, 40) || 'capa'
 }
 
 async function publicOrigin() {
@@ -34,13 +30,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const origin = await publicOrigin()
   const title = album?.name || 'Álbum'
   const description = album?.summary?.trim() || 'Galeria de fotos e filmes de casamento.'
-  const image = album ? albumShareImage(album) : ''
+  const source = album ? palhaAlbumShareImage(album) : ''
+  const image = source ? `${origin}/api/palha/og/${encodeURIComponent(id)}?v=${shareVersion(source)}` : ''
   const url = `${origin}/albuns/${id}`
 
   return {
     title,
     description,
     alternates: { canonical: url },
+    robots: { index: true, follow: true },
     openGraph: {
       title: `${title} — Palha Weddings`,
       description,
@@ -52,6 +50,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         ? [
             {
               url: image,
+              secureUrl: image,
+              width: 1200,
+              height: 630,
+              type: 'image/jpeg',
               alt: title,
             },
           ]
