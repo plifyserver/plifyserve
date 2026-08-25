@@ -44,12 +44,16 @@ function UploadRing({ percent }: { percent: number }) {
 export function PalhaMediaSortGrid({
   items,
   pending = [],
+  accept,
+  onAdd,
   onReorder,
   onRemove,
   onDismissPending,
 }: {
   items: PalhaMediaItem[]
   pending?: PalhaPendingUpload[]
+  accept?: string
+  onAdd?: (files: FileList) => void
   onReorder: (from: number, to: number) => void
   onRemove: (id: string) => void
   onDismissPending?: (id: string) => void
@@ -151,6 +155,20 @@ export function PalhaMediaSortGrid({
             )}
           </article>
         ))}
+        {onAdd ? (
+          <label className="palha-admin-gallery-add">
+            Adicionar fotos ou vídeos
+            <input
+              type="file"
+              accept={accept}
+              multiple
+              onChange={(event) => {
+                if (event.target.files?.length) onAdd(event.target.files)
+                event.currentTarget.value = ''
+              }}
+            />
+          </label>
+        ) : null}
       </div>
       {ghost ? (
         <div className="palha-admin-sort-ghost" style={{ left: ghost.x, top: ghost.y }} aria-hidden="true">

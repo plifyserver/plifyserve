@@ -68,11 +68,28 @@ function putFileWithProgress(url: string, file: File, contentType: string, onPro
     }
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve()
-      else reject(new Error('Não foi possível enviar o arquivo. Confira o CORS do bucket R2 e tente de novo.'))
+      else reject(new Error(`R2 ${xhr.status}`))
     }
-    xhr.onerror = () => reject(new Error('Falha de rede no envio.'))
+    xhr.onerror = () => reject(new Error('cors'))
     xhr.send(file)
   })
+}
+
+async function uploadViaServer(file: File, folder: string, onProgress?: (percent: number) => void) {
+  onProgress?.(12)
+  const form = new FormData()
+  form.set('folder', folder)
+  form.set('file', file)
+  const res = await fetch('/api/palha/site/media', { method: 'POST', body: form, cache: 'no-store' })
+  const data = await readResponseJson(res)
+  if (!res.ok || !data.url) {
+    throw new Error(data.error || 'Não foi possível enviar o arquivo.')
+  }
+  onProgress?.(100)
+  return {
+    url: data.url,
+    kind: (data.kind === 'video' ? 'video' : mediaKind(file, guessContentType(file))) as PalhaMediaKind,
+  }
 }
 
 export async function uploadPalhaMediaFile(
@@ -81,26 +98,38 @@ export async function uploadPalhaMediaFile(
   onProgress?: (percent: number) => void,
 ) {
   const contentType = guessContentType(file)
-  const signedRes = await fetch('/api/palha/site/signed-upload', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
-    body: JSON.stringify({
-      folder,
-      filename: file.name || 'arquivo',
-      contentType,
-    }),
-  })
-  const signed = await readResponseJson(signedRes)
-  if (!signedRes.ok || !signed.signedUrl || !signed.publicUrl) {
-    throw new Error(signed.error || 'Não foi possível preparar o envio.')
-  }
-
-  onProgress?.(4)
-  await putFileWithProgress(signed.signedUrl, file, signed.contentType || contentType, onProgress)
-
-  return {
-    url: signed.publicUrl,
-    kind: signed.kind === 'video' ? ('video' as PalhaMediaKind) : mediaKind(file, contentType),
+  try {
+    const signedRes = await fetch('/api/palha/site/signed-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({
+        folder,
+        filename: file.name || 'arquivo',
+        contentType,
+      }),
+    })
+    const signed = await readResponseJson(signedRes)
+    if (!signedRes.ok || !signed.signedUrl || !signed.publicUrl) {
+      throw new Error(signed.error || 'signed')
+    }
+    onProgress?.(4)
+    try {
+      await putFileWithProgress(signed.signedUrl, file, signed.contentType || contentType, onProgress)
+    } catch {
+      const put = await fetch(signed.signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': signed.contentType || contentType },
+        body: file,
+      })
+      if (!put.ok) throw new Error(`R2 ${put.status}`)
+    }
+    onProgress?.(100)
+    return {
+      url: signed.publicUrl,
+      kind: signed.kind === 'video' ? ('video' as PalhaMediaKind) : mediaKind(file, contentType),
+    }
+  } catch {
+    return uploadViaServer(file, folder, onProgress)
   }
 }

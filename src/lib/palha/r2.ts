@@ -99,8 +99,8 @@ async function ensurePalhaR2Bucket() {
             CORSRules: [
               {
                 AllowedOrigins: ['*'],
-                AllowedMethods: ['GET', 'PUT', 'HEAD'],
-                AllowedHeaders: ['*'],
+                AllowedMethods: ['GET', 'PUT', 'HEAD', 'POST'],
+                AllowedHeaders: ['*', 'Content-Type', 'Content-Length', 'Authorization', 'x-amz-date', 'x-amz-content-sha256'],
                 ExposeHeaders: ['ETag', 'Location'],
                 MaxAgeSeconds: 3600,
               },

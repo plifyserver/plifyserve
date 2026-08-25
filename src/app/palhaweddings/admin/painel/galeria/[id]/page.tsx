@@ -607,7 +607,7 @@ export default function PalhaAlbumStudioPage() {
               }}
               onBlur={() => void persistGallery()}
             />
-            {selected?.items.length ? (
+            {selected?.items.length || pendingUploads.length ? (
               <label className="palha-album-tool palha-album-add-media">
                 Adicionar
                 <input
@@ -647,6 +647,8 @@ export default function PalhaAlbumStudioPage() {
                 <PalhaMediaSortGrid
                   items={selected?.items || []}
                   pending={pendingUploads}
+                  accept={ACCEPT}
+                  onAdd={(files) => void addFiles(files)}
                   onReorder={reorderMedia}
                   onRemove={(id) => void removeMedia(id)}
                   onDismissPending={(id) => {
