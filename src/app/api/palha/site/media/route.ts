@@ -21,7 +21,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Pasta inválida' }, { status: 400 })
   }
   if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-    return NextResponse.json({ error: 'Use imagem ou vídeo.' }, { status: 400 })
+    const name = file.name.toLowerCase()
+    const okExt = /\.(jpe?g|png|webp|gif|heic|heif|mp4|webm|mov|m4v)$/.test(name)
+    if (!okExt) return NextResponse.json({ error: 'Use imagem ou vídeo.' }, { status: 400 })
   }
 
   try {

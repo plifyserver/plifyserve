@@ -99,9 +99,9 @@ async function ensurePalhaR2Bucket() {
             CORSRules: [
               {
                 AllowedOrigins: ['*'],
-                AllowedMethods: ['GET', 'PUT', 'HEAD', 'POST'],
-                AllowedHeaders: ['*', 'Content-Type', 'Content-Length', 'Authorization', 'x-amz-date', 'x-amz-content-sha256'],
-                ExposeHeaders: ['ETag', 'Location'],
+                AllowedMethods: ['GET', 'PUT', 'POST', 'HEAD'],
+                AllowedHeaders: ['*'],
+                ExposeHeaders: ['ETag', 'Location', 'Content-Type'],
                 MaxAgeSeconds: 3600,
               },
             ],
@@ -131,7 +131,16 @@ export async function createPalhaR2SignedUpload(folder: string, filename: string
       Key: key,
       ContentType: type,
     }),
-    { expiresIn: 60 * 30 },
+    {
+      expiresIn: 60 * 30,
+      unhoistableHeaders: new Set([
+        'x-amz-checksum-crc32',
+        'x-amz-checksum-crc32c',
+        'x-amz-sdk-checksum-algorithm',
+        'x-amz-checksum-algorithm',
+        'x-amz-content-sha256',
+      ]),
+    },
   )
   return {
     path: key,

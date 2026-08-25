@@ -49,13 +49,11 @@ async function readResponseJson(res: Response) {
       error?: string
     }
   } catch {
-    throw new Error(
-      res.status === 413 || res.status === 502
-        ? 'Arquivo grande demais. Tente um vídeo mais curto ou menos fotos de uma vez.'
-        : 'O servidor não devolveu uma resposta válida. Tente de novo.',
-    )
+    throw new Error('O servidor não devolveu uma resposta válida. Tente de novo.')
   }
 }
+
+const SMALL_SERVER_UPLOAD = 3.5 * 1024 * 1024
 
 function putFileWithProgress(url: string, file: File, contentType: string, onProgress?: (percent: number) => void) {
   return new Promise<void>((resolve, reject) => {
@@ -98,38 +96,44 @@ export async function uploadPalhaMediaFile(
   onProgress?: (percent: number) => void,
 ) {
   const contentType = guessContentType(file)
+  const signedRes = await fetch('/api/palha/site/signed-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+    body: JSON.stringify({
+      folder,
+      filename: file.name || 'arquivo',
+      contentType,
+    }),
+  })
+  const signed = await readResponseJson(signedRes)
+  if (!signedRes.ok || !signed.signedUrl || !signed.publicUrl) {
+    if (file.size <= SMALL_SERVER_UPLOAD) return uploadViaServer(file, folder, onProgress)
+    throw new Error(signed.error || 'Não foi possível preparar o envio do vídeo.')
+  }
+
+  onProgress?.(4)
   try {
-    const signedRes = await fetch('/api/palha/site/signed-upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
-      body: JSON.stringify({
-        folder,
-        filename: file.name || 'arquivo',
-        contentType,
-      }),
-    })
-    const signed = await readResponseJson(signedRes)
-    if (!signedRes.ok || !signed.signedUrl || !signed.publicUrl) {
-      throw new Error(signed.error || 'signed')
-    }
-    onProgress?.(4)
+    await putFileWithProgress(signed.signedUrl, file, signed.contentType || contentType, onProgress)
+  } catch {
     try {
-      await putFileWithProgress(signed.signedUrl, file, signed.contentType || contentType, onProgress)
-    } catch {
       const put = await fetch(signed.signedUrl, {
         method: 'PUT',
         headers: { 'Content-Type': signed.contentType || contentType },
         body: file,
       })
       if (!put.ok) throw new Error(`R2 ${put.status}`)
+    } catch {
+      if (file.size <= SMALL_SERVER_UPLOAD) return uploadViaServer(file, folder, onProgress)
+      throw new Error(
+        'O vídeo precisa ir direto para o armazenamento. No Cloudflare R2, em CORS do bucket, permita PUT e o cabeçalho Content-Type para o domínio do site.',
+      )
     }
-    onProgress?.(100)
-    return {
-      url: signed.publicUrl,
-      kind: signed.kind === 'video' ? ('video' as PalhaMediaKind) : mediaKind(file, contentType),
-    }
-  } catch {
-    return uploadViaServer(file, folder, onProgress)
+  }
+
+  onProgress?.(100)
+  return {
+    url: signed.publicUrl,
+    kind: signed.kind === 'video' ? ('video' as PalhaMediaKind) : mediaKind(file, contentType),
   }
 }
