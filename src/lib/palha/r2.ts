@@ -1,7 +1,10 @@
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
   CopyObjectCommand,
   CreateBucketCommand,
+  CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
@@ -10,6 +13,7 @@ import {
   PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
+  UploadPartCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { collectPalhaMediaUrls, type PalhaSiteSettings } from '@/lib/palha/site-settings-shared'
@@ -255,6 +259,191 @@ export function palhaR2KeyFromUrl(url: string) {
 
 export function isPalhaGalleryObjectKey(key: string) {
   return Boolean(key) && key.startsWith('gallery/') && !key.includes('..') && !key.startsWith('/')
+}
+
+const MIN_MULTIPART_PART = 5 * 1024 * 1024
+
+type PalhaChunkedState = {
+  sessionId: string
+  uploadId: string
+  key: string
+  contentType: string
+  parts: { ETag: string; PartNumber: number }[]
+}
+
+function palhaChunkStateKey(sessionId: string) {
+  return `tmp/mpu/${sessionId}/state.json`
+}
+
+function palhaChunkScratchKey(sessionId: string) {
+  return `tmp/mpu/${sessionId}/scratch`
+}
+
+function isPalhaUploadId(uploadId: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uploadId)
+}
+
+async function readR2Buffer(key: string) {
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  try {
+    const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
+    const bytes = await obj.Body?.transformToByteArray()
+    if (!bytes?.length) return null
+    return Buffer.from(bytes)
+  } catch {
+    return null
+  }
+}
+
+async function putR2Buffer(key: string, body: Buffer, contentType: string) {
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    }),
+  )
+}
+
+async function readChunkedState(uploadId: string) {
+  const raw = await readR2Buffer(palhaChunkStateKey(uploadId))
+  if (!raw) return null
+  try {
+    return JSON.parse(raw.toString('utf8')) as PalhaChunkedState
+  } catch {
+    return null
+  }
+}
+
+async function writeChunkedState(state: PalhaChunkedState) {
+  await putR2Buffer(palhaChunkStateKey(state.sessionId), Buffer.from(JSON.stringify(state)), 'application/json')
+}
+
+export async function startPalhaR2ChunkedUpload(folder: string, filename: string, contentType?: string) {
+  await ensurePalhaR2Bucket()
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  const key = palhaR2ObjectKey(folder, filename)
+  const type = contentType || 'application/octet-stream'
+  const created = await s3.send(
+    new CreateMultipartUploadCommand({
+      Bucket: bucket,
+      Key: key,
+      ContentType: type,
+    }),
+  )
+  if (!created.UploadId) throw new Error('Não foi possível iniciar o envio no R2.')
+  const sessionId = crypto.randomUUID()
+  const state: PalhaChunkedState = {
+    sessionId,
+    uploadId: created.UploadId,
+    key,
+    contentType: type,
+    parts: [],
+  }
+  await writeChunkedState(state)
+  return {
+    uploadId: sessionId,
+    path: key,
+    publicUrl: palhaR2PublicUrl(key),
+    contentType: type,
+  }
+}
+
+export async function appendPalhaR2Chunk(sessionId: string, chunk: Buffer) {
+  if (!isPalhaUploadId(sessionId)) throw new Error('Envio inválido.')
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  const state = await readChunkedState(sessionId)
+  if (!state) throw new Error('Envio expirado. Tente de novo.')
+  const scratch = await readR2Buffer(palhaChunkScratchKey(sessionId))
+  const combined = scratch ? Buffer.concat([scratch, chunk]) : chunk
+  if (combined.length >= MIN_MULTIPART_PART) {
+    const partNumber = state.parts.length + 1
+    const uploaded = await s3.send(
+      new UploadPartCommand({
+        Bucket: bucket,
+        Key: state.key,
+        UploadId: state.uploadId,
+        PartNumber: partNumber,
+        Body: combined,
+      }),
+    )
+    if (!uploaded.ETag) throw new Error('Falha ao gravar um trecho do vídeo.')
+    state.parts.push({ ETag: uploaded.ETag, PartNumber: partNumber })
+    await writeChunkedState(state)
+    try {
+      await deletePalhaR2Key(palhaChunkScratchKey(sessionId))
+    } catch {
+      // O próximo trecho sobrescreve o rascunho.
+    }
+  } else {
+    await putR2Buffer(palhaChunkScratchKey(sessionId), combined, 'application/octet-stream')
+  }
+}
+
+export async function finishPalhaR2ChunkedUpload(sessionId: string) {
+  if (!isPalhaUploadId(sessionId)) throw new Error('Envio inválido.')
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  const state = await readChunkedState(sessionId)
+  if (!state) throw new Error('Envio expirado. Tente de novo.')
+  try {
+    const scratch = await readR2Buffer(palhaChunkScratchKey(sessionId))
+    if (scratch?.length) {
+      const partNumber = state.parts.length + 1
+      const uploaded = await s3.send(
+        new UploadPartCommand({
+          Bucket: bucket,
+          Key: state.key,
+          UploadId: state.uploadId,
+          PartNumber: partNumber,
+          Body: scratch,
+        }),
+      )
+      if (!uploaded.ETag) throw new Error('Falha ao gravar o final do vídeo.')
+      state.parts.push({ ETag: uploaded.ETag, PartNumber: partNumber })
+    }
+    if (!state.parts.length) throw new Error('O vídeo chegou vazio.')
+    await s3.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: bucket,
+        Key: state.key,
+        UploadId: state.uploadId,
+        MultipartUpload: {
+          Parts: state.parts.map((part) => ({ ETag: part.ETag, PartNumber: part.PartNumber })),
+        },
+      }),
+    )
+  } catch (err) {
+    try {
+      await s3.send(
+        new AbortMultipartUploadCommand({
+          Bucket: bucket,
+          Key: state.key,
+          UploadId: state.uploadId,
+        }),
+      )
+    } catch {
+      // Melhor abortar em silêncio do que deixar o upload pendurado.
+    }
+    throw err
+  }
+  try {
+    await deletePalhaR2Key(palhaChunkStateKey(sessionId))
+    await deletePalhaR2Key(palhaChunkScratchKey(sessionId))
+  } catch {
+    // O vídeo já está no lugar.
+  }
+  return {
+    path: state.key,
+    publicUrl: palhaR2PublicUrl(state.key),
+    contentType: state.contentType,
+  }
 }
 
 export async function palhaR2ObjectExists(key: string) {

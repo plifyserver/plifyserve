@@ -42,26 +42,22 @@ async function readResponseJson(res: Response) {
     return {} as {
       url?: string
       path?: string
-      signedUrl?: string
+      uploadId?: string
       publicUrl?: string
       contentType?: string
       kind?: string
       error?: string
-      postUrl?: string
-      postFields?: Record<string, string>
     }
   }
   try {
     return JSON.parse(text) as {
       url?: string
       path?: string
-      signedUrl?: string
+      uploadId?: string
       publicUrl?: string
       contentType?: string
       kind?: string
       error?: string
-      postUrl?: string
-      postFields?: Record<string, string>
     }
   } catch {
     throw new Error('O servidor não devolveu uma resposta válida. Tente de novo.')
@@ -69,59 +65,33 @@ async function readResponseJson(res: Response) {
 }
 
 const SMALL_SERVER_UPLOAD = 3.5 * 1024 * 1024
+const CHUNK_SIZE = 3.5 * 1024 * 1024
 
-function sleep(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
-function postFileWithProgress(
-  url: string,
-  fields: Record<string, string>,
-  file: File,
-  onProgress?: (percent: number) => void,
-) {
-  return new Promise<void>((resolve) => {
+function postChunkWithProgress(uploadId: string, blob: Blob, onChunkProgress?: (ratio: number) => void) {
+  return new Promise<void>((resolve, reject) => {
     const form = new FormData()
-    for (const [key, value] of Object.entries(fields)) form.append(key, value)
-    form.append('file', file)
+    form.set('uploadId', uploadId)
+    form.set('file', blob, 'chunk.bin')
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', url)
+    xhr.open('POST', '/api/palha/site/upload-chunk')
     xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable || !onProgress) return
-      onProgress(Math.max(1, Math.min(95, Math.round((event.loaded / event.total) * 95))))
+      if (!event.lengthComputable || !onChunkProgress) return
+      onChunkProgress(event.loaded / event.total)
     }
-    xhr.onload = () => resolve()
-    xhr.onerror = () => resolve()
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve()
+      else {
+        try {
+          const data = JSON.parse(xhr.responseText) as { error?: string }
+          reject(new Error(data.error || 'Não foi possível enviar um trecho do vídeo.'))
+        } catch {
+          reject(new Error('Não foi possível enviar um trecho do vídeo.'))
+        }
+      }
+    }
+    xhr.onerror = () => reject(new Error('Falha de rede no envio do vídeo.'))
     xhr.send(form)
   })
-}
-
-function putFileWithProgress(url: string, file: File, onProgress?: (percent: number) => void) {
-  return new Promise<void>((resolve) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('PUT', url)
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable || !onProgress) return
-      onProgress(Math.max(1, Math.min(95, Math.round((event.loaded / event.total) * 95))))
-    }
-    xhr.onload = () => resolve()
-    xhr.onerror = () => resolve()
-    xhr.send(file)
-  })
-}
-
-async function confirmR2Object(path: string, contentType: string) {
-  for (let i = 0; i < 50; i++) {
-    const res = await fetch('/api/palha/site/upload-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
-      body: JSON.stringify({ path, contentType }),
-    })
-    if (res.ok) return true
-    await sleep(400)
-  }
-  return false
 }
 
 async function uploadViaServer(file: File, folder: string, onProgress?: (percent: number) => void) {
@@ -141,17 +111,9 @@ async function uploadViaServer(file: File, folder: string, onProgress?: (percent
   }
 }
 
-export async function uploadPalhaMediaFile(
-  file: File,
-  folder: string,
-  onProgress?: (percent: number) => void,
-) {
+async function uploadViaChunks(file: File, folder: string, onProgress?: (percent: number) => void) {
   const contentType = guessContentType(file)
-  if (file.size <= SMALL_SERVER_UPLOAD) {
-    return uploadViaServer(file, folder, onProgress)
-  }
-
-  const signedRes = await fetch('/api/palha/site/signed-upload', {
+  const startedRes = await fetch('/api/palha/site/upload-init', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     cache: 'no-store',
@@ -161,28 +123,49 @@ export async function uploadPalhaMediaFile(
       contentType,
     }),
   })
-  const signed = await readResponseJson(signedRes)
-  if (!signedRes.ok || !signed.path || !signed.publicUrl) {
-    throw new Error(signed.error || 'Não foi possível preparar o envio do vídeo.')
+  const started = await readResponseJson(startedRes)
+  if (!startedRes.ok || !started.uploadId || !started.publicUrl) {
+    throw new Error(started.error || 'Não foi possível preparar o envio do vídeo.')
   }
 
-  onProgress?.(4)
-  if (signed.postUrl && signed.postFields) {
-    await postFileWithProgress(signed.postUrl, signed.postFields, file, onProgress)
-  } else if (signed.signedUrl) {
-    await putFileWithProgress(signed.signedUrl, file, onProgress)
-  } else {
-    throw new Error('Não foi possível preparar o envio do vídeo.')
+  const total = Math.max(1, file.size)
+  let offset = 0
+  while (offset < file.size) {
+    const end = Math.min(offset + CHUNK_SIZE, file.size)
+    const blob = file.slice(offset, end)
+    const base = offset / total
+    const span = (end - offset) / total
+    await postChunkWithProgress(started.uploadId, blob, (ratio) => {
+      onProgress?.(Math.max(1, Math.min(96, Math.round((base + span * ratio) * 96))))
+    })
+    offset = end
   }
 
-  const ok = await confirmR2Object(signed.path, signed.contentType || contentType)
-  if (!ok) {
-    throw new Error('O vídeo não chegou ao armazenamento. Confira as chaves do R2 e tente de novo.')
+  onProgress?.(97)
+  const doneRes = await fetch('/api/palha/site/upload-complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+    body: JSON.stringify({ uploadId: started.uploadId }),
+  })
+  const done = await readResponseJson(doneRes)
+  if (!doneRes.ok || !done.publicUrl) {
+    throw new Error(done.error || 'Não foi possível finalizar o envio do vídeo.')
   }
-
   onProgress?.(100)
   return {
-    url: signed.publicUrl,
-    kind: signed.kind === 'video' ? ('video' as PalhaMediaKind) : mediaKind(file, contentType),
+    url: done.publicUrl,
+    kind: started.kind === 'video' || mediaKind(file, contentType) === 'video' ? ('video' as PalhaMediaKind) : mediaKind(file, contentType),
   }
+}
+
+export async function uploadPalhaMediaFile(
+  file: File,
+  folder: string,
+  onProgress?: (percent: number) => void,
+) {
+  if (file.size <= SMALL_SERVER_UPLOAD) {
+    return uploadViaServer(file, folder, onProgress)
+  }
+  return uploadViaChunks(file, folder, onProgress)
 }
