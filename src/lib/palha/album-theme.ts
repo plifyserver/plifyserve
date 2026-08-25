@@ -58,12 +58,21 @@ export type PalhaGridStyle = (typeof PALHA_GRID_STYLES)[number]['id']
 export type PalhaThumbSize = (typeof PALHA_THUMB_SIZES)[number]['id']
 export type PalhaMediaFrame = (typeof PALHA_MEDIA_FRAMES)[number]['id']
 
+export type PalhaCoverCta = {
+  label: string
+  fill: string
+  border: string
+  color: string
+}
+
 export type PalhaAlbumTheme = {
   cover: PalhaCoverLayout
   typography: PalhaTypography
   palette: PalhaPalette
   grid: PalhaGridStyle
   thumb: PalhaThumbSize
+  dateColor: string
+  galleryCta: PalhaCoverCta
 }
 
 export const DEFAULT_PALHA_ALBUM_THEME: PalhaAlbumTheme = {
@@ -72,6 +81,13 @@ export const DEFAULT_PALHA_ALBUM_THEME: PalhaAlbumTheme = {
   palette: 'claro',
   grid: 'justificado',
   thumb: 'grande',
+  dateColor: '',
+  galleryCta: {
+    label: 'Ver galeria',
+    fill: '',
+    border: '',
+    color: '',
+  },
 }
 
 const COVER_IDS = new Set(PALHA_COVER_LAYOUTS.map((item) => item.id))
@@ -87,6 +103,7 @@ const LEGACY_GRID: Record<string, { grid: PalhaGridStyle; thumb: PalhaThumbSize 
 export function mergePalhaAlbumTheme(raw: unknown): PalhaAlbumTheme {
   const data = (raw && typeof raw === 'object' ? raw : {}) as Partial<PalhaAlbumTheme> & { grid?: string; thumb?: string }
   const legacy = LEGACY_GRID[String(data.grid || '')]
+  const cta = (data.galleryCta && typeof data.galleryCta === 'object' ? data.galleryCta : {}) as Partial<PalhaCoverCta>
   return {
     cover: COVER_IDS.has(data.cover as PalhaCoverLayout) ? (data.cover as PalhaCoverLayout) : DEFAULT_PALHA_ALBUM_THEME.cover,
     typography: TYPE_IDS.has(data.typography as PalhaTypography)
@@ -101,5 +118,12 @@ export function mergePalhaAlbumTheme(raw: unknown): PalhaAlbumTheme {
     thumb: THUMB_IDS.has(data.thumb as PalhaThumbSize)
       ? (data.thumb as PalhaThumbSize)
       : (legacy?.thumb ?? DEFAULT_PALHA_ALBUM_THEME.thumb),
+    dateColor: String(data.dateColor ?? DEFAULT_PALHA_ALBUM_THEME.dateColor),
+    galleryCta: {
+      label: String(cta.label ?? DEFAULT_PALHA_ALBUM_THEME.galleryCta.label).trim() || DEFAULT_PALHA_ALBUM_THEME.galleryCta.label,
+      fill: String(cta.fill ?? DEFAULT_PALHA_ALBUM_THEME.galleryCta.fill),
+      border: String(cta.border ?? DEFAULT_PALHA_ALBUM_THEME.galleryCta.border),
+      color: String(cta.color ?? DEFAULT_PALHA_ALBUM_THEME.galleryCta.color),
+    },
   }
 }

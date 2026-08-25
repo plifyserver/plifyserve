@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import {
+  mergePalhaAlbumTheme,
   PALHA_COVER_LAYOUTS,
   PALHA_GRID_STYLES,
   PALHA_PALETTES,
@@ -11,6 +12,7 @@ import {
   type PalhaMediaFrame,
 } from '@/lib/palha/album-theme'
 import { PalhaAlbumPresentation } from '@/app/palhaweddings/PalhaAlbumPresentation'
+import { PalhaButtonLookFields, PalhaColorField } from '../../PalhaButtonLookFields'
 import type { PalhaAlbum } from '@/lib/palha/site-settings-shared'
 
 export function PalhaThemeEditor({
@@ -22,11 +24,11 @@ export function PalhaThemeEditor({
   onChange: (theme: PalhaAlbumTheme) => void
   onFrameChange: (id: string, frame: PalhaMediaFrame) => void
 }) {
-  const [theme, setTheme] = useState(album.theme)
+  const [theme, setTheme] = useState(() => mergePalhaAlbumTheme(album.theme))
   const previewAlbum = { ...album, theme }
 
   useEffect(() => {
-    setTheme(album.theme)
+    setTheme(mergePalhaAlbumTheme(album.theme))
   }, [album.id])
 
   function pick<K extends keyof PalhaAlbumTheme>(key: K, value: PalhaAlbumTheme[K]) {
@@ -55,6 +57,30 @@ export function PalhaThemeEditor({
               </button>
             ))}
           </div>
+        </section>
+
+        <section className="palha-theme-look">
+          <h3>Data e botão</h3>
+          <p className="palha-theme-note">Só deste álbum. Campo vazio usa a paleta da capa.</p>
+          <PalhaColorField
+            label="Cor da data"
+            value={theme.dateColor}
+            fallback="#ffffff"
+            onChange={(value) => pick('dateColor', value)}
+          />
+          <label>
+            Texto do botão
+            <input
+              type="text"
+              value={theme.galleryCta.label}
+              onChange={(e) => pick('galleryCta', { ...theme.galleryCta, label: e.target.value })}
+            />
+          </label>
+          <PalhaButtonLookFields
+            title="Aparência do botão (Ver galeria)"
+            look={theme.galleryCta}
+            onChange={(look) => pick('galleryCta', { ...theme.galleryCta, ...look })}
+          />
         </section>
 
         <section>

@@ -33,6 +33,7 @@ export const PALHA_PAGE_BLOCKS: {
       { key: 'title', label: 'Título' },
       { key: 'subtitle', label: 'Subtítulo' },
       { key: 'text', label: 'Texto', multiline: true },
+      { key: 'button', label: 'Texto do botão (Álbuns)' },
     ],
   },
   {
@@ -71,12 +72,28 @@ export const PALHA_PAGE_BLOCKS: {
   },
 ]
 
+export type PalhaButtonLook = {
+  fill: string
+  border: string
+  color: string
+}
+
+export type PalhaFooterCopy = {
+  script: string
+  kicker: string
+}
+
 export type PalhaSiteSettings = {
   instagramUrl: string
   facebookUrl: string
   whatsapp: string
   photos: Record<PalhaPhotoSlot, string>
   copy: Record<'hero' | 'promise' | 'beyond' | 'cta', PalhaCopyBlock>
+  buttons: {
+    albums: PalhaButtonLook
+    reserve: PalhaButtonLook
+  }
+  footer: PalhaFooterCopy
   gallery: PalhaGallery
 }
 
@@ -309,7 +326,7 @@ export const DEFAULT_PALHA_SITE_SETTINGS: PalhaSiteSettings = {
       title: 'Uma narradora *para* os loucamente apaixonados',
       subtitle: 'a mulher por trás da lente...',
       text: 'Eu acredito que a história de vocês é uma obra de arte — e é uma honra poder preservá-la. Desde sempre fui atraída pelos momentos quietos, aqueles que passam quase despercebidos e ainda assim guardam o sentido inteiro. O aperto de mão antes do altar, a lágrima enxugada no voto, o olhar que se encontra no meio da festa. É ali que mora a magia. É isso que eu busco fotografar.\n\nMinha fotografia nasceu do amor por livros clássicos e pela história da arte, onde cada detalhe tem um propósito e cada quadro conta uma história. Levo essa mesma intenção para o dia do casamento: imagens belas hoje, e ainda mais preciosas com o passar dos anos.',
-      button: '',
+      button: 'Ver álbuns',
     },
     promise: {
       label: 'Minha promessa artística',
@@ -333,6 +350,22 @@ export const DEFAULT_PALHA_SITE_SETTINGS: PalhaSiteSettings = {
       button: 'Reserve minha data',
     },
   },
+  buttons: {
+    albums: {
+      fill: 'transparent',
+      border: '#1a1a1a',
+      color: '#1a1a1a',
+    },
+    reserve: {
+      fill: 'rgba(20, 20, 20, 0.28)',
+      border: '#ffffff',
+      color: '#ffffff',
+    },
+  },
+  footer: {
+    script: 'always, forever',
+    kicker: 'Wedding films & photographs',
+  },
   gallery: {
     title: 'Álbuns',
     subtitle: 'Momentos que merecem ser revistos.',
@@ -351,6 +384,50 @@ export function whatsappHref(raw: string, message = '') {
   const href = `https://wa.me/${withCountry}`
   const text = message.trim()
   return text ? `${href}?text=${encodeURIComponent(text)}` : href
+}
+
+const CSS_COLOR =
+  /^(transparent|#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+))?\s*\))$/i
+
+export function palhaCssColor(value: string, fallback: string) {
+  const trimmed = String(value || '').trim()
+  return CSS_COLOR.test(trimmed) ? trimmed : fallback
+}
+
+export function palhaButtonStyle(look: PalhaButtonLook) {
+  return {
+    background: palhaCssColor(look.fill, 'transparent'),
+    borderColor: palhaCssColor(look.border, 'currentColor'),
+    color: palhaCssColor(look.color, 'inherit'),
+  }
+}
+
+export function palhaOptionalButtonStyle(look: PalhaButtonLook) {
+  const style: { background?: string; borderColor?: string; color?: string } = {}
+  const fill = palhaCssColor(look.fill, '')
+  const border = palhaCssColor(look.border, '')
+  const color = palhaCssColor(look.color, '')
+  if (fill) style.background = fill
+  if (border) style.borderColor = border
+  if (color) style.color = color
+  return style
+}
+
+function mergeButtonLook(raw: unknown, fallback: PalhaButtonLook): PalhaButtonLook {
+  const data = (raw && typeof raw === 'object' ? raw : {}) as Partial<PalhaButtonLook>
+  return {
+    fill: String(data.fill ?? fallback.fill),
+    border: String(data.border ?? fallback.border),
+    color: String(data.color ?? fallback.color),
+  }
+}
+
+function mergeFooterCopy(raw: unknown, fallback: PalhaFooterCopy): PalhaFooterCopy {
+  const data = (raw && typeof raw === 'object' ? raw : {}) as Partial<PalhaFooterCopy>
+  return {
+    script: String(data.script ?? fallback.script),
+    kicker: String(data.kicker ?? fallback.kicker),
+  }
 }
 
 function mergeCopy(raw: unknown, fallback: PalhaCopyBlock, legacy?: PalhaCopyBlock): PalhaCopyBlock {
@@ -476,6 +553,7 @@ export function palhaInstagramHref(raw: string) {
 export function mergePalhaSiteSettings(raw: unknown): PalhaSiteSettings {
   const data = (raw && typeof raw === 'object' ? raw : {}) as Partial<PalhaSiteSettings> & {
     copy?: Partial<PalhaSiteSettings['copy']>
+    buttons?: Partial<PalhaSiteSettings['buttons']>
   }
   return {
     instagramUrl: palhaInstagramHref(String(data.instagramUrl ?? '')),
@@ -486,11 +564,20 @@ export function mergePalhaSiteSettings(raw: unknown): PalhaSiteSettings {
       ...(data.photos ?? {}),
     },
     copy: {
-      hero: mergeCopy(data.copy?.hero, DEFAULT_PALHA_SITE_SETTINGS.copy.hero, LEGACY_ENGLISH_COPY.hero),
+      hero: (() => {
+        const hero = mergeCopy(data.copy?.hero, DEFAULT_PALHA_SITE_SETTINGS.copy.hero, LEGACY_ENGLISH_COPY.hero)
+        if (!hero.button.trim()) hero.button = DEFAULT_PALHA_SITE_SETTINGS.copy.hero.button
+        return hero
+      })(),
       promise: mergeCopy(data.copy?.promise, DEFAULT_PALHA_SITE_SETTINGS.copy.promise, LEGACY_ENGLISH_COPY.promise),
       beyond: mergeCopy(data.copy?.beyond, DEFAULT_PALHA_SITE_SETTINGS.copy.beyond, LEGACY_ENGLISH_COPY.beyond),
       cta: mergeCopy(data.copy?.cta, DEFAULT_PALHA_SITE_SETTINGS.copy.cta, LEGACY_ENGLISH_COPY.cta),
     },
+    buttons: {
+      albums: mergeButtonLook(data.buttons?.albums, DEFAULT_PALHA_SITE_SETTINGS.buttons.albums),
+      reserve: mergeButtonLook(data.buttons?.reserve, DEFAULT_PALHA_SITE_SETTINGS.buttons.reserve),
+    },
+    footer: mergeFooterCopy(data.footer, DEFAULT_PALHA_SITE_SETTINGS.footer),
     gallery: mergeGallery(data.gallery, DEFAULT_PALHA_SITE_SETTINGS.gallery),
   }
 }

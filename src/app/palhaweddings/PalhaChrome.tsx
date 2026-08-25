@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PalhaReveal } from './PalhaReveal'
-import { palhaInstagramHref, whatsappHref, type PalhaSiteSettings } from '@/lib/palha/site-settings-shared'
+import { palhaInstagramHref, whatsappHref, DEFAULT_PALHA_SITE_SETTINGS, type PalhaSiteSettings } from '@/lib/palha/site-settings-shared'
 
 const PRIMARY = [
   { href: '/', label: 'Inicio' },
@@ -100,6 +100,7 @@ function SocialLinks({ settings }: { settings: PalhaSiteSettings }) {
 }
 
 function PalhaFooter({ prefix, settings }: { prefix: string; settings: PalhaSiteSettings }) {
+  const footer = settings.footer ?? DEFAULT_PALHA_SITE_SETTINGS.footer
   return (
     <footer className="palha-footer">
       <PalhaReveal>
@@ -108,11 +109,11 @@ function PalhaFooter({ prefix, settings }: { prefix: string; settings: PalhaSite
           <i />
           <span />
         </div>
-        <p className="palha-footer-script">always, forever</p>
+        {footer.script.trim() ? <p className="palha-footer-script">{footer.script}</p> : null}
         <Link href={palhaHref(prefix, '/')} className="palha-footer-brand" aria-label="Palha Weddings">
           <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-footer-logo" />
         </Link>
-        <p className="palha-footer-kicker">Wedding films &amp; photographs</p>
+        {footer.kicker.trim() ? <p className="palha-footer-kicker">{footer.kicker}</p> : null}
       </PalhaReveal>
       <PalhaReveal delay={140}>
         <div className="palha-footer-rule">

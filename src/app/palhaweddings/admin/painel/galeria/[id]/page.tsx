@@ -68,6 +68,7 @@ export default function PalhaAlbumStudioPage() {
   const [dragging, setDragging] = useState(false)
   const [subName, setSubName] = useState('')
   const [askSub, setAskSub] = useState(false)
+  const [coverPicker, setCoverPicker] = useState(false)
   const [tab, setTab] = useState<'midia' | 'apresentacao'>('midia')
   const [copied, setCopied] = useState(false)
   const [accessOpen, setAccessOpen] = useState(false)
@@ -88,6 +89,19 @@ export default function PalhaAlbumStudioPage() {
     [settings.gallery.albums, albumId],
   )
   const selected = album?.subalbums.find((sub) => sub.id === selectedId) ?? album?.subalbums[0] ?? null
+  const albumPhotos = useMemo(() => {
+    if (!album) return []
+    const seen = new Set<string>()
+    const photos: PalhaMediaItem[] = []
+    for (const sub of album.subalbums) {
+      for (const item of sub.items) {
+        if (item.kind !== 'image' || !item.url || seen.has(item.url)) continue
+        seen.add(item.url)
+        photos.push(item)
+      }
+    }
+    return photos
+  }, [album])
 
   useEffect(() => {
     let cancelled = false
@@ -302,8 +316,22 @@ export default function PalhaAlbumStudioPage() {
     try {
       const uploaded = await uploadPalhaMediaFile(file, `gallery/${album.id}/cover`)
       await patchAlbum({ ...album, coverUrl: uploaded.url })
+      setCoverPicker(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao enviar a capa.')
+    } finally {
+      setUploading('')
+    }
+  }
+
+  async function pickCoverFromAlbum(url: string) {
+    if (!album || !url) return
+    setUploading('Atualizando capa…')
+    try {
+      await patchAlbum({ ...album, coverUrl: url })
+      setCoverPicker(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao atualizar a capa.')
     } finally {
       setUploading('')
     }
@@ -557,18 +585,10 @@ export default function PalhaAlbumStudioPage() {
       {tab === 'midia' ? (
         <section className="palha-album-studio">
         <aside className="palha-album-side">
-          <label className="palha-album-cover">
+          <button type="button" className="palha-album-cover" onClick={() => setCoverPicker(true)}>
             {album.coverUrl ? <img src={album.coverUrl} alt="" /> : <span className="palha-album-cover-empty">Capa do álbum</span>}
             <span className="palha-album-cover-overlay">Trocar capa</span>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={(e) => {
-                void changeCover(e.target.files?.[0])
-                e.currentTarget.value = ''
-              }}
-            />
-          </label>
+          </button>
 
           <div className="palha-album-subhead">
             <span>Galerias</span>
@@ -721,6 +741,52 @@ export default function PalhaAlbumStudioPage() {
               </button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {coverPicker ? (
+        <div className="palha-modal-backdrop" onClick={() => !uploading && setCoverPicker(false)}>
+          <div className="palha-modal palha-cover-picker" onClick={(e) => e.stopPropagation()}>
+            <h2 className="palha-label">Capa do álbum</h2>
+            <label className="palha-btn palha-cover-picker-upload">
+              Enviar do computador
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                disabled={Boolean(uploading)}
+                onChange={(e) => {
+                  void changeCover(e.target.files?.[0])
+                  e.currentTarget.value = ''
+                }}
+              />
+            </label>
+            <h3>Fotos do álbum</h3>
+            {albumPhotos.length ? (
+              <div className="palha-cover-picker-grid">
+                {albumPhotos.map((photo) => (
+                  <button
+                    key={photo.id}
+                    type="button"
+                    className={photo.url === album.coverUrl ? 'is-current' : undefined}
+                    disabled={Boolean(uploading)}
+                    onClick={() => void pickCoverFromAlbum(photo.url)}
+                  >
+                    <img src={photo.url} alt="" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="palha-copy">
+                Ainda não há fotos neste álbum. Envie uma do computador ou adicione mídia primeiro.
+              </p>
+            )}
+            {uploading ? <p className="palha-copy">{uploading}</p> : null}
+            <div className="palha-modal-actions">
+              <button type="button" className="palha-btn" disabled={Boolean(uploading)} onClick={() => setCoverPicker(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </main>

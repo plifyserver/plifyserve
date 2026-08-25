@@ -57,7 +57,11 @@ export function PalhaGalleryAlbums({ gallery }: { gallery: PalhaGallery }) {
         </label>
         <label>
           Data do evento
-          <input type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} />
+          <input
+            type="date"
+            value={eventDate}
+            onChange={(event) => setEventDate(event.target.value)}
+          />
         </label>
         {query || eventDate ? (
           <button

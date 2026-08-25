@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PalhaAlbumGrid } from '@/app/palhaweddings/PalhaAlbumGrid'
 import type { PalhaMediaFrame } from '@/lib/palha/album-theme'
-import { formatPalhaEventDate, type PalhaAlbum, type PalhaMediaItem } from '@/lib/palha/site-settings-shared'
+import { mergePalhaAlbumTheme } from '@/lib/palha/album-theme'
+import {
+  formatPalhaEventDate,
+  palhaCssColor,
+  palhaOptionalButtonStyle,
+  type PalhaAlbum,
+  type PalhaMediaItem,
+} from '@/lib/palha/site-settings-shared'
 
 function fileNameFromUrl(url: string, fallback: string) {
   try {
@@ -84,6 +91,11 @@ export function PalhaAlbumPresentation({
   )
   const dateLabel = formatPalhaEventDate(album.eventDate)
   const cover = album.coverUrl
+  const theme = mergePalhaAlbumTheme(album.theme)
+  const dateColor = palhaCssColor(theme.dateColor, '')
+  const dateStyle = dateColor ? { color: dateColor } : undefined
+  const ctaLabel = theme.galleryCta.label.trim() || 'Ver galeria'
+  const ctaStyle = palhaOptionalButtonStyle(theme.galleryCta)
 
   useEffect(() => {
     if (!viewer) return
@@ -114,31 +126,37 @@ export function PalhaAlbumPresentation({
   return (
     <div
       className={`palha-present${preview ? ' is-preview' : ''}`}
-      data-cover={album.theme.cover}
-      data-type={album.theme.typography}
-      data-palette={album.theme.palette}
-      data-grid={album.theme.grid}
-      data-thumb={album.theme.thumb}
+      data-cover={theme.cover}
+      data-type={theme.typography}
+      data-palette={theme.palette}
+      data-grid={theme.grid}
+      data-thumb={theme.thumb}
     >
-      <section className={`palha-cover is-${album.theme.cover}`}>
-        {album.theme.cover === 'romance' || album.theme.cover === 'vintage' ? (
+      <section className={`palha-cover is-${theme.cover}`}>
+        {theme.cover === 'romance' || theme.cover === 'vintage' ? (
           <>
-            {album.theme.cover === 'vintage' ? (
+            {theme.cover === 'vintage' ? (
               <div className="palha-cover-photo">{cover ? <img src={cover} alt="" /> : <span />}</div>
             ) : null}
             <div className="palha-cover-copy">
               <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-cover-logo" />
               <h1>{album.name || 'Título'}</h1>
-              {dateLabel ? <p className="palha-cover-date">{dateLabel}</p> : null}
+              {dateLabel ? (
+                <p className="palha-cover-date" style={dateStyle}>
+                  {dateLabel}
+                </p>
+              ) : null}
               {!preview ? (
-                <a className="palha-cover-cta" href="#galeria">
-                  Ver galeria
+                <a className="palha-cover-cta" href="#galeria" style={ctaStyle}>
+                  {ctaLabel}
                 </a>
               ) : (
-                <span className="palha-cover-cta">Ver galeria</span>
+                <span className="palha-cover-cta" style={ctaStyle}>
+                  {ctaLabel}
+                </span>
               )}
             </div>
-            {album.theme.cover === 'romance' ? (
+            {theme.cover === 'romance' ? (
               <div className="palha-cover-photo">{cover ? <img src={cover} alt="" /> : <span />}</div>
             ) : null}
           </>
@@ -148,13 +166,19 @@ export function PalhaAlbumPresentation({
             <div className="palha-cover-copy">
               <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-cover-logo" />
               <h1>{album.name || 'Título'}</h1>
-              {dateLabel ? <p className="palha-cover-date">{dateLabel}</p> : null}
+              {dateLabel ? (
+                <p className="palha-cover-date" style={dateStyle}>
+                  {dateLabel}
+                </p>
+              ) : null}
               {!preview ? (
-                <a className="palha-cover-cta" href="#galeria">
-                  Ver galeria
+                <a className="palha-cover-cta" href="#galeria" style={ctaStyle}>
+                  {ctaLabel}
                 </a>
               ) : (
-                <span className="palha-cover-cta">Ver galeria</span>
+                <span className="palha-cover-cta" style={ctaStyle}>
+                  {ctaLabel}
+                </span>
               )}
             </div>
           </>
@@ -183,8 +207,8 @@ export function PalhaAlbumPresentation({
         {selected?.items.length ? (
           <PalhaAlbumGrid
             items={selected.items}
-            grid={album.theme.grid}
-            thumb={album.theme.thumb}
+            grid={theme.grid}
+            thumb={theme.thumb}
             preview={preview}
             onFrameChange={preview ? onFrameChange : undefined}
             onOpen={!preview ? (item, index) => setViewer({ item, index }) : undefined}

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
+import { PalhaAlbumsCta } from '../PalhaAlbumsCta'
 import { PalhaReveal } from '../PalhaReveal'
 import { PalhaRichText } from '../PalhaRichText'
 import { getPalhaSiteSettings } from '@/lib/palha/site-settings'
-import { splitLines, splitParagraphs, whatsappHref } from '@/lib/palha/site-settings-shared'
+import { palhaButtonStyle, splitLines, splitParagraphs, whatsappHref, DEFAULT_PALHA_SITE_SETTINGS } from '@/lib/palha/site-settings-shared'
 
 export const metadata: Metadata = {
   title: {
@@ -16,7 +17,10 @@ export default async function PalhaAboutPage() {
   const reserveHref = whatsappHref(settings.whatsapp, 'Olá! Gostaria de reservar uma data.')
   const beyondItems = splitLines(copy.beyond.text)
   const beyondMid = Math.ceil(beyondItems.length / 2)
-  const ctaButton = copy.cta.button || 'Reserve minha data'
+  const albumsButton = copy.hero.button.trim() || 'Ver álbuns'
+  const ctaButton = copy.cta.button.trim() || 'Reserve minha data'
+  const albumsLook = settings.buttons?.albums ?? DEFAULT_PALHA_SITE_SETTINGS.buttons.albums
+  const reserveLook = settings.buttons?.reserve ?? DEFAULT_PALHA_SITE_SETTINGS.buttons.reserve
 
   return (
     <main>
@@ -54,6 +58,11 @@ export default async function PalhaAboutPage() {
               </div>
             </PalhaReveal>
           ) : null}
+          <PalhaReveal delay={520}>
+            <div className="palha-about-hero-cta">
+              <PalhaAlbumsCta label={albumsButton} look={albumsLook} />
+            </div>
+          </PalhaReveal>
         </div>
         <PalhaReveal className="palha-about-hero-photo" delay={120}>
           <img src={photos.hero} alt="" />
@@ -162,6 +171,7 @@ export default async function PalhaAboutPage() {
               target="_blank"
               rel="noreferrer"
               className="palha-btn palha-cta-btn"
+              style={palhaButtonStyle(reserveLook)}
             >
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
                 <path d="M12.04 2.8A9.2 9.2 0 0 0 2.9 11.9c0 1.62.43 3.2 1.24 4.6L2 22l5.66-1.48a9.2 9.2 0 0 0 4.38 1.12h.01A9.2 9.2 0 0 0 21.2 12 9.2 9.2 0 0 0 12.04 2.8Zm0 16.84h-.01a7.64 7.64 0 0 1-3.89-1.06l-.28-.17-3.36.88.9-3.27-.18-.3a7.64 7.64 0 0 1-1.17-4.07 7.66 7.66 0 0 1 7.64-7.65 7.66 7.66 0 0 1 7.65 7.64 7.66 7.66 0 0 1-7.3 7.99Zm4.2-5.72c-.23-.12-1.36-.67-1.57-.75-.21-.08-.36-.12-.52.12-.15.23-.6.75-.73.9-.13.15-.27.17-.5.06-.23-.12-.97-.36-1.85-1.14-.68-.61-1.14-1.36-1.28-1.59-.13-.23-.01-.36.1-.47.1-.1.23-.27.34-.4.12-.13.15-.23.23-.38.08-.15.04-.29-.02-.4-.06-.12-.52-1.25-.71-1.71-.19-.45-.38-.39-.52-.4h-.44c-.15 0-.4.06-.61.29-.21-.23-.8.78-.8 1.9s.82 2.2.93 2.36c.12.15 1.61 2.46 3.9 3.45.55.24.97.38 1.3.48.55.18 1.05.15 1.44.09.44-.07 1.36-.55 1.55-1.09.19-.53.19-.99.13-1.08-.05-.1-.21-.15-.44-.27Z" />
@@ -171,7 +181,7 @@ export default async function PalhaAboutPage() {
               </span>
             </a>
           ) : (
-            <span className="palha-btn palha-cta-btn">
+            <span className="palha-btn palha-cta-btn" style={palhaButtonStyle(reserveLook)}>
               <PalhaRichText text={ctaButton} />
             </span>
           )}

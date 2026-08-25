@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import {
   DEFAULT_PALHA_SITE_SETTINGS,
   PALHA_PAGE_BLOCKS,
+  mergePalhaSiteSettings,
   palhaInstagramHref,
   whatsappHref,
   type PalhaCopyBlock,
   type PalhaPhotoSlot,
   type PalhaSiteSettings,
 } from '@/lib/palha/site-settings-shared'
+import { PalhaButtonLookFields } from '../PalhaButtonLookFields'
 import { PalhaFormatField } from '../PalhaFormatField'
 
 export default function PalhaPaginaInicialAdmin() {
@@ -22,7 +24,7 @@ export default function PalhaPaginaInicialAdmin() {
   useEffect(() => {
     fetch('/api/palha/site', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((data: PalhaSiteSettings) => setSettings(data))
+      .then((data: PalhaSiteSettings) => setSettings(mergePalhaSiteSettings(data)))
       .catch(() => setError('Não foi possível carregar as configurações.'))
   }, [])
 
@@ -55,7 +57,7 @@ export default function PalhaPaginaInicialAdmin() {
         setError(data.error || 'Não foi possível salvar.')
         return
       }
-      setSettings(data)
+      setSettings(mergePalhaSiteSettings(data))
       setMessage('Alterações salvas. Elas já aparecem no site.')
     } catch {
       setError('Não foi possível salvar.')
@@ -84,6 +86,8 @@ export default function PalhaPaginaInicialAdmin() {
         copy: current.copy,
         instagramUrl: current.instagramUrl,
         whatsapp: current.whatsapp,
+        buttons: current.buttons,
+        footer: current.footer,
         photos: data.settings!.photos,
       }))
       setMessage('Foto atualizada.')
@@ -164,8 +168,46 @@ export default function PalhaPaginaInicialAdmin() {
                 onChange={(value) => updateCopy(block.id, field.key, value)}
               />
             ))}
+            {block.id === 'hero' ? (
+              <PalhaButtonLookFields
+                title="Aparência do botão (Álbuns)"
+                look={settings.buttons.albums}
+                onChange={(look) =>
+                  setSettings((current) => ({
+                    ...current,
+                    buttons: { ...current.buttons, albums: look },
+                  }))
+                }
+              />
+            ) : null}
+            {block.id === 'cta' ? (
+              <PalhaButtonLookFields
+                title="Aparência do botão (Reserve minha data)"
+                look={settings.buttons.reserve}
+                onChange={(look) =>
+                  setSettings((current) => ({
+                    ...current,
+                    buttons: { ...current.buttons, reserve: look },
+                  }))
+                }
+              />
+            ) : null}
           </section>
         ))}
+
+        <section className="palha-admin-block">
+          <h2 className="palha-label">Rodapé</h2>
+          <PalhaFormatField
+            label="Frase em script"
+            value={settings.footer.script}
+            onChange={(value) => setSettings((current) => ({ ...current, footer: { ...current.footer, script: value } }))}
+          />
+          <PalhaFormatField
+            label="Linha em caixa alta"
+            value={settings.footer.kicker}
+            onChange={(value) => setSettings((current) => ({ ...current, footer: { ...current.footer, kicker: value } }))}
+          />
+        </section>
 
         {error ? <p className="palha-admin-error">{error}</p> : null}
         {message ? <p className="palha-copy">{message}</p> : null}
