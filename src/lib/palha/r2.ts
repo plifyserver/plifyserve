@@ -81,6 +81,19 @@ function palhaR2ObjectKey(folder: string, filename: string) {
   return `${safeFolder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 }
 
+function palhaFileContentType(file: File) {
+  if (file.type) return file.type
+  const ext = file.name.split('.').pop()?.toLowerCase()
+  if (ext === 'mp4' || ext === 'm4v') return 'video/mp4'
+  if (ext === 'mov') return 'video/quicktime'
+  if (ext === 'webm') return 'video/webm'
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
+  if (ext === 'png') return 'image/png'
+  if (ext === 'webp') return 'image/webp'
+  if (ext === 'gif') return 'image/gif'
+  return 'application/octet-stream'
+}
+
 async function ensurePalhaR2Bucket() {
   if (ready) return ready
   ready = (async () => {
@@ -167,7 +180,7 @@ export async function uploadPalhaR2Object(folder: string, file: File) {
       Bucket: bucket,
       Key: key,
       Body: body,
-      ContentType: file.type || 'application/octet-stream',
+      ContentType: palhaFileContentType(file),
     }),
   )
   return palhaR2PublicUrl(key)

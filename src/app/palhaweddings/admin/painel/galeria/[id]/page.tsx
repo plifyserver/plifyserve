@@ -107,7 +107,7 @@ async function withUploadTimeout<T>(task: Promise<T>, message: string) {
     return await Promise.race([
       task,
       new Promise<T>((_, reject) => {
-        timer = window.setTimeout(() => reject(new Error(message)), 90000)
+        timer = window.setTimeout(() => reject(new Error(message)), 240000)
       }),
     ])
   } finally {
@@ -478,13 +478,17 @@ export default function PalhaAlbumStudioPage() {
       if (coverDraft.file) {
         setUploading('Enviando vídeo da capa…')
         const uploaded = await withUploadTimeout(
-          uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`),
+          uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`, (percent) => {
+            setUploading(`Enviando vídeo da capa (${percent}%)…`)
+          }),
           'O envio do vídeo demorou demais. Tente novamente.',
         )
         videoUrl = uploaded.url
         setUploading('Enviando imagem do frame…')
         const posterUpload = await withUploadTimeout(
-          uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`),
+          uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`, (percent) => {
+            setUploading(`Enviando imagem do frame (${percent}%)…`)
+          }),
           'O envio da imagem do frame demorou demais. Tente novamente.',
         )
         await saveAlbumCover({

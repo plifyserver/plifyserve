@@ -22,6 +22,16 @@ function guessContentType(file: File) {
   return 'application/octet-stream'
 }
 
+type UploadResponse = {
+  url?: string
+  path?: string
+  uploadId?: string
+  publicUrl?: string
+  contentType?: string
+  kind?: string
+  error?: string
+}
+
 export function isPalhaMediaFile(file: File) {
   if (file.type.startsWith('image/') || file.type.startsWith('video/')) return true
   return IMAGE_EXT.test(file.name) || VIDEO_EXT.test(file.name)
@@ -39,34 +49,21 @@ export function palhaFileKind(file: File): PalhaMediaKind {
 async function readResponseJson(res: Response) {
   const text = await res.text()
   if (!text) {
-    return {} as {
-      url?: string
-      path?: string
-      uploadId?: string
-      publicUrl?: string
-      contentType?: string
-      kind?: string
-      error?: string
-    }
+    return {} as UploadResponse
   }
   try {
-    return JSON.parse(text) as {
-      url?: string
-      path?: string
-      uploadId?: string
-      publicUrl?: string
-      contentType?: string
-      kind?: string
-      error?: string
-    }
+    return JSON.parse(text) as UploadResponse
   } catch {
     throw new Error('O servidor não devolveu uma resposta válida. Tente de novo.')
   }
 }
 
-const SMALL_SERVER_UPLOAD = 3.5 * 1024 * 1024
+// A Vercel Function accepts up to 100 MB per request. Use one R2 PUT for
+// normal videos and reserve multipart uploads for files above that limit.
+const DIRECT_SERVER_UPLOAD = 95 * 1024 * 1024
 const CHUNK_SIZE = 3.5 * 1024 * 1024
 const UPLOAD_REQUEST_TIMEOUT = 55_000
+const DIRECT_UPLOAD_TIMEOUT = 240_000
 
 function postChunkWithProgress(uploadId: string, blob: Blob, onChunkProgress?: (ratio: number) => void) {
   return new Promise<void>((resolve, reject) => {
@@ -97,9 +94,14 @@ function postChunkWithProgress(uploadId: string, blob: Blob, onChunkProgress?: (
   })
 }
 
-async function fetchWithUploadTimeout(input: RequestInfo | URL, init: RequestInit, message: string) {
+async function fetchWithUploadTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  message: string,
+  timeoutMs = UPLOAD_REQUEST_TIMEOUT,
+) {
   const controller = new AbortController()
-  const timer = window.setTimeout(() => controller.abort(), UPLOAD_REQUEST_TIMEOUT)
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
     return await fetch(input, { ...init, signal: controller.signal })
   } catch (err) {
@@ -110,18 +112,38 @@ async function fetchWithUploadTimeout(input: RequestInfo | URL, init: RequestIni
   }
 }
 
+function postFileWithProgress(file: File, folder: string, onProgress?: (percent: number) => void) {
+  return new Promise<UploadResponse>((resolve, reject) => {
+    const form = new FormData()
+    form.set('folder', folder)
+    form.set('file', file)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', '/api/palha/site/media')
+    xhr.timeout = DIRECT_UPLOAD_TIMEOUT
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return
+      onProgress?.(Math.max(1, Math.min(98, Math.round(10 + (event.loaded / event.total) * 88))))
+    }
+    xhr.onload = () => {
+      let data: UploadResponse = {}
+      try {
+        data = xhr.responseText ? (JSON.parse(xhr.responseText) as UploadResponse) : {}
+      } catch {
+        reject(new Error('O servidor não devolveu uma resposta válida. Tente de novo.'))
+        return
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data)
+      else reject(new Error(data.error || 'Não foi possível enviar o arquivo.'))
+    }
+    xhr.onerror = () => reject(new Error('Falha de rede no envio do arquivo.'))
+    xhr.ontimeout = () => reject(new Error('O envio direto para o R2 demorou demais. Tente novamente.'))
+    xhr.send(form)
+  })
+}
+
 async function uploadViaServer(file: File, folder: string, onProgress?: (percent: number) => void) {
-  onProgress?.(12)
-  const form = new FormData()
-  form.set('folder', folder)
-  form.set('file', file)
-  const res = await fetchWithUploadTimeout(
-    '/api/palha/site/media',
-    { method: 'POST', body: form, cache: 'no-store' },
-    'O envio do arquivo demorou demais. Tente novamente.',
-  )
-  const data = await readResponseJson(res)
-  if (!res.ok || !data.url) {
+  const data = await postFileWithProgress(file, folder, onProgress)
+  if (!data.url) {
     throw new Error(data.error || 'Não foi possível enviar o arquivo.')
   }
   onProgress?.(100)
@@ -192,7 +214,7 @@ export async function uploadPalhaMediaFile(
   folder: string,
   onProgress?: (percent: number) => void,
 ) {
-  if (file.size <= SMALL_SERVER_UPLOAD) {
+  if (file.size <= DIRECT_SERVER_UPLOAD) {
     return uploadViaServer(file, folder, onProgress)
   }
   return uploadViaChunks(file, folder, onProgress)
