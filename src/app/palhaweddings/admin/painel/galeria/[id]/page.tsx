@@ -46,9 +46,11 @@ async function readMediaSize(file: File) {
 }
 
 async function captureVideoFrame(source: File | string, time: number) {
-  const href = typeof source === 'string' ? source : URL.createObjectURL(source)
+  const href =
+    typeof source === 'string'
+      ? `/api/palha/site/media-proxy?url=${encodeURIComponent(source)}`
+      : URL.createObjectURL(source)
   const video = document.createElement('video')
-  if (typeof source === 'string') video.crossOrigin = 'anonymous'
   video.preload = 'metadata'
   video.muted = true
   try {
@@ -474,18 +476,17 @@ export default function PalhaAlbumStudioPage() {
       if (!poster) throw new Error('Não foi possível criar a foto deste frame. Escolha outro momento do vídeo.')
 
       if (coverDraft.file) {
-        setUploading('Enviando vídeo e imagem da capa…')
-        const [uploaded, posterUpload] = await Promise.all([
-          withUploadTimeout(
-            uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`),
-            'O envio do vídeo demorou demais. Tente novamente.',
-          ),
-          withUploadTimeout(
-            uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`),
-            'O envio da imagem da capa demorou demais. Tente novamente.',
-          ),
-        ])
+        setUploading('Enviando vídeo da capa…')
+        const uploaded = await withUploadTimeout(
+          uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`),
+          'O envio do vídeo demorou demais. Tente novamente.',
+        )
         videoUrl = uploaded.url
+        setUploading('Enviando imagem do frame…')
+        const posterUpload = await withUploadTimeout(
+          uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`),
+          'O envio da imagem do frame demorou demais. Tente novamente.',
+        )
         await saveAlbumCover({
           url: videoUrl,
           kind: 'video',

@@ -66,6 +66,7 @@ async function readResponseJson(res: Response) {
 
 const SMALL_SERVER_UPLOAD = 3.5 * 1024 * 1024
 const CHUNK_SIZE = 3.5 * 1024 * 1024
+const UPLOAD_REQUEST_TIMEOUT = 55_000
 
 function postChunkWithProgress(uploadId: string, blob: Blob, onChunkProgress?: (ratio: number) => void) {
   return new Promise<void>((resolve, reject) => {
@@ -74,6 +75,7 @@ function postChunkWithProgress(uploadId: string, blob: Blob, onChunkProgress?: (
     form.set('file', blob, 'chunk.bin')
     const xhr = new XMLHttpRequest()
     xhr.open('POST', '/api/palha/site/upload-chunk')
+    xhr.timeout = UPLOAD_REQUEST_TIMEOUT
     xhr.upload.onprogress = (event) => {
       if (!event.lengthComputable || !onChunkProgress) return
       onChunkProgress(event.loaded / event.total)
@@ -90,8 +92,22 @@ function postChunkWithProgress(uploadId: string, blob: Blob, onChunkProgress?: (
       }
     }
     xhr.onerror = () => reject(new Error('Falha de rede no envio do vídeo.'))
+    xhr.ontimeout = () => reject(new Error('O envio de um trecho demorou demais. Tente novamente.'))
     xhr.send(form)
   })
+}
+
+async function fetchWithUploadTimeout(input: RequestInfo | URL, init: RequestInit, message: string) {
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), UPLOAD_REQUEST_TIMEOUT)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw new Error(message)
+    throw err
+  } finally {
+    window.clearTimeout(timer)
+  }
 }
 
 async function uploadViaServer(file: File, folder: string, onProgress?: (percent: number) => void) {
@@ -99,7 +115,11 @@ async function uploadViaServer(file: File, folder: string, onProgress?: (percent
   const form = new FormData()
   form.set('folder', folder)
   form.set('file', file)
-  const res = await fetch('/api/palha/site/media', { method: 'POST', body: form, cache: 'no-store' })
+  const res = await fetchWithUploadTimeout(
+    '/api/palha/site/media',
+    { method: 'POST', body: form, cache: 'no-store' },
+    'O envio do arquivo demorou demais. Tente novamente.',
+  )
   const data = await readResponseJson(res)
   if (!res.ok || !data.url) {
     throw new Error(data.error || 'Não foi possível enviar o arquivo.')
@@ -113,16 +133,20 @@ async function uploadViaServer(file: File, folder: string, onProgress?: (percent
 
 async function uploadViaChunks(file: File, folder: string, onProgress?: (percent: number) => void) {
   const contentType = guessContentType(file)
-  const startedRes = await fetch('/api/palha/site/upload-init', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
-    body: JSON.stringify({
-      folder,
-      filename: file.name || 'arquivo',
-      contentType,
-    }),
-  })
+  const startedRes = await fetchWithUploadTimeout(
+    '/api/palha/site/upload-init',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({
+        folder,
+        filename: file.name || 'arquivo',
+        contentType,
+      }),
+    },
+    'O servidor demorou para preparar o envio. Tente novamente.',
+  )
   const started = await readResponseJson(startedRes)
   if (!startedRes.ok || !started.uploadId || !started.publicUrl) {
     throw new Error(started.error || 'Não foi possível preparar o envio do vídeo.')
@@ -142,12 +166,16 @@ async function uploadViaChunks(file: File, folder: string, onProgress?: (percent
   }
 
   onProgress?.(97)
-  const doneRes = await fetch('/api/palha/site/upload-complete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
-    body: JSON.stringify({ uploadId: started.uploadId }),
-  })
+  const doneRes = await fetchWithUploadTimeout(
+    '/api/palha/site/upload-complete',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({ uploadId: started.uploadId }),
+    },
+    'O servidor demorou para finalizar o vídeo. Tente novamente.',
+  )
   const done = await readResponseJson(doneRes)
   if (!doneRes.ok || !done.publicUrl) {
     throw new Error(done.error || 'Não foi possível finalizar o envio do vídeo.')

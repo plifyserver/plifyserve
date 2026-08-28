@@ -442,10 +442,10 @@ export async function stampPalhaR2ContentType(key: string, contentType: string) 
   )
 }
 
-export async function getPalhaR2Object(key: string) {
+export async function getPalhaR2Object(key: string, range?: string) {
   const s3 = palhaR2Client()
   const { bucket } = getPalhaR2Config()
-  return s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
+  return s3.send(new GetObjectCommand({ Bucket: bucket, Key: key, Range: range }))
 }
 
 function downloadFileName(name: string, fallback: string) {
