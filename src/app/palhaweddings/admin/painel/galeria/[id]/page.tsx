@@ -277,6 +277,31 @@ export default function PalhaAlbumStudioPage() {
     })
   }
 
+  async function saveAlbumCover(cover: {
+    url: string
+    kind: 'image' | 'video'
+    posterUrl?: string
+    frame?: number
+  }) {
+    if (!album) throw new Error('Álbum não encontrado')
+    const res = await fetch(`/api/palha/albums/${album.id}/cover`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify(cover),
+    })
+    const data = (await res.json()) as { album?: PalhaAlbum; error?: string }
+    if (!res.ok || !data.album) throw new Error(data.error || 'Não foi possível salvar a capa.')
+    setSettings((current) => {
+      const next = { ...current, gallery: updateAlbum(current.gallery, album.id, data.album as PalhaAlbum) }
+      settingsRef.current = next
+      rememberPalhaAdminSettings(next)
+      return next
+    })
+    setMessage('Capa do álbum salva.')
+    return data.album
+  }
+
   function saveTheme(theme: PalhaAlbumTheme) {
     const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
     if (!currentAlbum) return
@@ -403,7 +428,7 @@ export default function PalhaAlbumStudioPage() {
     setUploading('Enviando capa…')
     try {
       const uploaded = await uploadPalhaMediaFile(file, `gallery/${album.id}/cover`)
-      await patchAlbum({ ...album, coverUrl: uploaded.url, coverKind: 'image', coverPosterUrl: undefined, coverFrame: undefined })
+      await saveAlbumCover({ url: uploaded.url, kind: 'image' })
       setCoverPicker(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao enviar a capa.')
@@ -430,7 +455,7 @@ export default function PalhaAlbumStudioPage() {
     if (!album || !url) return
     setUploading('Atualizando capa…')
     try {
-      await patchAlbum({ ...album, coverUrl: url, coverKind: 'image', coverPosterUrl: undefined, coverFrame: undefined })
+      await saveAlbumCover({ url, kind: 'image' })
       setCoverPicker(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao atualizar a capa.')
@@ -461,17 +486,12 @@ export default function PalhaAlbumStudioPage() {
           ),
         ])
         videoUrl = uploaded.url
-        const saved = await patchAlbum({
-          ...album,
-          coverUrl: videoUrl,
-          coverKind: 'video',
-          coverPosterUrl: posterUpload.url,
-          coverFrame: Math.round(time * 10) / 10,
+        await saveAlbumCover({
+          url: videoUrl,
+          kind: 'video',
+          posterUrl: posterUpload.url,
+          frame: Math.round(time * 10) / 10,
         })
-        const savedAlbum = saved.gallery.albums.find((item) => item.id === album.id)
-        if (!savedAlbum || savedAlbum.coverUrl !== videoUrl || savedAlbum.coverPosterUrl !== posterUpload.url) {
-          throw new Error('O vídeo foi enviado, mas a capa não foi confirmada no álbum. Tente novamente.')
-        }
         if (coverDraft.file) URL.revokeObjectURL(coverDraft.url)
         setCoverDraft(null)
         setMessage('Capa do vídeo salva.')
@@ -482,17 +502,12 @@ export default function PalhaAlbumStudioPage() {
         uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`),
         'O envio da imagem da capa demorou demais. Tente novamente.',
       )
-      const saved = await patchAlbum({
-        ...album,
-        coverUrl: videoUrl,
-        coverKind: 'video',
-        coverPosterUrl: posterUpload.url,
-        coverFrame: Math.round(time * 10) / 10,
+      await saveAlbumCover({
+        url: videoUrl,
+        kind: 'video',
+        posterUrl: posterUpload.url,
+        frame: Math.round(time * 10) / 10,
       })
-      const savedAlbum = saved.gallery.albums.find((item) => item.id === album.id)
-      if (!savedAlbum || savedAlbum.coverUrl !== videoUrl || savedAlbum.coverPosterUrl !== posterUpload.url) {
-        throw new Error('A capa não foi confirmada no álbum. Tente novamente.')
-      }
       if (coverDraft.file) URL.revokeObjectURL(coverDraft.url)
       setCoverDraft(null)
       setMessage('Capa do vídeo salva.')

@@ -185,6 +185,35 @@ export async function setPalhaAlbumPassword(albumId: string, password: string) {
   })
 }
 
+export async function setPalhaAlbumCover(
+  albumId: string,
+  cover: { url: string; kind: 'image' | 'video'; posterUrl?: string; frame?: number },
+) {
+  return enqueueSettingsWrite(async () => {
+    const current = await readPalhaSiteSettings()
+    const album = current.gallery.albums.find((item) => item.id === albumId)
+    if (!album) throw new Error('Álbum não encontrado')
+    const next: PalhaSiteSettings = {
+      ...current,
+      gallery: {
+        ...current.gallery,
+        albums: current.gallery.albums.map((item) =>
+          item.id === albumId
+            ? {
+                ...item,
+                coverUrl: cover.url,
+                coverKind: cover.kind,
+                coverPosterUrl: cover.kind === 'video' ? cover.posterUrl || '' : '',
+                coverFrame: cover.kind === 'video' ? cover.frame : undefined,
+              }
+            : item,
+        ),
+      },
+    }
+    return writePalhaSiteSettings(next)
+  })
+}
+
 export async function uploadPalhaSitePhoto(slot: PalhaPhotoSlot, file: File) {
   return uploadPalhaR2Object(`photos/${slot}`, file)
 }
