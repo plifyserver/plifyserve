@@ -268,7 +268,13 @@ export default function PalhaAlbumStudioPage() {
     const gallery = updateAlbum(settingsRef.current.gallery, albumId, nextAlbum)
     settingsRef.current = { ...settingsRef.current, gallery }
     setSettings(settingsRef.current)
-    return persistGallery()
+    return persistGallery().then((saved) => {
+      if (saved && 'gallery' in saved) {
+        settingsRef.current = saved
+        setSettings(saved)
+      }
+      return saved
+    })
   }
 
   function saveTheme(theme: PalhaAlbumTheme) {
@@ -455,15 +461,20 @@ export default function PalhaAlbumStudioPage() {
           ),
         ])
         videoUrl = uploaded.url
-        await patchAlbum({
+        const saved = await patchAlbum({
           ...album,
           coverUrl: videoUrl,
           coverKind: 'video',
           coverPosterUrl: posterUpload.url,
           coverFrame: Math.round(time * 10) / 10,
         })
+        const savedAlbum = saved.gallery.albums.find((item) => item.id === album.id)
+        if (!savedAlbum || savedAlbum.coverUrl !== videoUrl || savedAlbum.coverPosterUrl !== posterUpload.url) {
+          throw new Error('O vídeo foi enviado, mas a capa não foi confirmada no álbum. Tente novamente.')
+        }
         if (coverDraft.file) URL.revokeObjectURL(coverDraft.url)
         setCoverDraft(null)
+        setMessage('Capa do vídeo salva.')
         return
       }
       setUploading('Enviando imagem da capa…')
@@ -471,15 +482,20 @@ export default function PalhaAlbumStudioPage() {
         uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`),
         'O envio da imagem da capa demorou demais. Tente novamente.',
       )
-      await patchAlbum({
+      const saved = await patchAlbum({
         ...album,
         coverUrl: videoUrl,
         coverKind: 'video',
         coverPosterUrl: posterUpload.url,
         coverFrame: Math.round(time * 10) / 10,
       })
+      const savedAlbum = saved.gallery.albums.find((item) => item.id === album.id)
+      if (!savedAlbum || savedAlbum.coverUrl !== videoUrl || savedAlbum.coverPosterUrl !== posterUpload.url) {
+        throw new Error('A capa não foi confirmada no álbum. Tente novamente.')
+      }
       if (coverDraft.file) URL.revokeObjectURL(coverDraft.url)
       setCoverDraft(null)
+      setMessage('Capa do vídeo salva.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao definir a capa do vídeo.')
     } finally {
