@@ -47,6 +47,8 @@ async function readResponseJson(res: Response) {
       contentType?: string
       kind?: string
       error?: string
+      postUrl?: string
+      postFields?: Record<string, string>
     }
   }
   try {
@@ -58,6 +60,8 @@ async function readResponseJson(res: Response) {
       contentType?: string
       kind?: string
       error?: string
+      postUrl?: string
+      postFields?: Record<string, string>
     }
   } catch {
     throw new Error('O servidor não devolveu uma resposta válida. Tente de novo.')
@@ -66,6 +70,33 @@ async function readResponseJson(res: Response) {
 
 const SMALL_SERVER_UPLOAD = 3.5 * 1024 * 1024
 const CHUNK_SIZE = 3.5 * 1024 * 1024
+
+function postFileWithProgress(
+  url: string,
+  fields: Record<string, string>,
+  file: File,
+  onProgress?: (percent: number) => void,
+) {
+  return new Promise<void>((resolve, reject) => {
+    const form = new FormData()
+    for (const [key, value] of Object.entries(fields)) form.append(key, value)
+    form.append('file', file)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    xhr.timeout = 30 * 60 * 1000
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !onProgress) return
+      onProgress(Math.max(1, Math.round((event.loaded / event.total) * 100)))
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve()
+      else reject(new Error(`R2 ${xhr.status}`))
+    }
+    xhr.onerror = () => reject(new Error('Falha de rede no envio do vídeo.'))
+    xhr.ontimeout = () => reject(new Error('O envio direto demorou demais.'))
+    xhr.send(form)
+  })
+}
 
 function postChunkWithProgress(uploadId: string, blob: Blob, onChunkProgress?: (ratio: number) => void) {
   return new Promise<void>((resolve, reject) => {
@@ -108,6 +139,31 @@ async function uploadViaServer(file: File, folder: string, onProgress?: (percent
   return {
     url: data.url,
     kind: (data.kind === 'video' ? 'video' : mediaKind(file, guessContentType(file))) as PalhaMediaKind,
+  }
+}
+
+async function uploadViaPresignedPost(file: File, folder: string, onProgress?: (percent: number) => void) {
+  const contentType = guessContentType(file)
+  const signedRes = await fetch('/api/palha/site/signed-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+    body: JSON.stringify({
+      folder,
+      filename: file.name || 'arquivo',
+      contentType,
+    }),
+  })
+  const signed = await readResponseJson(signedRes)
+  if (!signedRes.ok || !signed.postUrl || !signed.postFields || !signed.publicUrl) {
+    throw new Error(signed.error || 'Upload direto indisponível.')
+  }
+  onProgress?.(1)
+  await postFileWithProgress(signed.postUrl, signed.postFields, file, onProgress)
+  onProgress?.(100)
+  return {
+    url: signed.publicUrl,
+    kind: signed.kind === 'video' || mediaKind(file, contentType) === 'video' ? ('video' as PalhaMediaKind) : mediaKind(file, contentType),
   }
 }
 
@@ -167,5 +223,9 @@ export async function uploadPalhaMediaFile(
   if (file.size <= SMALL_SERVER_UPLOAD) {
     return uploadViaServer(file, folder, onProgress)
   }
-  return uploadViaChunks(file, folder, onProgress)
+  try {
+    return await uploadViaPresignedPost(file, folder, onProgress)
+  } catch {
+    return uploadViaChunks(file, folder, onProgress)
+  }
 }

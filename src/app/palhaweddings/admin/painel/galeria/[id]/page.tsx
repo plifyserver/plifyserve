@@ -438,17 +438,34 @@ export default function PalhaAlbumStudioPage() {
     setUploading('Preparando capa do vídeo…')
     try {
       let videoUrl = coverDraft.url
-      if (coverDraft.file) {
-        setUploading('Enviando vídeo…')
-        const uploaded = await withUploadTimeout(
-          uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`),
-          'O envio do vídeo demorou demais. Tente novamente.',
-        )
-        videoUrl = uploaded.url
-      }
       setUploading('Gerando imagem do frame…')
       const poster = await captureVideoFrame(coverDraft.file || coverDraft.url, time)
       if (!poster) throw new Error('Não foi possível criar a foto deste frame. Escolha outro momento do vídeo.')
+
+      if (coverDraft.file) {
+        setUploading('Enviando vídeo e imagem da capa…')
+        const [uploaded, posterUpload] = await Promise.all([
+          withUploadTimeout(
+            uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`),
+            'O envio do vídeo demorou demais. Tente novamente.',
+          ),
+          withUploadTimeout(
+            uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`),
+            'O envio da imagem da capa demorou demais. Tente novamente.',
+          ),
+        ])
+        videoUrl = uploaded.url
+        await patchAlbum({
+          ...album,
+          coverUrl: videoUrl,
+          coverKind: 'video',
+          coverPosterUrl: posterUpload.url,
+          coverFrame: Math.round(time * 10) / 10,
+        })
+        if (coverDraft.file) URL.revokeObjectURL(coverDraft.url)
+        setCoverDraft(null)
+        return
+      }
       setUploading('Enviando imagem da capa…')
       const posterUpload = await withUploadTimeout(
         uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`),
