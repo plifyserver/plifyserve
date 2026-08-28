@@ -9,22 +9,24 @@ function previewSrc(url: string) {
 
 export function PalhaVideoThumb({
   url,
+  posterUrl,
   objectFit = 'cover',
   onReady,
 }: {
   url: string
+  posterUrl?: string
   objectFit?: 'cover' | 'contain'
   onReady?: (width: number, height: number) => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const onReadyRef = useRef(onReady)
-  const [poster, setPoster] = useState('')
+  const [poster, setPoster] = useState(posterUrl || '')
   onReadyRef.current = onReady
 
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
-    let captured = false
+    let captured = Boolean(posterUrl)
 
     const report = () => {
       if (video.videoWidth > 1 && video.videoHeight > 1) {
@@ -71,7 +73,7 @@ export function PalhaVideoThumb({
       video.removeEventListener('loadeddata', capture)
       video.removeEventListener('seeked', capture)
     }
-  }, [url])
+  }, [url, posterUrl])
 
   return (
     <span className="palha-ag-video-wrap">

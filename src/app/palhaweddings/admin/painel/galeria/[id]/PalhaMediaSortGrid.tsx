@@ -49,6 +49,7 @@ export function PalhaMediaSortGrid({
   onReorder,
   onRemove,
   onDismissPending,
+  onPickVideoFrame,
 }: {
   items: PalhaMediaItem[]
   pending?: PalhaPendingUpload[]
@@ -57,6 +58,7 @@ export function PalhaMediaSortGrid({
   onReorder: (from: number, to: number) => void
   onRemove: (id: string) => void
   onDismissPending?: (id: string) => void
+  onPickVideoFrame?: (item: PalhaMediaItem) => void
 }) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
@@ -117,11 +119,16 @@ export function PalhaMediaSortGrid({
           >
             <div className="palha-admin-drag">
               {item.kind === 'video' ? (
-                <video src={item.url} muted playsInline draggable={false} />
+                <video src={item.url} poster={item.posterUrl} muted playsInline draggable={false} />
               ) : (
                 <img src={item.url} alt="" draggable={false} />
               )}
             </div>
+            {item.kind === 'video' && onPickVideoFrame ? (
+              <button type="button" className="palha-admin-mini" onClick={() => onPickVideoFrame(item)}>
+                Escolher capa
+              </button>
+            ) : null}
             <button type="button" className="palha-admin-mini" onClick={() => onRemove(item.id)}>
               Remover
             </button>

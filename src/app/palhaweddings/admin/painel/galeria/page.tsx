@@ -10,6 +10,7 @@ import {
   palhaAdminPrefix,
   type PalhaSiteSettings,
 } from '@/lib/palha/site-settings-shared'
+import { PalhaCoverMedia } from '@/app/palhaweddings/PalhaCoverMedia'
 import { rememberPalhaAdminSettings } from '@/lib/palha/admin-settings-cache'
 import { PalhaFormatField } from '../PalhaFormatField'
 
@@ -198,7 +199,11 @@ export default function PalhaGaleriaAdmin() {
           {settings.gallery.albums.map((album) => (
             <article key={album.id} className="palha-album-card">
               <Link href={`${prefix}/painel/galeria/${album.id}`} className="palha-album-card-cover">
-                {album.coverUrl ? <img src={album.coverUrl} alt="" /> : <span>Sem capa</span>}
+                {album.coverUrl ? (
+                  <PalhaCoverMedia url={album.coverUrl} kind={album.coverKind} posterUrl={album.coverPosterUrl} />
+                ) : (
+                  <span>Sem capa</span>
+                )}
               </Link>
               <div className="palha-album-card-body">
                 <Link href={`${prefix}/painel/galeria/${album.id}`}>

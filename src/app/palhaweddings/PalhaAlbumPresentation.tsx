@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { PalhaAlbumGrid } from '@/app/palhaweddings/PalhaAlbumGrid'
+import { PalhaCoverMedia } from '@/app/palhaweddings/PalhaCoverMedia'
 import type { PalhaMediaFrame } from '@/lib/palha/album-theme'
 import { mergePalhaAlbumTheme } from '@/lib/palha/album-theme'
 import {
@@ -94,6 +95,17 @@ export function PalhaAlbumPresentation({
   )
   const dateLabel = formatPalhaEventDate(album.eventDate)
   const cover = album.coverUrl
+  const coverMedia = cover ? (
+    <PalhaCoverMedia
+      url={cover}
+      kind={album.coverKind}
+      posterUrl={album.coverPosterUrl}
+      controls={!preview}
+      className="palha-cover-media"
+    />
+  ) : (
+    <span />
+  )
   const theme = mergePalhaAlbumTheme(album.theme)
   const dateColor = palhaCssColor(theme.dateColor, '')
   const dateStyle = dateColor ? { color: dateColor } : undefined
@@ -156,7 +168,7 @@ export function PalhaAlbumPresentation({
         {theme.cover === 'romance' || theme.cover === 'vintage' ? (
           <>
             {theme.cover === 'vintage' ? (
-              <div className="palha-cover-photo">{cover ? <img src={cover} alt="" /> : <span />}</div>
+              <div className="palha-cover-photo">{coverMedia}</div>
             ) : null}
             <div className="palha-cover-copy">
               <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-cover-logo" />
@@ -177,12 +189,12 @@ export function PalhaAlbumPresentation({
               )}
             </div>
             {theme.cover === 'romance' ? (
-              <div className="palha-cover-photo">{cover ? <img src={cover} alt="" /> : <span />}</div>
+              <div className="palha-cover-photo">{coverMedia}</div>
             ) : null}
           </>
         ) : (
           <>
-            <div className="palha-cover-photo">{cover ? <img src={cover} alt="" /> : <span />}</div>
+            <div className="palha-cover-photo">{coverMedia}</div>
             <div className="palha-cover-copy">
               <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-cover-logo" />
               <h1>{album.name || 'Título'}</h1>

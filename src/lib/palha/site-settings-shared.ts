@@ -103,6 +103,8 @@ export type PalhaMediaItem = {
   id: string
   url: string
   kind: PalhaMediaKind
+  posterUrl?: string
+  posterFrame?: number
   caption: string
   frame?: PalhaMediaFrame
   width?: number
@@ -122,6 +124,9 @@ export type PalhaAlbum = {
   /** Texto mostrado ao lado da capa na listagem pública de álbuns */
   summary: string
   coverUrl: string
+  coverKind?: PalhaMediaKind
+  coverPosterUrl?: string
+  coverFrame?: number
   theme: PalhaAlbumTheme
   subalbums: PalhaSubAlbum[]
   passwordProtected: boolean
@@ -244,6 +249,14 @@ export function albumMediaCount(album: PalhaAlbum) {
 
 export function palhaAlbumShareImage(album: PalhaAlbum | null | undefined) {
   if (!album) return ''
+  if (album.coverPosterUrl?.trim()) return album.coverPosterUrl.trim()
+  if (album.coverKind === 'video') {
+    for (const sub of album.subalbums) {
+      const photo = sub.items.find((item) => item.kind === 'image' && item.url)
+      if (photo?.url) return photo.url
+    }
+    return ''
+  }
   if (album.coverUrl.trim()) return album.coverUrl.trim()
   for (const sub of album.subalbums) {
     const photo = sub.items.find((item) => item.kind === 'image' && item.url)
@@ -259,9 +272,11 @@ export function collectPalhaMediaUrls(settings: PalhaSiteSettings) {
   }
   for (const album of settings.gallery.albums) {
     if (album.coverUrl) urls.add(album.coverUrl)
+    if (album.coverPosterUrl) urls.add(album.coverPosterUrl)
     for (const sub of album.subalbums) {
       for (const item of sub.items) {
         if (item.url) urls.add(item.url)
+        if (item.posterUrl) urls.add(item.posterUrl)
       }
     }
   }
@@ -464,6 +479,9 @@ function mergeMedia(raw: unknown, index: number): PalhaMediaItem | null {
     id: String(item.id || `media-${index}`),
     url: String(item.url),
     kind: item.kind === 'video' ? 'video' : 'image',
+    posterUrl: String(item.posterUrl || '').trim() || undefined,
+    posterFrame:
+      Number.isFinite(Number(item.posterFrame)) && Number(item.posterFrame) >= 0 ? Number(item.posterFrame) : undefined,
     caption: String(item.caption ?? ''),
     frame: frameIds.has(item.frame as PalhaMediaFrame) ? (item.frame as PalhaMediaFrame) : 'auto',
     width: Number.isFinite(width) && width > 0 ? Math.round(width) : undefined,
@@ -491,12 +509,18 @@ function mergeAlbum(raw: unknown, index: number): PalhaAlbum | null {
     ? data.subalbums.map((sub, subIndex) => mergeSubalbum(sub, subIndex)).filter((sub): sub is PalhaSubAlbum => Boolean(sub))
     : []
   const passwordHash = String(data.passwordHash || '')
+  const coverUrl = String(data.coverUrl || '')
+  const coverKind =
+    data.coverKind === 'video' || /\.(mp4|webm|mov|m4v)(?:[?#].*)?$/i.test(coverUrl) ? 'video' : coverUrl ? 'image' : undefined
   return {
     id: String(data.id || `album-${index}`),
     name: String(data.name || 'Álbum'),
     eventDate: String(data.eventDate || ''),
     summary: String(data.summary || ''),
-    coverUrl: String(data.coverUrl || ''),
+    coverUrl,
+    coverKind,
+    coverPosterUrl: String(data.coverPosterUrl || '').trim() || undefined,
+    coverFrame: Number.isFinite(Number(data.coverFrame)) && Number(data.coverFrame) >= 0 ? Number(data.coverFrame) : undefined,
     createdAt: String(data.createdAt || ''),
     theme: mergePalhaAlbumTheme(data.theme),
     passwordHash,

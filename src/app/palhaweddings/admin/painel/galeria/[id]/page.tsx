@@ -19,6 +19,8 @@ import { preferPalhaAdminSettings, readPalhaAdminSettings, rememberPalhaAdminSet
 import { PalhaMediaSortGrid } from './PalhaMediaSortGrid'
 import { PalhaSubalbumSortList } from './PalhaSubalbumSortList'
 import { PalhaThemeEditor } from './PalhaThemeEditor'
+import { PalhaCoverFramePicker } from './PalhaCoverFramePicker'
+import { PalhaCoverMedia } from '@/app/palhaweddings/PalhaCoverMedia'
 import { type PalhaAlbumTheme, type PalhaMediaFrame } from '@/lib/palha/album-theme'
 
 async function readMediaSize(file: File) {
@@ -41,6 +43,46 @@ async function readMediaSize(file: File) {
     image.onerror = () => done()
     image.src = href
   })
+}
+
+async function captureVideoFrame(source: File | string, time: number) {
+  const href = typeof source === 'string' ? source : URL.createObjectURL(source)
+  const video = document.createElement('video')
+  if (typeof source === 'string') video.crossOrigin = 'anonymous'
+  video.preload = 'metadata'
+  video.muted = true
+  video.src = href
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error('timeout')), 12000)
+      video.onloadedmetadata = () => {
+        video.currentTime = Math.max(0, Math.min(time, Math.max(0, video.duration - 0.05)))
+      }
+      video.onseeked = () => {
+        window.clearTimeout(timeout)
+        resolve()
+      }
+      video.onerror = () => {
+        window.clearTimeout(timeout)
+        reject(new Error('video'))
+      }
+    })
+    const scale = Math.min(1, 1200 / Math.max(video.videoWidth, video.videoHeight))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale))
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale))
+    const context = canvas.getContext('2d')
+    if (!context) return null
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.86))
+    return blob ? new File([blob], `capa-${Date.now()}.jpg`, { type: 'image/jpeg' }) : null
+  } catch {
+    return null
+  } finally {
+    if (typeof source !== 'string') URL.revokeObjectURL(href)
+    video.removeAttribute('src')
+    video.load()
+  }
 }
 
 const ACCEPT = '.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.mp4,.webm,.mov,.m4v'
@@ -69,6 +111,8 @@ export default function PalhaAlbumStudioPage() {
   const [subName, setSubName] = useState('')
   const [askSub, setAskSub] = useState(false)
   const [coverPicker, setCoverPicker] = useState(false)
+  const [coverDraft, setCoverDraft] = useState<{ url: string; file?: File; posterUrl?: string; time?: number } | null>(null)
+  const [videoFrameItem, setVideoFrameItem] = useState<PalhaMediaItem | null>(null)
   const [tab, setTab] = useState<'midia' | 'apresentacao'>('midia')
   const [copied, setCopied] = useState(false)
   const [accessOpen, setAccessOpen] = useState(false)
@@ -89,18 +133,9 @@ export default function PalhaAlbumStudioPage() {
     [settings.gallery.albums, albumId],
   )
   const selected = album?.subalbums.find((sub) => sub.id === selectedId) ?? album?.subalbums[0] ?? null
-  const albumPhotos = useMemo(() => {
+  const albumMedia = useMemo(() => {
     if (!album) return []
-    const seen = new Set<string>()
-    const photos: PalhaMediaItem[] = []
-    for (const sub of album.subalbums) {
-      for (const item of sub.items) {
-        if (item.kind !== 'image' || !item.url || seen.has(item.url)) continue
-        seen.add(item.url)
-        photos.push(item)
-      }
-    }
-    return photos
+    return album.subalbums.flatMap((sub) => sub.items).filter((item) => item.url)
   }, [album])
 
   useEffect(() => {
@@ -262,6 +297,18 @@ export default function PalhaAlbumStudioPage() {
             (percent) => updateCard(job.id, { percent }),
           )
           const size = await readMediaSize(job.file)
+          let posterUrl = ''
+          if (uploaded.kind === 'video') {
+            const poster = await captureVideoFrame(job.file, 0.12)
+            if (poster) {
+              try {
+                const posterUpload = await uploadPalhaMediaFile(poster, `gallery/${currentAlbum.id}/posters`)
+                posterUrl = posterUpload.url
+              } catch {
+                // A mídia continua válida mesmo sem miniatura.
+              }
+            }
+          }
           await (appendLock.current = appendLock.current.then(async () => {
             const live = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
             if (!live) throw new Error('Álbum não encontrado')
@@ -278,6 +325,8 @@ export default function PalhaAlbumStudioPage() {
                           id: newPalhaId('media'),
                           url: uploaded.url,
                           kind: uploaded.kind,
+                          posterUrl: posterUrl || undefined,
+                          posterFrame: posterUrl ? 0.12 : undefined,
                           caption: '',
                           frame: 'auto',
                           width: size.width,
@@ -312,10 +361,15 @@ export default function PalhaAlbumStudioPage() {
 
   async function changeCover(file: File | undefined) {
     if (!album || !file) return
+    if (palhaFileKind(file) === 'video') {
+      setCoverPicker(false)
+      setCoverDraft({ url: URL.createObjectURL(file), file })
+      return
+    }
     setUploading('Enviando capa…')
     try {
       const uploaded = await uploadPalhaMediaFile(file, `gallery/${album.id}/cover`)
-      await patchAlbum({ ...album, coverUrl: uploaded.url })
+      await patchAlbum({ ...album, coverUrl: uploaded.url, coverKind: 'image', coverPosterUrl: undefined, coverFrame: undefined })
       setCoverPicker(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao enviar a capa.')
@@ -324,14 +378,82 @@ export default function PalhaAlbumStudioPage() {
     }
   }
 
-  async function pickCoverFromAlbum(url: string) {
+  function pickCoverFromAlbum(item: PalhaMediaItem) {
+    if (!item.url) return
+    if (item.kind === 'video') {
+      setCoverPicker(false)
+      setCoverDraft({
+        url: item.url,
+        posterUrl: item.posterUrl,
+        time: item.url === album?.coverUrl ? album.coverFrame || 0.12 : 0.12,
+      })
+      return
+    }
+    void pickCoverImage(item.url)
+  }
+
+  async function pickCoverImage(url: string) {
     if (!album || !url) return
     setUploading('Atualizando capa…')
     try {
-      await patchAlbum({ ...album, coverUrl: url })
+      await patchAlbum({ ...album, coverUrl: url, coverKind: 'image', coverPosterUrl: undefined, coverFrame: undefined })
       setCoverPicker(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao atualizar a capa.')
+    } finally {
+      setUploading('')
+    }
+  }
+
+  async function confirmCoverFrame(time: number) {
+    if (!album || !coverDraft) return
+    setUploading('Preparando capa do vídeo…')
+    try {
+      let videoUrl = coverDraft.url
+      if (coverDraft.file) {
+        const uploaded = await uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`)
+        videoUrl = uploaded.url
+      }
+      const poster = await captureVideoFrame(coverDraft.file || coverDraft.url, time)
+      if (!poster) throw new Error('Não foi possível criar a foto deste frame. Escolha outro momento do vídeo.')
+      const posterUpload = await uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`)
+      await patchAlbum({
+        ...album,
+        coverUrl: videoUrl,
+        coverKind: 'video',
+        coverPosterUrl: posterUpload.url,
+        coverFrame: Math.round(time * 10) / 10,
+      })
+      if (coverDraft.file) URL.revokeObjectURL(coverDraft.url)
+      setCoverDraft(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao definir a capa do vídeo.')
+    } finally {
+      setUploading('')
+    }
+  }
+
+  function discardCoverDraft() {
+    if (coverDraft?.file) URL.revokeObjectURL(coverDraft.url)
+    setCoverDraft(null)
+  }
+
+  async function confirmVideoFrame(time: number) {
+    if (!album || !selected || !videoFrameItem) return
+    setUploading('Salvando capa do vídeo…')
+    try {
+      const poster = await captureVideoFrame(videoFrameItem.url, time)
+      if (!poster) throw new Error('Não foi possível criar a imagem deste frame. Tente outro momento do vídeo.')
+      const uploaded = await uploadPalhaMediaFile(poster, `gallery/${album.id}/posters`)
+      const nextItems = selected.items.map((item) =>
+        item.id === videoFrameItem.id
+          ? { ...item, posterUrl: uploaded.url, posterFrame: Math.round(time * 10) / 10 }
+          : item,
+      )
+      patchSelectedItems(nextItems, 'Capa do vídeo salva.')
+      setVideoFrameItem(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao salvar a capa do vídeo.')
     } finally {
       setUploading('')
     }
@@ -586,7 +708,16 @@ export default function PalhaAlbumStudioPage() {
         <section className="palha-album-studio">
         <aside className="palha-album-side">
           <button type="button" className="palha-album-cover" onClick={() => setCoverPicker(true)}>
-            {album.coverUrl ? <img src={album.coverUrl} alt="" /> : <span className="palha-album-cover-empty">Capa do álbum</span>}
+            {album.coverUrl ? (
+              <PalhaCoverMedia
+                url={album.coverUrl}
+                kind={album.coverKind}
+                posterUrl={album.coverPosterUrl}
+                className="palha-album-cover-media"
+              />
+            ) : (
+              <span className="palha-album-cover-empty">Capa do álbum</span>
+            )}
             <span className="palha-album-cover-overlay">Trocar capa</span>
           </button>
 
@@ -671,6 +802,7 @@ export default function PalhaAlbumStudioPage() {
                   onAdd={(files) => void addFiles(files)}
                   onReorder={reorderMedia}
                   onRemove={(id) => void removeMedia(id)}
+                  onPickVideoFrame={setVideoFrameItem}
                   onDismissPending={(id) => {
                     setPendingUploads((current) => {
                       const card = current.find((item) => item.id === id)
@@ -752,7 +884,7 @@ export default function PalhaAlbumStudioPage() {
               Enviar do computador
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept={ACCEPT}
                 disabled={Boolean(uploading)}
                 onChange={(e) => {
                   void changeCover(e.target.files?.[0])
@@ -760,18 +892,23 @@ export default function PalhaAlbumStudioPage() {
                 }}
               />
             </label>
-            <h3>Fotos do álbum</h3>
-            {albumPhotos.length ? (
+            <h3>Fotos e vídeos do álbum</h3>
+            {albumMedia.length ? (
               <div className="palha-cover-picker-grid">
-                {albumPhotos.map((photo) => (
+                {albumMedia.map((media) => (
                   <button
-                    key={photo.id}
+                    key={media.id}
                     type="button"
-                    className={photo.url === album.coverUrl ? 'is-current' : undefined}
+                    className={media.url === album.coverUrl ? 'is-current' : undefined}
                     disabled={Boolean(uploading)}
-                    onClick={() => void pickCoverFromAlbum(photo.url)}
+                    onClick={() => pickCoverFromAlbum(media)}
                   >
-                    <img src={photo.url} alt="" />
+                    <PalhaCoverMedia
+                      url={media.url}
+                      kind={media.kind}
+                      posterUrl={media.posterUrl}
+                      className="palha-cover-picker-media"
+                    />
                   </button>
                 ))}
               </div>
@@ -786,6 +923,36 @@ export default function PalhaAlbumStudioPage() {
                 Cancelar
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {coverDraft ? (
+        <div className="palha-modal-backdrop" onClick={() => !uploading && discardCoverDraft()}>
+          <div className="palha-modal palha-cover-picker" onClick={(e) => e.stopPropagation()}>
+            <PalhaCoverFramePicker
+              src={coverDraft.url}
+              posterUrl={coverDraft.posterUrl}
+              initialTime={coverDraft.time}
+              onCancel={discardCoverDraft}
+              onConfirm={(time) => void confirmCoverFrame(time)}
+            />
+            {uploading ? <p className="palha-copy">{uploading}</p> : null}
+          </div>
+        </div>
+      ) : null}
+
+      {videoFrameItem ? (
+        <div className="palha-modal-backdrop" onClick={() => !uploading && setVideoFrameItem(null)}>
+          <div className="palha-modal palha-cover-picker" onClick={(e) => e.stopPropagation()}>
+            <PalhaCoverFramePicker
+              src={videoFrameItem.url}
+              posterUrl={videoFrameItem.posterUrl}
+              initialTime={videoFrameItem.posterFrame}
+              onCancel={() => setVideoFrameItem(null)}
+              onConfirm={(time) => void confirmVideoFrame(time)}
+            />
+            {uploading ? <p className="palha-copy">{uploading}</p> : null}
           </div>
         </div>
       ) : null}

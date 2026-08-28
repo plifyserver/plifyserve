@@ -95,7 +95,14 @@ export function PalhaAlbumGrid({
       rememberSize(item.id, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
     }
     if (item.kind === 'video') {
-      return <PalhaVideoThumb url={item.url} objectFit={objectFit} onReady={(w, h) => rememberSize(item.id, w, h)} />
+      return (
+        <PalhaVideoThumb
+          url={item.url}
+          posterUrl={item.posterUrl}
+          objectFit={objectFit}
+          onReady={(w, h) => rememberSize(item.id, w, h)}
+        />
+      )
     }
     return <img src={item.url} alt={item.caption || ''} onLoad={onImage} style={{ objectFit }} />
   }

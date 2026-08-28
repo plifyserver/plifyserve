@@ -84,9 +84,13 @@ export function PalhaAlbumPublicClient({
 
   if (!ready || locked) {
     const askPassword = locked && ready
+    const lockCover =
+      album.coverKind === 'video'
+        ? album.coverPosterUrl || album.subalbums.flatMap((sub) => sub.items).find((item) => item.kind === 'image')?.url
+        : album.coverUrl
     return (
       <main className="palha-album-lock">
-        {album.coverUrl ? <img src={album.coverUrl} alt="" className="palha-album-lock-bg" /> : null}
+        {lockCover ? <img src={lockCover} alt="" className="palha-album-lock-bg" /> : null}
         <form className="palha-album-lock-card" onSubmit={(event) => void unlock(event)}>
           <img src="/palhaweddings/logo.png" alt="Palha Weddings" className="palha-cover-logo" />
           <p className="palha-label">Álbum privado</p>

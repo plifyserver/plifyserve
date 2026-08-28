@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { PalhaReveal } from '../PalhaReveal'
 import { PalhaRichText } from '../PalhaRichText'
+import { PalhaCoverMedia } from '../PalhaCoverMedia'
 import {
   albumMediaCount,
   formatPalhaEventDate,
@@ -90,7 +91,19 @@ export function PalhaGalleryAlbums({ gallery }: { gallery: PalhaGallery }) {
             <Link href={`${prefix}/albuns/${album.id}`} prefetch={false} className="palha-gallery-album-link">
               <span className="palha-gallery-album-cover">
                 {album.coverUrl ? (
-                  <img src={album.coverUrl} alt="" />
+                  <PalhaCoverMedia
+                    url={album.coverUrl}
+                    kind={album.coverKind}
+                    posterUrl={album.coverPosterUrl}
+                    controls={album.coverKind === 'video'}
+                    className="palha-gallery-album-cover-media"
+                    onClick={(event) => {
+                      if (album.coverKind === 'video') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                      }
+                    }}
+                  />
                 ) : (
                   <span className="palha-gallery-album-placeholder">Sem capa</span>
                 )}
