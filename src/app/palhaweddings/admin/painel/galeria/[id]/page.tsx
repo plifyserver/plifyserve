@@ -51,21 +51,35 @@ async function captureVideoFrame(source: File | string, time: number) {
   if (typeof source === 'string') video.crossOrigin = 'anonymous'
   video.preload = 'metadata'
   video.muted = true
-  video.src = href
   try {
     await new Promise<void>((resolve, reject) => {
-      const timeout = window.setTimeout(() => reject(new Error('timeout')), 12000)
-      video.onloadedmetadata = () => {
-        video.currentTime = Math.max(0, Math.min(time, Math.max(0, video.duration - 0.05)))
-      }
-      video.onseeked = () => {
+      let settled = false
+      const finish = (error?: Error) => {
+        if (settled) return
+        settled = true
         window.clearTimeout(timeout)
-        resolve()
+        video.onloadedmetadata = null
+        video.onloadeddata = null
+        video.onseeked = null
+        video.onerror = null
+        if (error) reject(error)
+        else resolve()
       }
-      video.onerror = () => {
-        window.clearTimeout(timeout)
-        reject(new Error('video'))
+      const timeout = window.setTimeout(() => finish(new Error('timeout')), 15000)
+      const seek = () => {
+        if (!Number.isFinite(video.duration) || video.videoWidth < 2) return
+        const target = Math.max(0, Math.min(time, Math.max(0, video.duration - 0.05)))
+        video.currentTime = target
+        if (Math.abs(video.currentTime - target) < 0.02 && video.readyState >= 2) {
+          window.setTimeout(() => finish(), 80)
+        }
       }
+      video.onloadedmetadata = seek
+      video.onloadeddata = seek
+      video.onseeked = () => finish()
+      video.onerror = () => finish(new Error('video'))
+      video.src = href
+      video.load()
     })
     const scale = Math.min(1, 1200 / Math.max(video.videoWidth, video.videoHeight))
     const canvas = document.createElement('canvas')
@@ -82,6 +96,20 @@ async function captureVideoFrame(source: File | string, time: number) {
     if (typeof source !== 'string') URL.revokeObjectURL(href)
     video.removeAttribute('src')
     video.load()
+  }
+}
+
+async function withUploadTimeout<T>(task: Promise<T>, message: string) {
+  let timer: number | undefined
+  try {
+    return await Promise.race([
+      task,
+      new Promise<T>((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error(message)), 90000)
+      }),
+    ])
+  } finally {
+    if (timer) window.clearTimeout(timer)
   }
 }
 
@@ -411,12 +439,21 @@ export default function PalhaAlbumStudioPage() {
     try {
       let videoUrl = coverDraft.url
       if (coverDraft.file) {
-        const uploaded = await uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`)
+        setUploading('Enviando vídeo…')
+        const uploaded = await withUploadTimeout(
+          uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`),
+          'O envio do vídeo demorou demais. Tente novamente.',
+        )
         videoUrl = uploaded.url
       }
+      setUploading('Gerando imagem do frame…')
       const poster = await captureVideoFrame(coverDraft.file || coverDraft.url, time)
       if (!poster) throw new Error('Não foi possível criar a foto deste frame. Escolha outro momento do vídeo.')
-      const posterUpload = await uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`)
+      setUploading('Enviando imagem da capa…')
+      const posterUpload = await withUploadTimeout(
+        uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`),
+        'O envio da imagem da capa demorou demais. Tente novamente.',
+      )
       await patchAlbum({
         ...album,
         coverUrl: videoUrl,
