@@ -530,12 +530,29 @@ export default function PalhaAlbumStudioPage() {
       const poster = await captureVideoFrame(videoFrameItem.url, time)
       if (!poster) throw new Error('Não foi possível criar a imagem deste frame. Tente outro momento do vídeo.')
       const uploaded = await uploadPalhaMediaFile(poster, `gallery/${album.id}/posters`)
-      const nextItems = selected.items.map((item) =>
-        item.id === videoFrameItem.id
-          ? { ...item, posterUrl: uploaded.url, posterFrame: Math.round(time * 10) / 10 }
-          : item,
+      const res = await fetch(
+        `/api/palha/albums/${album.id}/media/${encodeURIComponent(videoFrameItem.id)}/poster`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify({
+            url: uploaded.url,
+            frame: Math.round(time * 10) / 10,
+          }),
+        },
       )
-      patchSelectedItems(nextItems, 'Capa do vídeo salva.')
+      const data = (await res.json()) as { album?: PalhaAlbum; error?: string }
+      if (!res.ok || !data.album) {
+        throw new Error(data.error || 'A imagem foi enviada, mas não foi salva no vídeo.')
+      }
+      setSettings((current) => {
+        const next = { ...current, gallery: updateAlbum(current.gallery, album.id, data.album as PalhaAlbum) }
+        settingsRef.current = next
+        rememberPalhaAdminSettings(next)
+        return next
+      })
+      setMessage('Capa do vídeo salva.')
       setVideoFrameItem(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao salvar a capa do vídeo.')

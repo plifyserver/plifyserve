@@ -214,6 +214,40 @@ export async function setPalhaAlbumCover(
   })
 }
 
+export async function setPalhaMediaPoster(
+  albumId: string,
+  mediaId: string,
+  poster: { url: string; frame?: number },
+) {
+  return enqueueSettingsWrite(async () => {
+    const current = await readPalhaSiteSettings()
+    const album = current.gallery.albums.find((item) => item.id === albumId)
+    if (!album) throw new Error('Álbum não encontrado')
+    let found = false
+    const subalbums = album.subalbums.map((sub) => ({
+      ...sub,
+      items: sub.items.map((item) => {
+        if (item.id !== mediaId || item.kind !== 'video') return item
+        found = true
+        return {
+          ...item,
+          posterUrl: poster.url,
+          posterFrame: poster.frame,
+        }
+      }),
+    }))
+    if (!found) throw new Error('Vídeo não encontrado')
+    const next: PalhaSiteSettings = {
+      ...current,
+      gallery: {
+        ...current.gallery,
+        albums: current.gallery.albums.map((item) => (item.id === albumId ? { ...item, subalbums } : item)),
+      },
+    }
+    return writePalhaSiteSettings(next)
+  })
+}
+
 export async function uploadPalhaSitePhoto(slot: PalhaPhotoSlot, file: File) {
   return uploadPalhaR2Object(`photos/${slot}`, file)
 }
