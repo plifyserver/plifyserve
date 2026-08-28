@@ -10,7 +10,6 @@ import {
   HeadBucketCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
-  PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
   UploadPartCommand,
@@ -97,35 +96,6 @@ async function ensurePalhaR2Bucket() {
           `Bucket R2 "${bucket}" não encontrado. Crie esse bucket no Cloudflare e confira R2_BUCKET_NAME no .env.`,
         )
       }
-    }
-    try {
-      await s3.send(
-        new PutBucketCorsCommand({
-          Bucket: bucket,
-          CORSConfiguration: {
-            CORSRules: [
-              {
-                AllowedOrigins: ['*'],
-                AllowedMethods: ['GET', 'PUT', 'POST', 'HEAD', 'OPTIONS'],
-                AllowedHeaders: [
-                  'Content-Type',
-                  'Content-Length',
-                  'Content-MD5',
-                  'Authorization',
-                  'x-amz-content-sha256',
-                  'x-amz-date',
-                  'x-amz-checksum-crc32',
-                  'x-amz-sdk-checksum-algorithm',
-                ],
-                ExposeHeaders: ['ETag', 'Location', 'Content-Type'],
-                MaxAgeSeconds: 3600,
-              },
-            ],
-          },
-        }),
-      )
-    } catch {
-      // O CORS também pode ser colado no dashboard do bucket.
     }
   })().catch((err) => {
     ready = null
