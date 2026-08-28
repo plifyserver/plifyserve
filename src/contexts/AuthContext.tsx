@@ -106,17 +106,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     init()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          const p = await fetchProfile(session.user.id)
-          setProfile(p)
-        } else {
-          setProfile(null)
-        }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      if (!session?.user) {
+        setProfile(null)
+        return
       }
-    )
+      void fetchProfile(session.user.id)
+        .then((p) => setProfile(p))
+        .catch((err) => {
+          if (!(err instanceof Error && err.name === 'AbortError')) {
+            console.warn('Não foi possível atualizar a sessão do usuário.', err)
+          }
+        })
+    })
 
     return () => subscription.unsubscribe()
   // eslint-disable-next-line react-hooks/exhaustive-deps
