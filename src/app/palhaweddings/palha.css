@@ -1731,9 +1731,46 @@
   gap: 1.2rem;
 }
 
+.palha-album-cards.is-sorting {
+  user-select: none;
+  touch-action: none;
+}
+
 .palha-album-card {
+  position: relative;
   display: grid;
   gap: 0.7rem;
+  cursor: grab;
+  touch-action: none;
+}
+
+.palha-album-card.is-lifting {
+  opacity: 0.38;
+}
+
+.palha-album-card.is-drop {
+  outline: 2px solid var(--palha-ink);
+  outline-offset: 4px;
+}
+
+.palha-album-card.is-drop::after {
+  content: 'Soltar aqui';
+  position: absolute;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 2;
+  padding: 0.28rem 0.45rem;
+  background: rgba(255, 252, 248, 0.94);
+  color: var(--palha-ink);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.palha-album-list-page .palha-album-order-hint {
+  margin: 0 0 1rem;
+  color: var(--palha-muted);
+  font-size: 0.9rem;
 }
 
 .palha-album-card-cover,
@@ -3687,7 +3724,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 0.7rem;
   width: min(72rem, 100%);
   max-height: 100%;
@@ -3709,21 +3746,66 @@
 }
 
 .palha-lightbox-close {
-  justify-self: end;
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
   border: 0;
+  border-radius: 999px;
   padding: 0;
-  background: none;
+  background: rgba(18, 16, 14, 0.72);
   cursor: pointer;
+  font-family: var(--palha-sans);
+  font-size: 1.55rem;
+  line-height: 1;
+  color: #f7f3ec;
+}
+
+.palha-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(18, 16, 14, 0.72);
+  color: #f7f3ec;
+  cursor: pointer;
+  font-family: var(--palha-sans);
+  font-size: 1.8rem;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.palha-lightbox-nav.is-prev {
+  left: 0.55rem;
+}
+
+.palha-lightbox-nav.is-next {
+  right: 0.55rem;
+}
+
+.palha-lightbox-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.palha-lightbox-count {
   font-family: var(--palha-sans);
   font-size: 0.68rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--p-muted, #7a736c);
-}
-
-.palha-lightbox-tools {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .palha-lightbox-tools button {
@@ -3736,6 +3818,20 @@
   font-size: 0.68rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .palha-lightbox-nav {
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 1.55rem;
+  }
+
+  .palha-lightbox-close {
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 1.4rem;
+  }
 }
 
 @media (hover: none) {

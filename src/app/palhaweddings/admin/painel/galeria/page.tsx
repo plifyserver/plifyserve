@@ -8,11 +8,17 @@ import {
   albumMediaCount,
   formatPalhaEventDate,
   palhaAdminPrefix,
+  type PalhaAlbum,
   type PalhaSiteSettings,
 } from '@/lib/palha/site-settings-shared'
 import { PalhaCoverMedia } from '@/app/palhaweddings/PalhaCoverMedia'
 import { rememberPalhaAdminSettings } from '@/lib/palha/admin-settings-cache'
 import { PalhaFormatField } from '../PalhaFormatField'
+
+function albumIdAtPoint(x: number, y: number) {
+  const node = document.elementFromPoint(x, y)
+  return node?.closest<HTMLElement>('[data-album-id]')?.dataset.albumId || null
+}
 
 export default function PalhaGaleriaAdmin() {
   const pathname = usePathname()
@@ -32,6 +38,12 @@ export default function PalhaGaleriaAdmin() {
   const [deleting, setDeleting] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const [ghost, setGhost] = useState<{ name: string; x: number; y: number } | null>(null)
+  const startRef = useRef<{ id: string; x: number; y: number } | null>(null)
+  const draggedRef = useRef(false)
+  const reorderLock = useRef(Promise.resolve())
 
   useEffect(() => {
     fetch('/api/palha/site', { cache: 'no-store' })
@@ -157,6 +169,72 @@ export default function PalhaGaleriaAdmin() {
     }
   }
 
+  function reorderAlbums(from: number, to: number) {
+    if (from === to || from < 0 || to < 0) return
+    const albums = settings.gallery.albums.slice()
+    const [moved] = albums.splice(from, 1)
+    if (!moved) return
+    albums.splice(to, 0, moved)
+    const next = {
+      ...settings,
+      gallery: {
+        ...settings.gallery,
+        albums,
+      },
+    }
+    setSettings(next)
+    setMessage('Ordem salva.')
+    setError('')
+    void (reorderLock.current = reorderLock.current.then(async () => {
+      try {
+        await persist(next)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Não foi possível salvar a ordem.')
+      }
+    }))
+  }
+
+  function finishDrag(clientX: number, clientY: number, albumId: string) {
+    const from = settings.gallery.albums.findIndex((album) => album.id === albumId)
+    const targetId = overId || albumIdAtPoint(clientX, clientY)
+    const to = targetId ? settings.gallery.albums.findIndex((album) => album.id === targetId) : -1
+    const moved = draggedRef.current
+    startRef.current = null
+    setActiveId(null)
+    setOverId(null)
+    setGhost(null)
+    if (moved) {
+      window.setTimeout(() => {
+        draggedRef.current = false
+      }, 0)
+    } else {
+      draggedRef.current = false
+    }
+    if (!moved || from < 0 || to < 0 || from === to) return
+    reorderAlbums(from, to)
+  }
+
+  function onPointerDown(event: React.PointerEvent<HTMLElement>, album: PalhaAlbum) {
+    if (event.button !== 0) return
+    if ((event.target as HTMLElement).closest('.palha-admin-mini')) return
+    draggedRef.current = false
+    startRef.current = { id: album.id, x: event.clientX, y: event.clientY }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function onPointerMove(event: React.PointerEvent<HTMLElement>, album: PalhaAlbum) {
+    const start = startRef.current
+    if (!start || start.id !== album.id) return
+    const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y)
+    if (!activeId && distance < 8) return
+    event.preventDefault()
+    draggedRef.current = true
+    if (!activeId) setActiveId(album.id)
+    setGhost({ name: album.name, x: event.clientX, y: event.clientY })
+    const hovered = albumIdAtPoint(event.clientX, event.clientY)
+    setOverId(hovered && hovered !== album.id ? hovered : null)
+  }
+
   return (
     <main className="palha-admin-page palha-album-list-page">
       <h1 className="palha-kicker" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', margin: '0 0 1.6rem' }}>
@@ -195,40 +273,78 @@ export default function PalhaGaleriaAdmin() {
       </div>
 
       {settings.gallery.albums.length ? (
-        <div className="palha-album-cards">
-          {settings.gallery.albums.map((album) => (
-            <article key={album.id} className="palha-album-card">
-              <Link href={`${prefix}/painel/galeria/${album.id}`} className="palha-album-card-cover">
-                {album.coverUrl ? (
-                  <PalhaCoverMedia url={album.coverUrl} kind={album.coverKind} posterUrl={album.coverPosterUrl} />
-                ) : (
-                  <span>Sem capa</span>
-                )}
-              </Link>
-              <div className="palha-album-card-body">
-                <Link href={`${prefix}/painel/galeria/${album.id}`}>
-                  <strong>{album.name}</strong>
-                </Link>
-                <p>{formatPalhaEventDate(album.eventDate) || 'Data não informada'}</p>
-                <p>
-                  {albumMediaCount(album)} arquivo{albumMediaCount(album) === 1 ? '' : 's'}
-                  {album.passwordProtected ? ' · com senha' : ''}
-                </p>
-                <button
-                  type="button"
-                  className="palha-admin-mini"
-                  onClick={() => {
-                    setError('')
-                    setAdminPassword('')
-                    setPendingDelete({ id: album.id, name: album.name })
+        <>
+          <p className="palha-album-order-hint">Arraste um álbum e solte sobre outro para mudar a ordem na página pública.</p>
+          <div className={`palha-album-cards${activeId ? ' is-sorting' : ''}`}>
+            {settings.gallery.albums.map((album) => (
+              <article
+                key={album.id}
+                data-album-id={album.id}
+                className={`palha-album-card${album.id === activeId ? ' is-lifting' : ''}${album.id === overId ? ' is-drop' : ''}`}
+                onPointerDown={(event) => onPointerDown(event, album)}
+                onPointerMove={(event) => onPointerMove(event, album)}
+                onPointerUp={(event) => {
+                  if (!startRef.current) return
+                  finishDrag(event.clientX, event.clientY, album.id)
+                }}
+                onPointerCancel={() => {
+                  startRef.current = null
+                  draggedRef.current = false
+                  setActiveId(null)
+                  setOverId(null)
+                  setGhost(null)
+                }}
+              >
+                <Link
+                  href={`${prefix}/painel/galeria/${album.id}`}
+                  className="palha-album-card-cover"
+                  onClick={(event) => {
+                    if (draggedRef.current) event.preventDefault()
                   }}
+                  draggable={false}
                 >
-                  Excluir
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+                  {album.coverUrl ? (
+                    <PalhaCoverMedia url={album.coverUrl} kind={album.coverKind} posterUrl={album.coverPosterUrl} />
+                  ) : (
+                    <span>Sem capa</span>
+                  )}
+                </Link>
+                <div className="palha-album-card-body">
+                  <Link
+                    href={`${prefix}/painel/galeria/${album.id}`}
+                    onClick={(event) => {
+                      if (draggedRef.current) event.preventDefault()
+                    }}
+                    draggable={false}
+                  >
+                    <strong>{album.name}</strong>
+                  </Link>
+                  <p>{formatPalhaEventDate(album.eventDate) || 'Data não informada'}</p>
+                  <p>
+                    {albumMediaCount(album)} arquivo{albumMediaCount(album) === 1 ? '' : 's'}
+                    {album.passwordProtected ? ' · com senha' : ''}
+                  </p>
+                  <button
+                    type="button"
+                    className="palha-admin-mini"
+                    onClick={() => {
+                      setError('')
+                      setAdminPassword('')
+                      setPendingDelete({ id: album.id, name: album.name })
+                    }}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+          {ghost ? (
+            <div className="palha-admin-sort-ghost is-list" style={{ left: ghost.x, top: ghost.y }} aria-hidden="true">
+              {ghost.name}
+            </div>
+          ) : null}
+        </>
       ) : (
         <p className="palha-copy">Nenhuma coleção ainda. Crie a primeira com o nome do álbum e a data do evento.</p>
       )}

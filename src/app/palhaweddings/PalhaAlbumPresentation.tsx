@@ -112,10 +112,46 @@ export function PalhaAlbumPresentation({
   const ctaLabel = theme.galleryCta.label.trim() || 'Ver galeria'
   const ctaStyle = palhaOptionalButtonStyle(theme.galleryCta)
 
+  const viewerItems = selected?.items ?? []
+
+  function openAt(index: number) {
+    const item = viewerItems[index]
+    if (!item) return
+    setViewer({ item, index })
+  }
+
+  function showPrev() {
+    if (!viewer || viewerItems.length < 2) return
+    openAt((viewer.index - 1 + viewerItems.length) % viewerItems.length)
+  }
+
+  function showNext() {
+    if (!viewer || viewerItems.length < 2) return
+    openAt((viewer.index + 1) % viewerItems.length)
+  }
+
   useEffect(() => {
     if (!viewer) return
+    const items = selected?.items ?? []
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setViewer(null)
+      if (event.key === 'Escape') {
+        setViewer(null)
+        return
+      }
+      if (items.length < 2) return
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        const next = (viewer.index - 1 + items.length) % items.length
+        const item = items[next]
+        if (item) setViewer({ item, index: next })
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        const next = (viewer.index + 1) % items.length
+        const item = items[next]
+        if (item) setViewer({ item, index: next })
+      }
     }
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -124,7 +160,7 @@ export function PalhaAlbumPresentation({
       document.body.style.overflow = previous
       document.removeEventListener('keydown', onKey)
     }
-  }, [viewer])
+  }, [viewer, selected?.items])
 
   const mediaCount = palhaAlbumZipEntries(album).length
 
@@ -289,15 +325,35 @@ export function PalhaAlbumPresentation({
         <div className="palha-lightbox" role="dialog" aria-modal="true" aria-label="Visualizar mídia">
           <button type="button" className="palha-lightbox-backdrop" aria-label="Fechar" onClick={() => setViewer(null)} />
           <div className="palha-lightbox-card">
-            <button type="button" className="palha-lightbox-close" onClick={() => setViewer(null)}>
-              Fechar
+            <button type="button" className="palha-lightbox-close" aria-label="Fechar" onClick={() => setViewer(null)}>
+              ×
             </button>
+            {viewerItems.length > 1 ? (
+              <>
+                <button type="button" className="palha-lightbox-nav is-prev" aria-label="Anterior" onClick={showPrev}>
+                  ‹
+                </button>
+                <button type="button" className="palha-lightbox-nav is-next" aria-label="Próxima" onClick={showNext}>
+                  ›
+                </button>
+              </>
+            ) : null}
             {viewer.item.kind === 'video' ? (
-              <video src={viewer.item.url} controls autoPlay playsInline preload="metadata" />
+              <video
+                key={viewer.item.id}
+                src={viewer.item.url}
+                controls
+                autoPlay
+                playsInline
+                preload="metadata"
+              />
             ) : (
-              <img src={viewer.item.url} alt={viewer.item.caption || album.name || ''} />
+              <img key={viewer.item.id} src={viewer.item.url} alt={viewer.item.caption || album.name || ''} />
             )}
             <div className="palha-lightbox-tools">
+              <span className="palha-lightbox-count">
+                {viewer.index + 1} / {viewerItems.length}
+              </span>
               <button type="button" disabled={savingId === viewer.item.id} onClick={() => void saveMedia(viewer.item, viewer.index)}>
                 {savingId === viewer.item.id ? 'Salvando…' : 'Baixar'}
               </button>

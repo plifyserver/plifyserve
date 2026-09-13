@@ -154,7 +154,7 @@ export async function createPalhaAlbumRecord(input: {
       ...current,
       gallery: {
         ...current.gallery,
-        albums: [...current.gallery.albums, album],
+        albums: [album, ...current.gallery.albums],
       },
     }
     const settings = await writePalhaSiteSettings(next)
