@@ -2,6 +2,71 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage } from 'pd
 import { format } from 'date-fns'
 import { LOGO_PRETO } from '@/lib/logo'
 
+/** Decodifica data URL ou busca URL remota e devolve bytes + mime. */
+async function loadImageBytes(source: string): Promise<{ bytes: Uint8Array; mime: string }> {
+  const trimmed = source.trim()
+  if (!trimmed) throw new Error('Imagem vazia')
+
+  if (trimmed.startsWith('data:')) {
+    const match = trimmed.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,(.+)$/i)
+    if (!match?.[2]) throw new Error('Data URL inválida')
+    const mime = (match[1] || 'application/octet-stream').toLowerCase()
+    const binary = atob(match[2])
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    return { bytes, mime }
+  }
+
+  const res = await fetch(trimmed)
+  if (!res.ok) throw new Error(`Falha ao baixar imagem (${res.status})`)
+  const mime = (res.headers.get('content-type') || '').toLowerCase()
+  const buffer = await res.arrayBuffer()
+  return { bytes: new Uint8Array(buffer), mime }
+}
+
+function looksLikeJpeg(bytes: Uint8Array, mime: string, source: string) {
+  if (mime.includes('jpeg') || mime.includes('jpg')) return true
+  const lower = source.toLowerCase()
+  if (lower.includes('image/jpeg') || lower.includes('image/jpg') || lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+    return true
+  }
+  return bytes.length > 2 && bytes[0] === 0xff && bytes[1] === 0xd8
+}
+
+function looksLikePng(bytes: Uint8Array, mime: string, source: string) {
+  if (mime.includes('png')) return true
+  const lower = source.toLowerCase()
+  if (lower.includes('image/png') || lower.endsWith('.png')) return true
+  return (
+    bytes.length > 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  )
+}
+
+/** Embute PNG ou JPG a partir de data URL ou URL pública. */
+async function embedImageFromSource(pdfDoc: PDFDocument, source: string): Promise<PDFImage> {
+  const { bytes, mime } = await loadImageBytes(source)
+  const preferJpg = looksLikeJpeg(bytes, mime, source)
+  const preferPng = looksLikePng(bytes, mime, source)
+
+  if (preferJpg && !preferPng) {
+    try {
+      return await pdfDoc.embedJpg(bytes)
+    } catch {
+      return await pdfDoc.embedPng(bytes)
+    }
+  }
+
+  try {
+    return await pdfDoc.embedPng(bytes)
+  } catch {
+    return await pdfDoc.embedJpg(bytes)
+  }
+}
+
 /** URL absoluta da logo em /public (cliente ou servidor). */
 function resolvePlifyLogoUrl(): string | null {
   if (typeof window !== 'undefined') {
@@ -16,19 +81,7 @@ async function embedPlifyLogo(pdfDoc: PDFDocument): Promise<{ image: PDFImage; w
   const url = resolvePlifyLogoUrl()
   if (!url) return null
   try {
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const bytes = await res.arrayBuffer()
-    let image: PDFImage
-    try {
-      image = await pdfDoc.embedPng(bytes)
-    } catch {
-      try {
-        image = await pdfDoc.embedJpg(bytes)
-      } catch {
-        return null
-      }
-    }
+    const image = await embedImageFromSource(pdfDoc, url)
     const maxW = 88
     const w = Math.min(maxW, image.width)
     const h = image.height * (w / image.width)
@@ -116,6 +169,10 @@ function generateVerificationCode(): string {
   return code
 }
 
+function isSignedFlag(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1 || value === '1'
+}
+
 export async function generateSignedPDF(
   contract: ContractForPDF,
   signatures: SignatoryForPDF[]
@@ -123,7 +180,10 @@ export async function generateSignedPDF(
   if (!contract.file_url) {
     throw new Error('Contrato sem URL de arquivo PDF.')
   }
-  const existingPdfBytes = await fetch(contract.file_url).then((res) => res.arrayBuffer())
+  const existingPdfBytes = await fetch(contract.file_url).then((res) => {
+    if (!res.ok) throw new Error('Não foi possível carregar o PDF original do contrato.')
+    return res.arrayBuffer()
+  })
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
   const pages = pdfDoc.getPages()
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -134,21 +194,28 @@ export async function generateSignedPDF(
 
   /* Assinaturas posicionadas no corpo do PDF */
   for (const sig of signatures) {
-    if (!sig.signed || !sig.signature_url || !sig.signature_placement) continue
+    if (!isSignedFlag(sig.signed) || !sig.signature_url || !sig.signature_placement) continue
     const pl = sig.signature_placement
     const idx = Math.max(0, Math.min(pl.pageIndex, pages.length - 1))
     const page = pages[idx]
     const { width: pw, height: ph } = page.getSize()
     try {
-      const bytes = await fetch(sig.signature_url).then((res) => res.arrayBuffer())
-      const image = await pdfDoc.embedPng(bytes)
+      const image = await embedImageFromSource(pdfDoc, sig.signature_url)
       const pdfX = pl.x * pw
       const pdfY = (1 - pl.y - pl.h) * ph
-      const pdfW = pl.w * pw
-      const pdfH = pl.h * ph
+      const pdfW = Math.max(8, pl.w * pw)
+      const pdfH = Math.max(8, pl.h * ph)
+      page.drawRectangle({
+        x: pdfX,
+        y: pdfY,
+        width: pdfW,
+        height: pdfH,
+        color: rgb(1, 1, 1),
+        opacity: 0.92,
+      })
       page.drawImage(image, { x: pdfX, y: pdfY, width: pdfW, height: pdfH })
-    } catch {
-      /* ignora */
+    } catch (err) {
+      console.error('Falha ao carimbar assinatura no PDF:', err)
     }
   }
 
@@ -171,9 +238,9 @@ export async function generateSignedPDF(
     })
   }
 
-  /* Página de relatório de assinaturas (estilo relatório completo, organizado) */
+  /* Página de relatório de assinaturas */
   const reportNow = format(new Date(), 'dd/MM/yyyy HH:mm:ss')
-  const signedTotal = signatures.filter((s) => s.signed).length
+  const signedTotal = signatures.filter((s) => isSignedFlag(s.signed)).length
   const plifyLogo = await embedPlifyLogo(pdfDoc)
 
   let currentReportPage = pdfDoc.addPage([595, 842])
@@ -274,7 +341,7 @@ export async function generateSignedPDF(
   if (signatures?.length) {
     for (let idx = 0; idx < signatures.length; idx++) {
       const sig = signatures[idx]
-      if (!sig.signed) continue
+      if (!isSignedFlag(sig.signed)) continue
       let boxYFinal = sigY - blockH
       if (boxYFinal < 55) {
         currentReportPage = pdfDoc.addPage([595, 842])
@@ -367,16 +434,23 @@ export async function generateSignedPDF(
       }
       if (sig.signature_url) {
         try {
-          const signatureImage = await fetch(sig.signature_url).then((res) => res.arrayBuffer())
-          const image = await pdfDoc.embedPng(signatureImage)
+          const image = await embedImageFromSource(pdfDoc, sig.signature_url)
+          page.drawRectangle({
+            x: 330,
+            y: boxYFinal + 95,
+            width: 200,
+            height: 72,
+            color: rgb(1, 1, 1),
+          })
           page.drawImage(image, {
             x: 330,
             y: boxYFinal + 95,
             width: 200,
             height: 72,
           })
-        } catch {
-          page.drawText('[Assinatura]', {
+        } catch (err) {
+          console.error('Falha ao embutir assinatura no relatório:', err)
+          page.drawText('[Assinatura indisponivel]', {
             x: 340,
             y: boxYFinal + 120,
             size: 8,
@@ -387,14 +461,7 @@ export async function generateSignedPDF(
       }
       if (sig.selfie_url) {
         try {
-          const selfieBytes = await fetch(sig.selfie_url).then((res) => res.arrayBuffer())
-          const url = sig.selfie_url.trim()
-          const isJpg =
-            url.startsWith('data:image/jpeg') ||
-            url.startsWith('data:image/jpg') ||
-            url.toLowerCase().endsWith('.jpg') ||
-            url.toLowerCase().endsWith('.jpeg')
-          const selfieImg = isJpg ? await pdfDoc.embedJpg(selfieBytes) : await pdfDoc.embedPng(selfieBytes)
+          const selfieImg = await embedImageFromSource(pdfDoc, sig.selfie_url)
           page.drawImage(selfieImg, {
             x: 330,
             y: boxYFinal + 12,
@@ -402,8 +469,9 @@ export async function generateSignedPDF(
             height: 78,
           })
           page.drawText('Selfie', { x: 330, y: boxYFinal + 8, size: 7, font, color: rgb(0.4, 0.4, 0.4) })
-        } catch {
-          page.drawText('[Selfie]', {
+        } catch (err) {
+          console.error('Falha ao embutir selfie no relatório:', err)
+          page.drawText('[Selfie indisponivel]', {
             x: 340,
             y: boxYFinal + 40,
             size: 8,
@@ -417,7 +485,6 @@ export async function generateSignedPDF(
   }
 
   const certPage = pdfDoc.addPage([595, 842])
-  const certWidth = certPage.getWidth()
   let yPos = certPage.getHeight() - 60
 
   certPage.drawText('CERTIFICADO DE AUTENTICIDADE E VALIDADE JURÍDICA', {
@@ -467,7 +534,7 @@ export async function generateSignedPDF(
       const sigInfo = [
         `  Nome: ${sig.name}`,
         `  Email: ${sig.email}`,
-        `  Status: ${sig.signed ? 'Assinado' : 'Pendente'}`,
+        `  Status: ${isSignedFlag(sig.signed) ? 'Assinado' : 'Pendente'}`,
         `  Data/Hora: ${sig.signed_at ? format(new Date(sig.signed_at), 'dd/MM/yyyy HH:mm:ss') : 'Pendente'}`,
         '  Tipo de Assinatura: Eletrônica Simples',
         '  Método de Autenticação: Email verificado',
@@ -536,7 +603,6 @@ export async function generateSignedPDF(
 }
 
 export function downloadPDF(pdfBytes: Uint8Array, filename: string): void {
-  // Cria um ArrayBuffer REAL (não ArrayBufferLike)
   const arrayBuffer = new ArrayBuffer(pdfBytes.byteLength)
   const view = new Uint8Array(arrayBuffer)
   view.set(pdfBytes)
@@ -551,4 +617,3 @@ export function downloadPDF(pdfBytes: Uint8Array, filename: string): void {
 
   URL.revokeObjectURL(url)
 }
-

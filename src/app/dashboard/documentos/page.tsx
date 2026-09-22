@@ -26,7 +26,6 @@ import SignatureCanvas, { type SignatureData } from '@/components/contracts/Sign
 import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
 import ContractSignaturePlacement, { type SignaturePlacement } from '@/components/contracts/ContractSignaturePlacement'
 import ContractUploader from '@/components/contracts/ContractUploader'
-import { generateSignedPDF, downloadPDF } from '@/lib/pdf-generator'
 import { useAuth } from '@/contexts/AuthContext'
 import { DASH_SURFACE_CARD, SITE_CONTAINER_LG } from '@/lib/siteLayout'
 import { PlanQuotaInline, usePlanQuotaFull } from '@/components/billing/PlanQuotaInline'
@@ -478,36 +477,26 @@ export default function DocumentosPage() {
       return
     }
     try {
-      const signatures = (contract.signatories || []).map((s) => ({
-        name: s.name,
-        email: s.email,
-        signed: s.signed,
-        signed_at: s.signed_at,
-        signature_url: s.signature_url,
-        selfie_url: s.selfie_url,
-        signature_placement: s.signature_placement ?? null,
-        cpf: s.cpf,
-        birth_date: s.birth_date,
-        location: s.location,
-        ip_address: s.ip_address ?? undefined,
-        browser: s.user_agent ?? undefined,
-      }))
-      const pdfBytes = await generateSignedPDF(
-        {
-          id: contract.id,
-          title: contract.title,
-          file_url: contract.file_url,
-          status: contract.status,
-          created_at: contract.created_at,
-          sent_at: contract.sent_at,
-          signed_at: contract.signed_at,
-        },
-        signatures
-      )
-      downloadPDF(pdfBytes, `contrato-assinado-${contract.title.slice(0, 30)}.pdf`)
+      toast.message('Gerando PDF assinado…')
+      const res = await fetch(`/api/contracts/${contract.id}/signed-pdf`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(data.error || 'Não foi possível gerar o PDF assinado.')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `contrato-assinado-${contract.title.slice(0, 30)}.pdf`
+      link.click()
+      URL.revokeObjectURL(url)
+      toast.success('PDF assinado baixado.')
     } catch (err) {
       console.error(err)
-      toast.error('Erro ao gerar PDF. Verifique se o arquivo PDF está acessível.')
+      toast.error(err instanceof Error ? err.message : 'Erro ao gerar PDF. Verifique se o arquivo PDF está acessível.')
     }
   }
 
