@@ -41,8 +41,9 @@ export default function PalhaGaleriaAdmin() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const [ghost, setGhost] = useState<{ name: string; x: number; y: number } | null>(null)
-  const startRef = useRef<{ id: string; x: number; y: number } | null>(null)
+  const startRef = useRef<{ id: string; x: number; y: number; pointerId: number } | null>(null)
   const draggedRef = useRef(false)
+  const skipClickRef = useRef(false)
   const reorderLock = useRef(Promise.resolve())
 
   useEffect(() => {
@@ -194,6 +195,10 @@ export default function PalhaGaleriaAdmin() {
     }))
   }
 
+  function openAlbum(albumId: string) {
+    router.push(`${prefix}/painel/galeria/${albumId}`)
+  }
+
   function finishDrag(clientX: number, clientY: number, albumId: string) {
     const from = settings.gallery.albums.findIndex((album) => album.id === albumId)
     const targetId = overId || albumIdAtPoint(clientX, clientY)
@@ -218,15 +223,18 @@ export default function PalhaGaleriaAdmin() {
     if (event.button !== 0) return
     if ((event.target as HTMLElement).closest('.palha-admin-mini')) return
     draggedRef.current = false
-    startRef.current = { id: album.id, x: event.clientX, y: event.clientY }
-    event.currentTarget.setPointerCapture(event.pointerId)
+    skipClickRef.current = false
+    startRef.current = { id: album.id, x: event.clientX, y: event.clientY, pointerId: event.pointerId }
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLElement>, album: PalhaAlbum) {
     const start = startRef.current
     if (!start || start.id !== album.id) return
     const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y)
-    if (!activeId && distance < 8) return
+    if (!activeId && distance < 12) return
+    if (!event.currentTarget.hasPointerCapture(start.pointerId)) {
+      event.currentTarget.setPointerCapture(start.pointerId)
+    }
     event.preventDefault()
     draggedRef.current = true
     if (!activeId) setActiveId(album.id)
@@ -285,7 +293,13 @@ export default function PalhaGaleriaAdmin() {
                 onPointerMove={(event) => onPointerMove(event, album)}
                 onPointerUp={(event) => {
                   if (!startRef.current) return
+                  const wasDrag = draggedRef.current
+                  const isDelete = Boolean((event.target as HTMLElement).closest('.palha-admin-mini'))
                   finishDrag(event.clientX, event.clientY, album.id)
+                  if (!wasDrag && !isDelete) {
+                    skipClickRef.current = true
+                    openAlbum(album.id)
+                  }
                 }}
                 onPointerCancel={() => {
                   startRef.current = null
@@ -299,7 +313,10 @@ export default function PalhaGaleriaAdmin() {
                   href={`${prefix}/painel/galeria/${album.id}`}
                   className="palha-album-card-cover"
                   onClick={(event) => {
-                    if (draggedRef.current) event.preventDefault()
+                    if (draggedRef.current || skipClickRef.current) {
+                      event.preventDefault()
+                      skipClickRef.current = false
+                    }
                   }}
                   draggable={false}
                 >
@@ -313,7 +330,10 @@ export default function PalhaGaleriaAdmin() {
                   <Link
                     href={`${prefix}/painel/galeria/${album.id}`}
                     onClick={(event) => {
-                      if (draggedRef.current) event.preventDefault()
+                      if (draggedRef.current || skipClickRef.current) {
+                        event.preventDefault()
+                        skipClickRef.current = false
+                      }
                     }}
                     draggable={false}
                   >

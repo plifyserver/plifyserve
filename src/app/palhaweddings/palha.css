@@ -1740,7 +1740,12 @@
   position: relative;
   display: grid;
   gap: 0.7rem;
-  cursor: grab;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.palha-album-cards.is-sorting .palha-album-card {
+  cursor: grabbing;
   touch-action: none;
 }
 
