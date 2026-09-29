@@ -262,7 +262,7 @@ export default function PalhaGaleriaAdmin() {
 
       {settings.gallery.albums.length ? (
         <>
-          <p className="palha-album-order-hint">Clique na foto ou no nome para editar. Use Reordenar para mudar a ordem na página pública.</p>
+          <p className="palha-album-order-hint">Clique na foto ou no nome para editar. Arraste pela palavra Arrastar para mudar a ordem.</p>
           <div className={`palha-album-cards${activeId ? ' is-sorting' : ''}`}>
             {settings.gallery.albums.map((album) => {
               const studioHref = albumStudioHref(album.id)
@@ -299,7 +299,7 @@ export default function PalhaGaleriaAdmin() {
                 <div className="palha-album-card-tools">
                   <button
                     type="button"
-                    className="palha-admin-mini palha-admin-drag"
+                    className="palha-album-card-handle"
                     aria-label={`Reordenar ${album.name}`}
                     onPointerDown={(event) => onPointerDown(event, album)}
                     onPointerMove={(event) => onPointerMove(event, album)}
@@ -314,7 +314,7 @@ export default function PalhaGaleriaAdmin() {
                       setGhost(null)
                     }}
                   >
-                    Reordenar
+                    Arrastar
                   </button>
                   <button
                     type="button"

@@ -1761,7 +1761,25 @@
 .palha-album-card-tools {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.palha-album-card-handle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--palha-muted);
+  cursor: grab;
+  touch-action: none;
+  font-family: var(--palha-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.palha-album-card-handle:active {
+  cursor: grabbing;
 }
 
 .palha-album-card.is-lifting {
