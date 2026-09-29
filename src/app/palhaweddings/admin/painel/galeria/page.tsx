@@ -1,13 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
 import {
   DEFAULT_PALHA_SITE_SETTINGS,
   albumMediaCount,
   formatPalhaEventDate,
-  palhaAdminPrefix,
   type PalhaAlbum,
   type PalhaSiteSettings,
 } from '@/lib/palha/site-settings-shared'
@@ -15,15 +12,16 @@ import { PalhaCoverMedia } from '@/app/palhaweddings/PalhaCoverMedia'
 import { rememberPalhaAdminSettings } from '@/lib/palha/admin-settings-cache'
 import { PalhaFormatField } from '../PalhaFormatField'
 
+function albumStudioHref(albumId: string) {
+  return `/palhaweddings/admin/painel/galeria/${encodeURIComponent(albumId)}`
+}
+
 function albumIdAtPoint(x: number, y: number) {
   const node = document.elementFromPoint(x, y)
   return node?.closest<HTMLElement>('[data-album-id]')?.dataset.albumId || null
 }
 
 export default function PalhaGaleriaAdmin() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const prefix = palhaAdminPrefix(pathname)
   const [settings, setSettings] = useState<PalhaSiteSettings>(DEFAULT_PALHA_SITE_SETTINGS)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -41,9 +39,7 @@ export default function PalhaGaleriaAdmin() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const [ghost, setGhost] = useState<{ name: string; x: number; y: number } | null>(null)
-  const startRef = useRef<{ id: string; x: number; y: number; pointerId: number } | null>(null)
-  const draggedRef = useRef(false)
-  const skipClickRef = useRef(false)
+  const startRef = useRef<{ id: string; x: number; y: number } | null>(null)
   const reorderLock = useRef(Promise.resolve())
 
   useEffect(() => {
@@ -125,7 +121,7 @@ export default function PalhaGaleriaAdmin() {
       setEventDate('')
       setPassword('')
       setPasswordConfirm('')
-      router.push(`${prefix}/painel/galeria/${data.album.id}`)
+      window.location.assign(albumStudioHref(data.album.id))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível criar a coleção.')
     } finally {
@@ -195,48 +191,32 @@ export default function PalhaGaleriaAdmin() {
     }))
   }
 
-  function openAlbum(albumId: string) {
-    router.push(`${prefix}/painel/galeria/${albumId}`)
-  }
-
   function finishDrag(clientX: number, clientY: number, albumId: string) {
     const from = settings.gallery.albums.findIndex((album) => album.id === albumId)
     const targetId = overId || albumIdAtPoint(clientX, clientY)
     const to = targetId ? settings.gallery.albums.findIndex((album) => album.id === targetId) : -1
-    const moved = draggedRef.current
+    const moved = Boolean(activeId)
     startRef.current = null
     setActiveId(null)
     setOverId(null)
     setGhost(null)
-    if (moved) {
-      window.setTimeout(() => {
-        draggedRef.current = false
-      }, 0)
-    } else {
-      draggedRef.current = false
-    }
     if (!moved || from < 0 || to < 0 || from === to) return
     reorderAlbums(from, to)
   }
 
-  function onPointerDown(event: React.PointerEvent<HTMLElement>, album: PalhaAlbum) {
+  function onPointerDown(event: React.PointerEvent<HTMLButtonElement>, album: PalhaAlbum) {
     if (event.button !== 0) return
-    if ((event.target as HTMLElement).closest('.palha-admin-mini')) return
-    draggedRef.current = false
-    skipClickRef.current = false
-    startRef.current = { id: album.id, x: event.clientX, y: event.clientY, pointerId: event.pointerId }
+    event.preventDefault()
+    startRef.current = { id: album.id, x: event.clientX, y: event.clientY }
+    event.currentTarget.setPointerCapture(event.pointerId)
   }
 
-  function onPointerMove(event: React.PointerEvent<HTMLElement>, album: PalhaAlbum) {
+  function onPointerMove(event: React.PointerEvent<HTMLButtonElement>, album: PalhaAlbum) {
     const start = startRef.current
     if (!start || start.id !== album.id) return
     const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y)
-    if (!activeId && distance < 12) return
-    if (!event.currentTarget.hasPointerCapture(start.pointerId)) {
-      event.currentTarget.setPointerCapture(start.pointerId)
-    }
+    if (!activeId && distance < 8) return
     event.preventDefault()
-    draggedRef.current = true
     if (!activeId) setActiveId(album.id)
     setGhost({ name: album.name, x: event.clientX, y: event.clientY })
     const hovered = albumIdAtPoint(event.clientX, event.clientY)
@@ -282,68 +262,60 @@ export default function PalhaGaleriaAdmin() {
 
       {settings.gallery.albums.length ? (
         <>
-          <p className="palha-album-order-hint">Arraste um álbum e solte sobre outro para mudar a ordem na página pública.</p>
+          <p className="palha-album-order-hint">Clique na foto ou no nome para editar. Use Reordenar para mudar a ordem na página pública.</p>
           <div className={`palha-album-cards${activeId ? ' is-sorting' : ''}`}>
-            {settings.gallery.albums.map((album) => (
+            {settings.gallery.albums.map((album) => {
+              const studioHref = albumStudioHref(album.id)
+              return (
               <article
                 key={album.id}
                 data-album-id={album.id}
                 className={`palha-album-card${album.id === activeId ? ' is-lifting' : ''}${album.id === overId ? ' is-drop' : ''}`}
-                onPointerDown={(event) => onPointerDown(event, album)}
-                onPointerMove={(event) => onPointerMove(event, album)}
-                onPointerUp={(event) => {
-                  if (!startRef.current) return
-                  const wasDrag = draggedRef.current
-                  const isDelete = Boolean((event.target as HTMLElement).closest('.palha-admin-mini'))
-                  finishDrag(event.clientX, event.clientY, album.id)
-                  if (!wasDrag && !isDelete) {
-                    skipClickRef.current = true
-                    openAlbum(album.id)
-                  }
-                }}
-                onPointerCancel={() => {
-                  startRef.current = null
-                  draggedRef.current = false
-                  setActiveId(null)
-                  setOverId(null)
-                  setGhost(null)
-                }}
               >
-                <Link
-                  href={`${prefix}/painel/galeria/${album.id}`}
-                  className="palha-album-card-cover"
+                <a
+                  href={studioHref}
+                  className="palha-album-card-open"
                   onClick={(event) => {
-                    if (draggedRef.current || skipClickRef.current) {
-                      event.preventDefault()
-                      skipClickRef.current = false
-                    }
+                    event.preventDefault()
+                    window.location.assign(studioHref)
                   }}
-                  draggable={false}
                 >
-                  {album.coverUrl ? (
-                    <PalhaCoverMedia url={album.coverUrl} kind={album.coverKind} posterUrl={album.coverPosterUrl} />
-                  ) : (
-                    <span>Sem capa</span>
-                  )}
-                </Link>
-                <div className="palha-album-card-body">
-                  <Link
-                    href={`${prefix}/painel/galeria/${album.id}`}
-                    onClick={(event) => {
-                      if (draggedRef.current || skipClickRef.current) {
-                        event.preventDefault()
-                        skipClickRef.current = false
-                      }
-                    }}
-                    draggable={false}
-                  >
+                  <span className="palha-album-card-cover">
+                    {album.coverUrl ? (
+                      <PalhaCoverMedia url={album.coverUrl} kind={album.coverKind} posterUrl={album.coverPosterUrl} />
+                    ) : (
+                      <span>Sem capa</span>
+                    )}
+                  </span>
+                  <span className="palha-album-card-body">
                     <strong>{album.name}</strong>
-                  </Link>
-                  <p>{formatPalhaEventDate(album.eventDate) || 'Data não informada'}</p>
-                  <p>
-                    {albumMediaCount(album)} arquivo{albumMediaCount(album) === 1 ? '' : 's'}
-                    {album.passwordProtected ? ' · com senha' : ''}
-                  </p>
+                    <p>{formatPalhaEventDate(album.eventDate) || 'Data não informada'}</p>
+                    <p>
+                      {albumMediaCount(album)} arquivo{albumMediaCount(album) === 1 ? '' : 's'}
+                      {album.passwordProtected ? ' · com senha' : ''}
+                    </p>
+                  </span>
+                </a>
+                <div className="palha-album-card-tools">
+                  <button
+                    type="button"
+                    className="palha-admin-mini palha-admin-drag"
+                    aria-label={`Reordenar ${album.name}`}
+                    onPointerDown={(event) => onPointerDown(event, album)}
+                    onPointerMove={(event) => onPointerMove(event, album)}
+                    onPointerUp={(event) => {
+                      if (!startRef.current) return
+                      finishDrag(event.clientX, event.clientY, album.id)
+                    }}
+                    onPointerCancel={() => {
+                      startRef.current = null
+                      setActiveId(null)
+                      setOverId(null)
+                      setGhost(null)
+                    }}
+                  >
+                    Reordenar
+                  </button>
                   <button
                     type="button"
                     className="palha-admin-mini"
@@ -357,7 +329,8 @@ export default function PalhaGaleriaAdmin() {
                   </button>
                 </div>
               </article>
-            ))}
+              )
+            })}
           </div>
           {ghost ? (
             <div className="palha-admin-sort-ghost is-list" style={{ left: ghost.x, top: ghost.y }} aria-hidden="true">

@@ -1740,13 +1740,28 @@
   position: relative;
   display: grid;
   gap: 0.7rem;
-  cursor: pointer;
-  touch-action: manipulation;
 }
 
 .palha-album-cards.is-sorting .palha-album-card {
-  cursor: grabbing;
   touch-action: none;
+}
+
+.palha-album-card-open {
+  display: grid;
+  gap: 0.7rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.palha-album-card-open img,
+.palha-album-card-open video {
+  pointer-events: none;
+}
+
+.palha-album-card-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
 .palha-album-card.is-lifting {
