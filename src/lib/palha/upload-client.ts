@@ -321,11 +321,9 @@ function putPartWithProgress(
   onChunkProgress?: (ratio: number) => void,
 ) {
   return new Promise<string>((resolve, reject) => {
-    const part = blob.slice(0, blob.size, 'application/octet-stream')
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', signedUrl)
     xhr.timeout = 0
-    xhr.setRequestHeader('Content-Type', 'application/octet-stream')
     xhr.upload.onprogress = (event) => {
       if (!event.lengthComputable || !onChunkProgress) return
       onChunkProgress(event.loaded / event.total)
@@ -344,7 +342,10 @@ function putPartWithProgress(
     }
     xhr.onerror = () => reject(new Error('Falha de rede no envio para o armazenamento.'))
     xhr.ontimeout = () => reject(new Error('O envio para o armazenamento demorou demais. Tente novamente.'))
-    xhr.send(part)
+    void blob.arrayBuffer().then(
+      (buffer) => xhr.send(buffer),
+      () => reject(new Error('Não foi possível ler o arquivo.')),
+    )
   })
 }
 

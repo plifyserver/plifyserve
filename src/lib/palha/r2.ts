@@ -485,7 +485,6 @@ export async function createPalhaR2PartSignedUrl(sessionId: string, partNumber: 
       Key: state.key,
       UploadId: state.uploadId,
       PartNumber: partNumber,
-      ContentType: 'application/octet-stream',
     }),
     { expiresIn: 60 * 60 * 12 },
   )
