@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { notFound } from 'next/navigation'
-import { isAlbumUnlocked } from '@/lib/palha/album-password'
+import { albumUnlockCookieName, isAlbumUnlocked } from '@/lib/palha/album-password'
 import { palhaAlbumShareImage, publicizeAlbum } from '@/lib/palha/site-settings-shared'
 import { getPalhaSiteSettings } from '@/lib/palha/site-settings'
 import { PalhaAlbumPublicClient } from './PalhaAlbumPublicClient'
@@ -74,7 +74,8 @@ export default async function PalhaAlbumPublicPage({ params }: Props) {
   const album = gallery.albums.find((item) => item.id === id)
   if (!album) notFound()
 
-  const unlocked = isAlbumUnlocked(album)
+  const jar = await cookies()
+  const unlocked = isAlbumUnlocked(album, jar.get(albumUnlockCookieName(album.id))?.value)
 
   return (
     <PalhaAlbumPublicClient

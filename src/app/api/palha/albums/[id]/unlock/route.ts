@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { palhaApiAllowed, palhaApiForbidden } from '@/lib/palha/api-guard'
-import { palhaAlbumLockCookie, verifyPalhaAlbumPassword } from '@/lib/palha/album-password'
+import { palhaAlbumUnlockCookie, verifyPalhaAlbumPassword } from '@/lib/palha/album-password'
 import { publicizeAlbum } from '@/lib/palha/site-settings-shared'
 import { getPalhaSiteSettings } from '@/lib/palha/site-settings'
 
@@ -13,9 +13,6 @@ export async function POST(request: NextRequest, context: Context) {
   const album = gallery.albums.find((item) => item.id === id)
   if (!album) return NextResponse.json({ error: 'Álbum não encontrado' }, { status: 404 })
   if (!album.passwordHash) {
-    if (album.passwordProtected) {
-      return NextResponse.json({ error: 'Este álbum está trancado.' }, { status: 403 })
-    }
     return NextResponse.json({ locked: false, album: publicizeAlbum(album, true) })
   }
 
@@ -26,7 +23,7 @@ export async function POST(request: NextRequest, context: Context) {
     return NextResponse.json({ error: 'Senha incorreta.' }, { status: 401 })
   }
 
-  const cookie = palhaAlbumLockCookie(album.id)
+  const cookie = palhaAlbumUnlockCookie(album)
   const response = NextResponse.json({ locked: false, album: publicizeAlbum(album, true) })
   response.cookies.set(cookie.name, cookie.value, cookie.options)
   return response

@@ -57,9 +57,6 @@ async function ensureBucket() {
 }
 
 async function readPalhaSiteSettings(): Promise<PalhaSiteSettings> {
-  if (memorySettings && Date.now() - memorySettings.at < 15_000) {
-    return memorySettings.data
-  }
   const supabase = createPalhaServiceClient()
   const { data, error } = await supabase.storage.from(PALHA_SITE_BUCKET).download(SETTINGS_PATH)
   if (error || !data) return memorySettings?.data ?? DEFAULT_PALHA_SITE_SETTINGS

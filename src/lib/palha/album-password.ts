@@ -1,9 +1,11 @@
-import { randomBytes, scrypt as scryptCb, timingSafeEqual } from 'crypto'
+import { createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'crypto'
 import { promisify } from 'util'
 import type { NextRequest } from 'next/server'
 import { albumHasPassword, type PalhaAlbum, type PalhaSiteSettings } from '@/lib/palha/site-settings-shared'
+import { getPalhaServiceRoleKey } from '@/lib/palha/supabase/env'
 
 const scrypt = promisify(scryptCb)
+const UNLOCK_MAX_AGE = 60 * 60 * 24 * 30
 
 export const PALHA_ALBUM_COOKIE_PREFIX = 'palha-album-'
 
@@ -26,24 +28,61 @@ export async function verifyPalhaAlbumPassword(password: string, stored: string)
   return timingSafeEqual(key, expected)
 }
 
-export function isAlbumUnlocked(album: PalhaAlbum) {
-  return !albumHasPassword(album)
+function unlockSigningKey() {
+  return process.env.PALHA_SECRETS_KEY?.trim() || getPalhaServiceRoleKey() || 'palha-album-unlock'
 }
 
-export function unlockedAlbumIdsFromRequest(_request: NextRequest, settings: PalhaSiteSettings) {
-  return settings.gallery.albums.filter((album) => !albumHasPassword(album)).map((album) => album.id)
+export function albumUnlockToken(album: PalhaAlbum) {
+  if (!album.passwordHash) return ''
+  return createHmac('sha256', unlockSigningKey()).update(`palha-unlock:${album.id}:${album.passwordHash}`).digest('hex')
+}
+
+export function albumUnlockCookieMatches(album: PalhaAlbum, cookieValue?: string | null) {
+  const expected = albumUnlockToken(album)
+  if (!expected || !cookieValue) return false
+  try {
+    const a = Buffer.from(expected)
+    const b = Buffer.from(cookieValue)
+    if (a.length !== b.length) return false
+    return timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
+}
+
+export function isAlbumUnlocked(album: PalhaAlbum, cookieValue?: string | null) {
+  if (!albumHasPassword(album)) return true
+  return albumUnlockCookieMatches(album, cookieValue)
+}
+
+export function unlockedAlbumIdsFromRequest(request: NextRequest, settings: PalhaSiteSettings) {
+  return settings.gallery.albums
+    .filter((album) => isAlbumUnlocked(album, request.cookies.get(albumUnlockCookieName(album.id))?.value))
+    .map((album) => album.id)
+}
+
+function albumUnlockCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge,
+  }
+}
+
+export function palhaAlbumUnlockCookie(album: PalhaAlbum) {
+  return {
+    name: albumUnlockCookieName(album.id),
+    value: albumUnlockToken(album),
+    options: albumUnlockCookieOptions(UNLOCK_MAX_AGE),
+  }
 }
 
 export function palhaAlbumLockCookie(albumId: string) {
   return {
     name: albumUnlockCookieName(albumId),
     value: '',
-    options: {
-      httpOnly: true,
-      sameSite: 'lax' as const,
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 0,
-    },
+    options: albumUnlockCookieOptions(0),
   }
 }

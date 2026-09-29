@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { palhaApiAllowed, palhaApiForbidden } from '@/lib/palha/api-guard'
 import { getPalhaUserFromRequest } from '@/lib/palha/auth-request'
-import { finishPalhaR2ChunkedUpload, finishPalhaR2SignedParts } from '@/lib/palha/r2'
+import { createPalhaR2PartSignedUrl } from '@/lib/palha/r2'
 
 export const maxDuration = 60
 
@@ -10,17 +10,13 @@ export async function POST(request: NextRequest) {
   const user = await getPalhaUserFromRequest(request)
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
-  const body = (await request.json()) as {
-    uploadId?: string
-    parts?: { ETag?: string; PartNumber?: number }[]
-  }
+  const body = (await request.json().catch(() => ({}))) as { uploadId?: string; partNumber?: number }
   const uploadId = String(body.uploadId || '')
+  const partNumber = Number(body.partNumber)
 
   try {
-    const finished = Array.isArray(body.parts) && body.parts.length
-      ? await finishPalhaR2SignedParts(uploadId, body.parts)
-      : await finishPalhaR2ChunkedUpload(uploadId)
-    return NextResponse.json(finished)
+    const signed = await createPalhaR2PartSignedUrl(uploadId, partNumber)
+    return NextResponse.json(signed)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Falha no envio'
     return NextResponse.json({ error: message }, { status: 500 })

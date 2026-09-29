@@ -164,13 +164,15 @@ export function createPalhaAlbum(name: string, eventDate: string): PalhaAlbum {
     coverUrl: '',
     theme: { ...DEFAULT_PALHA_ALBUM_THEME },
     passwordProtected: false,
+    passwordHash: '',
     createdAt: new Date().toISOString(),
     subalbums: [{ id: newPalhaId('sub'), name: 'Destaques', items: [] }],
   }
 }
 
 export function albumHasPassword(album: PalhaAlbum) {
-  return Boolean(album.passwordHash) || album.passwordProtected
+  if (typeof album.passwordHash === 'string') return album.passwordHash.length > 0
+  return Boolean(album.passwordProtected)
 }
 
 export function stripAlbumSecrets(album: PalhaAlbum): PalhaAlbum {
@@ -232,7 +234,7 @@ export function preserveAlbumPasswordHashes(incoming: PalhaAlbum[], current: Pal
   )
   return incoming.map((album) => {
     const saved = previous.get(album.id)
-    const passwordHash = album.passwordHash || saved?.passwordHash || ''
+    const passwordHash = String(album.passwordHash || saved?.passwordHash || '')
     return {
       ...album,
       passwordHash,
@@ -241,6 +243,20 @@ export function preserveAlbumPasswordHashes(incoming: PalhaAlbum[], current: Pal
       passwordProtected: Boolean(passwordHash),
     }
   })
+}
+
+export function syncAlbumPasswordFlags(local: PalhaSiteSettings, remote: PalhaSiteSettings): PalhaSiteSettings {
+  const flags = new Map(remote.gallery.albums.map((album) => [album.id, Boolean(album.passwordProtected)]))
+  return {
+    ...local,
+    gallery: {
+      ...local.gallery,
+      albums: local.gallery.albums.map((album) => {
+        const next = flags.get(album.id)
+        return next === undefined ? album : { ...album, passwordProtected: next }
+      }),
+    },
+  }
 }
 
 export function albumMediaCount(album: PalhaAlbum) {

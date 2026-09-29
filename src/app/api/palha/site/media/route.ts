@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { palhaApiAllowed, palhaApiForbidden } from '@/lib/palha/api-guard'
 import { getPalhaUserFromRequest } from '@/lib/palha/auth-request'
 import { mediaKindFromMime } from '@/lib/palha/site-settings-shared'
-import { uploadPalhaR2Object } from '@/lib/palha/r2'
+import { isPalhaWritableFolder, uploadPalhaR2Object } from '@/lib/palha/r2'
 
 export const maxDuration = 300
 
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'Arquivo não enviado' }, { status: 400 })
   }
-  if (!folder.startsWith('gallery')) {
+  if (!isPalhaWritableFolder(folder)) {
     return NextResponse.json({ error: 'Pasta inválida' }, { status: 400 })
   }
   if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {

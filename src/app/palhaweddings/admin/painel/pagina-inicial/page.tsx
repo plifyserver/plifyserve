@@ -13,6 +13,7 @@ import {
 } from '@/lib/palha/site-settings-shared'
 import { PalhaButtonLookFields } from '../PalhaButtonLookFields'
 import { PalhaFormatField } from '../PalhaFormatField'
+import { uploadPalhaMediaFile } from '@/lib/palha/upload-client'
 
 export default function PalhaPaginaInicialAdmin() {
   const [settings, setSettings] = useState<PalhaSiteSettings>(DEFAULT_PALHA_SITE_SETTINGS)
@@ -72,10 +73,13 @@ export default function PalhaPaginaInicialAdmin() {
     setError('')
     setMessage('')
     try {
-      const form = new FormData()
-      form.set('slot', slot)
-      form.set('file', file)
-      const res = await fetch('/api/palha/site/upload', { method: 'POST', body: form })
+      const uploaded = await uploadPalhaMediaFile(file, `photos/${slot}`)
+      const res = await fetch('/api/palha/site/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({ slot, url: uploaded.url }),
+      })
       const data = (await res.json()) as { settings?: PalhaSiteSettings; error?: string }
       if (!res.ok || !data.settings) {
         setError(data.error || 'Falha ao enviar a foto.')

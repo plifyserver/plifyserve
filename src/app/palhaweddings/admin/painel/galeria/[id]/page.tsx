@@ -8,6 +8,7 @@ import {
   newPalhaId,
   palhaAdminPrefix,
   palhaPublicPrefix,
+  syncAlbumPasswordFlags,
   type PalhaAlbum,
   type PalhaGallery,
   type PalhaMediaItem,
@@ -101,20 +102,6 @@ async function captureVideoFrame(source: File | string, time: number) {
   }
 }
 
-async function withUploadTimeout<T>(task: Promise<T>, message: string) {
-  let timer: number | undefined
-  try {
-    return await Promise.race([
-      task,
-      new Promise<T>((_, reject) => {
-        timer = window.setTimeout(() => reject(new Error(message)), 240000)
-      }),
-    ])
-  } finally {
-    if (timer) window.clearTimeout(timer)
-  }
-}
-
 const ACCEPT = '.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.mp4,.webm,.mov,.m4v'
 
 function updateAlbum(gallery: PalhaGallery, albumId: string, patch: PalhaAlbum): PalhaGallery {
@@ -153,6 +140,7 @@ export default function PalhaAlbumStudioPage() {
   const [savingPassword, setSavingPassword] = useState(false)
   const settingsRef = useRef(settings)
   const saveGen = useRef(0)
+  const passwordGen = useRef(0)
   const persistTimer = useRef<number | null>(null)
   const dirtyRef = useRef(false)
   const appendLock = useRef(Promise.resolve())
@@ -220,6 +208,7 @@ export default function PalhaAlbumStudioPage() {
 
   async function persistGallery(okMessage = 'Álbum atualizado.') {
     const gen = ++saveGen.current
+    const passwordAt = passwordGen.current
     const next = settingsRef.current
     setSaving(true)
     setError('')
@@ -233,7 +222,13 @@ export default function PalhaAlbumStudioPage() {
       const data = (await res.json()) as PalhaSiteSettings & { error?: string }
       if (!res.ok) throw new Error(data.error || 'Não foi possível salvar.')
       if (gen !== saveGen.current) return data
-      rememberPalhaAdminSettings(settingsRef.current)
+      const synced =
+        passwordAt === passwordGen.current
+          ? syncAlbumPasswordFlags(settingsRef.current, data)
+          : settingsRef.current
+      settingsRef.current = synced
+      setSettings(synced)
+      rememberPalhaAdminSettings(synced)
       setMessage(okMessage)
       return data
     } catch (err) {
@@ -477,20 +472,14 @@ export default function PalhaAlbumStudioPage() {
 
       if (coverDraft.file) {
         setUploading('Enviando vídeo da capa…')
-        const uploaded = await withUploadTimeout(
-          uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`, (percent) => {
-            setUploading(`Enviando vídeo da capa (${percent}%)…`)
-          }),
-          'O envio do vídeo demorou demais. Tente novamente.',
-        )
+        const uploaded = await uploadPalhaMediaFile(coverDraft.file, `gallery/${album.id}/cover`, (percent) => {
+          setUploading(`Enviando vídeo da capa (${percent}%)…`)
+        })
         videoUrl = uploaded.url
         setUploading('Enviando imagem do frame…')
-        const posterUpload = await withUploadTimeout(
-          uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`, (percent) => {
-            setUploading(`Enviando imagem do frame (${percent}%)…`)
-          }),
-          'O envio da imagem do frame demorou demais. Tente novamente.',
-        )
+        const posterUpload = await uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`, (percent) => {
+          setUploading(`Enviando imagem do frame (${percent}%)…`)
+        })
         await saveAlbumCover({
           url: videoUrl,
           kind: 'video',
@@ -503,10 +492,7 @@ export default function PalhaAlbumStudioPage() {
         return
       }
       setUploading('Enviando imagem da capa…')
-      const posterUpload = await withUploadTimeout(
-        uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`),
-        'O envio da imagem da capa demorou demais. Tente novamente.',
-      )
+      const posterUpload = await uploadPalhaMediaFile(poster, `gallery/${album.id}/cover`)
       await saveAlbumCover({
         url: videoUrl,
         kind: 'video',
@@ -673,6 +659,7 @@ export default function PalhaAlbumStudioPage() {
       const data = (await res.json()) as { album?: PalhaAlbum; error?: string }
       if (!res.ok) throw new Error(data.error || 'Não foi possível salvar a senha.')
       const protectedAlbum = Boolean(data.album?.passwordProtected)
+      passwordGen.current += 1
       setSettings((current) => {
         const currentAlbum = current.gallery.albums.find((item) => item.id === album.id) ?? album
         const gallery = updateAlbum(current.gallery, album.id, {
@@ -681,6 +668,7 @@ export default function PalhaAlbumStudioPage() {
         })
         const next = { ...current, gallery }
         settingsRef.current = next
+        rememberPalhaAdminSettings(next)
         return next
       })
       setAlbumPassword('')

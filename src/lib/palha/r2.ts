@@ -10,6 +10,7 @@ import {
   HeadBucketCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
+  PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
   UploadPartCommand,
@@ -40,6 +41,7 @@ export function getPalhaR2Config() {
 
 let client: S3Client | null = null
 let ready: Promise<void> | null = null
+let corsReady = false
 
 function palhaR2Client() {
   if (client) return client
@@ -94,6 +96,40 @@ function palhaFileContentType(file: File) {
   return 'application/octet-stream'
 }
 
+async function ensurePalhaR2Cors() {
+  if (corsReady) return
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  try {
+    await s3.send(
+      new PutBucketCorsCommand({
+        Bucket: bucket,
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              AllowedOrigins: [
+                'https://palhaweddings.plify360.com.br',
+                'https://www.palhaweddings.plify360.com.br',
+                'https://plify360.com.br',
+                'https://www.plify360.com.br',
+                'http://localhost:3000',
+                'http://127.0.0.1:3000',
+              ],
+              AllowedMethods: ['GET', 'PUT', 'POST', 'HEAD'],
+              AllowedHeaders: ['*'],
+              ExposeHeaders: ['ETag', 'Location'],
+              MaxAgeSeconds: 3600,
+            },
+          ],
+        },
+      }),
+    )
+    corsReady = true
+  } catch {
+    // Sem permissão de CORS o envio assinado pode falhar; o cliente cai no envio em pedaços.
+  }
+}
+
 async function ensurePalhaR2Bucket() {
   if (ready) return ready
   ready = (async () => {
@@ -110,6 +146,7 @@ async function ensurePalhaR2Bucket() {
         )
       }
     }
+    await ensurePalhaR2Cors()
   })().catch((err) => {
     ready = null
     throw err
@@ -128,19 +165,9 @@ export async function createPalhaR2SignedUpload(folder: string, filename: string
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
+      ContentType: type,
     }),
-    {
-      expiresIn: 60 * 30,
-      signableHeaders: new Set(['host']),
-      unhoistableHeaders: new Set([
-        'content-type',
-        'x-amz-checksum-crc32',
-        'x-amz-checksum-crc32c',
-        'x-amz-sdk-checksum-algorithm',
-        'x-amz-checksum-algorithm',
-        'x-amz-content-sha256',
-      ]),
-    },
+    { expiresIn: 60 * 60 * 12 },
   )
   let postUrl = ''
   let postFields: Record<string, string> = {}
@@ -148,9 +175,12 @@ export async function createPalhaR2SignedUpload(folder: string, filename: string
     const posted = await createPresignedPost(s3, {
       Bucket: bucket,
       Key: key,
-      Expires: 60 * 30,
-      Conditions: [['content-length-range', 1, 10 * 1024 * 1024 * 1024]],
-      Fields: { key },
+      Expires: 60 * 60 * 12,
+      Conditions: [
+        ['content-length-range', 1, 5 * 1024 * 1024 * 1024],
+        ['eq', '$Content-Type', type],
+      ],
+      Fields: { key, 'Content-Type': type },
     })
     postUrl = posted.url
     postFields = posted.fields
@@ -242,6 +272,10 @@ export function palhaR2KeyFromUrl(url: string) {
 
 export function isPalhaGalleryObjectKey(key: string) {
   return Boolean(key) && key.startsWith('gallery/') && !key.includes('..') && !key.startsWith('/')
+}
+
+export function isPalhaWritableFolder(folder: string) {
+  return folder.startsWith('gallery') || folder.startsWith('photos')
 }
 
 const MIN_MULTIPART_PART = 5 * 1024 * 1024
@@ -421,6 +455,88 @@ export async function finishPalhaR2ChunkedUpload(sessionId: string) {
     await deletePalhaR2Key(palhaChunkScratchKey(sessionId))
   } catch {
     // O vídeo já está no lugar.
+  }
+  return {
+    path: state.key,
+    publicUrl: palhaR2PublicUrl(state.key),
+    contentType: state.contentType,
+  }
+}
+
+function quoteEtag(etag: string) {
+  const value = etag.replaceAll('"', '').trim()
+  return value ? `"${value}"` : ''
+}
+
+export async function createPalhaR2PartSignedUrl(sessionId: string, partNumber: number) {
+  if (!isPalhaUploadId(sessionId)) throw new Error('Envio inválido.')
+  if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > 10_000) {
+    throw new Error('Trecho inválido.')
+  }
+  await ensurePalhaR2Bucket()
+  const state = await readChunkedState(sessionId)
+  if (!state) throw new Error('Envio expirado. Tente de novo.')
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  const signedUrl = await getSignedUrl(
+    s3,
+    new UploadPartCommand({
+      Bucket: bucket,
+      Key: state.key,
+      UploadId: state.uploadId,
+      PartNumber: partNumber,
+      ContentType: 'application/octet-stream',
+    }),
+    { expiresIn: 60 * 60 * 12 },
+  )
+  return { signedUrl, partNumber }
+}
+
+export async function finishPalhaR2SignedParts(
+  sessionId: string,
+  parts: { ETag?: string; PartNumber?: number }[],
+) {
+  if (!isPalhaUploadId(sessionId)) throw new Error('Envio inválido.')
+  const s3 = palhaR2Client()
+  const { bucket } = getPalhaR2Config()
+  const state = await readChunkedState(sessionId)
+  if (!state) throw new Error('Envio expirado. Tente de novo.')
+  const cleaned = parts
+    .map((part) => ({
+      ETag: quoteEtag(String(part.ETag || '')),
+      PartNumber: Number(part.PartNumber),
+    }))
+    .filter((part) => part.ETag && Number.isInteger(part.PartNumber) && part.PartNumber > 0)
+    .sort((a, b) => a.PartNumber - b.PartNumber)
+  if (!cleaned.length) throw new Error('O arquivo chegou vazio.')
+  try {
+    await s3.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: bucket,
+        Key: state.key,
+        UploadId: state.uploadId,
+        MultipartUpload: { Parts: cleaned },
+      }),
+    )
+  } catch (err) {
+    try {
+      await s3.send(
+        new AbortMultipartUploadCommand({
+          Bucket: bucket,
+          Key: state.key,
+          UploadId: state.uploadId,
+        }),
+      )
+    } catch {
+      // Melhor abortar em silêncio do que deixar o upload pendurado.
+    }
+    throw err
+  }
+  try {
+    await deletePalhaR2Key(palhaChunkStateKey(sessionId))
+    await deletePalhaR2Key(palhaChunkScratchKey(sessionId))
+  } catch {
+    // O arquivo já está no lugar.
   }
   return {
     path: state.key,

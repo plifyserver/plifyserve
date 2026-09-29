@@ -1,4 +1,4 @@
-import type { PalhaSiteSettings } from '@/lib/palha/site-settings-shared'
+import { syncAlbumPasswordFlags, type PalhaSiteSettings } from '@/lib/palha/site-settings-shared'
 
 const KEY = 'palha-admin-site-settings'
 
@@ -35,9 +35,17 @@ export function preferPalhaAdminSettings(
       rememberPalhaAdminSettings(remote)
       return remote
     }
-    if (local.gallery.albums.some((album) => album.id === albumId)) return local
+    if (local.gallery.albums.some((album) => album.id === albumId)) {
+      const synced = syncAlbumPasswordFlags(local, remote)
+      rememberPalhaAdminSettings(synced)
+      return synced
+    }
   }
-  if (local.gallery.albums.length > remote.gallery.albums.length) return local
+  if (local.gallery.albums.length > remote.gallery.albums.length) {
+    const synced = syncAlbumPasswordFlags(local, remote)
+    rememberPalhaAdminSettings(synced)
+    return synced
+  }
   rememberPalhaAdminSettings(remote)
   return remote
 }

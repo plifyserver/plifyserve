@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { palhaApiAllowed, palhaApiForbidden } from '@/lib/palha/api-guard'
 import { getPalhaUserFromRequest } from '@/lib/palha/auth-request'
-import { startPalhaR2ChunkedUpload } from '@/lib/palha/r2'
+import { startPalhaR2ChunkedUpload, isPalhaWritableFolder } from '@/lib/palha/r2'
 
 export const maxDuration = 60
 
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   const filename = String(body.filename || 'arquivo')
   const contentType = String(body.contentType || '')
   const folder = String(body.folder || 'gallery').replace(/[^a-zA-Z0-9/_-]/g, '')
-  if (!folder.startsWith('gallery')) {
+  if (!isPalhaWritableFolder(folder)) {
     return NextResponse.json({ error: 'Pasta inválida' }, { status: 400 })
   }
 

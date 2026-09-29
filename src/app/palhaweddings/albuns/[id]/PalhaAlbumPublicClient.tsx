@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PalhaAlbumPresentation } from '../../PalhaAlbumPresentation'
 import type { PalhaAlbum } from '@/lib/palha/site-settings-shared'
 
@@ -13,17 +13,19 @@ export function PalhaAlbumPublicClient({
   initial: PalhaAlbum
   locked: boolean
 }) {
+  const unlockedByPasswordRef = useRef(false)
   const [album, setAlbum] = useState(initial)
   const [ready, setReady] = useState(false)
-  const [locked, setLocked] = useState(startLocked || initial.passwordProtected)
+  const [locked, setLocked] = useState(startLocked)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    setAlbum(initial)
     setReady(false)
-    setLocked(startLocked || initial.passwordProtected)
+    setLocked(startLocked)
 
     async function confirmLock() {
       try {
@@ -33,10 +35,15 @@ export function PalhaAlbumPublicClient({
         })
         const data = (await res.json()) as { locked?: boolean; album?: PalhaAlbum }
         if (cancelled) return
+        if (unlockedByPasswordRef.current) {
+          if (data.album && !data.locked) setAlbum(data.album)
+          setLocked(false)
+          return
+        }
         if (data.album) setAlbum(data.album)
         setLocked(Boolean(data.locked))
       } catch {
-        if (!cancelled) setLocked(startLocked || initial.passwordProtected)
+        if (!cancelled && !unlockedByPasswordRef.current) setLocked(startLocked)
       } finally {
         if (!cancelled) setReady(true)
       }
@@ -46,7 +53,7 @@ export function PalhaAlbumPublicClient({
     return () => {
       cancelled = true
     }
-  }, [albumId, initial.passwordProtected, startLocked])
+  }, [albumId, initial, startLocked])
 
   async function unlock(event: React.FormEvent) {
     event.preventDefault()
@@ -66,6 +73,7 @@ export function PalhaAlbumPublicClient({
       })
       const data = (await res.json()) as { album?: PalhaAlbum; error?: string }
       if (!res.ok || !data.album) throw new Error(data.error || 'Senha incorreta.')
+      unlockedByPasswordRef.current = true
       setAlbum(data.album)
       setLocked(false)
       setPassword('')
@@ -76,14 +84,12 @@ export function PalhaAlbumPublicClient({
     }
   }
 
-  const gated = startLocked || initial.passwordProtected || locked
-
-  if (!ready && !gated) {
+  if (!ready && !locked) {
     return <main className="palha-album-lock" aria-busy="true" />
   }
 
-  if (!ready || locked) {
-    const askPassword = locked && ready
+  if (locked) {
+    const askPassword = ready
     const lockCover =
       album.coverKind === 'video'
         ? album.coverPosterUrl || album.subalbums.flatMap((sub) => sub.items).find((item) => item.kind === 'image')?.url
