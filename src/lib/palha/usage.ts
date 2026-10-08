@@ -71,7 +71,7 @@ export function palhaAlbumStorageBytes(album: PalhaAlbum, objects: PalhaR2Object
     album.coverUrl,
     album.shareImageUrl,
     ...album.subalbums.flatMap((sub) => sub.items.map((item) => item.url)),
-  ]
+  ].filter((url): url is string => Boolean(url))
   for (const url of urls) {
     const key = palhaR2KeyFromUrl(url)
     if (key) keys.add(key)
