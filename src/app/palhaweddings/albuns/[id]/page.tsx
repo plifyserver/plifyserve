@@ -31,7 +31,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = album?.name || 'Álbum'
   const description = album?.summary?.trim() || 'Galeria de fotos e filmes de casamento.'
   const source = album ? palhaAlbumShareImage(album) : ''
-  const image = source ? `${origin}/api/palha/og/${encodeURIComponent(id)}?v=${shareVersion(source)}` : ''
+  const image = source
+    ? source.startsWith('http')
+      ? source
+      : `${origin}/api/palha/og/${encodeURIComponent(id)}?v=${shareVersion(source)}`
+    : ''
   const url = `${origin}/albuns/${id}`
 
   return {

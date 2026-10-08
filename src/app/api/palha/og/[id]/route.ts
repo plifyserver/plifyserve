@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import sharp from 'sharp'
 import { palhaR2KeyFromUrl, getPalhaR2Object } from '@/lib/palha/r2'
 import { palhaAlbumShareImage } from '@/lib/palha/site-settings-shared'
 import { getPalhaSiteSettings } from '@/lib/palha/site-settings'
@@ -10,38 +9,31 @@ export const maxDuration = 30
 
 type Context = { params: Promise<{ id: string }> }
 
-async function sourceBytes(src: string) {
-  const key = palhaR2KeyFromUrl(src)
-  if (key) {
-    const object = await getPalhaR2Object(key)
-    const bytes = await object.Body?.transformToByteArray()
-    if (!bytes?.length) return null
-    return Buffer.from(bytes)
-  }
-  const remote = await fetch(src, { cache: 'no-store' })
-  if (!remote.ok) return null
-  return Buffer.from(await remote.arrayBuffer())
-}
-
 async function coverResponse(id: string) {
   const { gallery } = await getPalhaSiteSettings()
   const album = gallery.albums.find((item) => item.id === id)
   const src = palhaAlbumShareImage(album)
   if (!src) return new NextResponse(null, { status: 404 })
 
-  const input = await sourceBytes(src)
-  if (!input?.length) return new NextResponse(null, { status: 404 })
+  const key = palhaR2KeyFromUrl(src)
+  if (key) {
+    const object = await getPalhaR2Object(key)
+    if (!object.Body) return new NextResponse(null, { status: 404 })
+    const headers = new Headers({
+      'Content-Type': object.ContentType || 'image/jpeg',
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+      'Access-Control-Allow-Origin': '*',
+    })
+    if (object.ContentLength !== undefined) headers.set('Content-Length', String(object.ContentLength))
+    return new NextResponse(object.Body.transformToWebStream(), { headers })
+  }
 
-  const jpeg = await sharp(input, { failOn: 'none', sequentialRead: true })
-    .rotate()
-    .resize(1200, 630, { fit: 'cover', position: 'centre' })
-    .jpeg({ quality: 82, mozjpeg: true })
-    .toBuffer()
-
-  return new NextResponse(jpeg, {
+  const remote = await fetch(src, { cache: 'no-store' })
+  if (!remote.ok || !remote.body) return new NextResponse(null, { status: 404 })
+  return new NextResponse(remote.body, {
     headers: {
-      'Content-Type': 'image/jpeg',
-      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+      'Content-Type': remote.headers.get('content-type') || 'image/jpeg',
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
       'Access-Control-Allow-Origin': '*',
     },
   })

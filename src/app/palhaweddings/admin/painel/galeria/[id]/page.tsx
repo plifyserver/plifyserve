@@ -16,6 +16,7 @@ import {
   type PalhaSubAlbum,
 } from '@/lib/palha/site-settings-shared'
 import { isPalhaMediaFile, palhaFileKind, uploadPalhaMediaFile } from '@/lib/palha/upload-client'
+import { toPalhaShareJpeg } from '@/lib/palha/share-preview'
 import { preferPalhaAdminSettings, readPalhaAdminSettings, rememberPalhaAdminSettings } from '@/lib/palha/admin-settings-cache'
 import { PalhaMediaSortGrid } from './PalhaMediaSortGrid'
 import { PalhaSubalbumSortList } from './PalhaSubalbumSortList'
@@ -525,14 +526,24 @@ export default function PalhaAlbumStudioPage() {
     void pickCoverImage(item.url)
   }
 
+  async function persistShareImage(url: string) {
+    const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
+    if (!currentAlbum || !url) return
+    await patchAlbum({ ...currentAlbum, shareImageUrl: url })
+    setSharePicker(false)
+    setMessage('Foto do link salva. Copie o link de novo e envie no WhatsApp.')
+  }
+
   async function saveShareImage(url: string) {
     const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
     if (!currentAlbum || !url) return
-    setUploading('Salvando foto do link…')
+    setUploading('Preparando prévia do WhatsApp…')
     try {
-      await patchAlbum({ ...currentAlbum, shareImageUrl: url })
-      setSharePicker(false)
-      setMessage('Foto do link salva. Ela aparece na prévia do WhatsApp.')
+      const preview = await toPalhaShareJpeg(url)
+      const shareUrl = preview
+        ? (await uploadPalhaMediaFile(preview, `gallery/${currentAlbum.id}/share`)).url
+        : url
+      await persistShareImage(shareUrl)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar a foto do link.')
     } finally {
@@ -548,10 +559,12 @@ export default function PalhaAlbumStudioPage() {
     }
     setUploading('Enviando foto do link…')
     try {
-      const uploaded = await uploadPalhaMediaFile(file, `gallery/${album.id}/share`)
-      await saveShareImage(uploaded.url)
+      const preview = (await toPalhaShareJpeg(file)) || file
+      const uploaded = await uploadPalhaMediaFile(preview, `gallery/${album.id}/share`)
+      await persistShareImage(uploaded.url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao enviar a foto do link.')
+    } finally {
       setUploading('')
     }
   }
