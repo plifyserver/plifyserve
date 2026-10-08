@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { cookies, headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { albumUnlockCookieName, isAlbumUnlocked } from '@/lib/palha/album-password'
-import { palhaAlbumShareImage, publicizeAlbum } from '@/lib/palha/site-settings-shared'
+import { palhaAlbumShareImage, palhaPublicAlbumPath, publicizeAlbum } from '@/lib/palha/site-settings-shared'
 import { getPalhaSiteSettings } from '@/lib/palha/site-settings'
 import { PalhaAlbumPublicClient } from './PalhaAlbumPublicClient'
 
@@ -28,15 +28,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { gallery } = await getPalhaSiteSettings()
   const album = gallery.albums.find((item) => item.id === id)
   const origin = await publicOrigin()
+  const host = new URL(origin).hostname
   const title = album?.name || 'Álbum'
   const description = album?.summary?.trim() || 'Galeria de fotos e filmes de casamento.'
   const source = album ? palhaAlbumShareImage(album) : ''
-  const image = source
-    ? source.startsWith('http')
-      ? source
-      : `${origin}/api/palha/og/${encodeURIComponent(id)}?v=${shareVersion(source)}`
-    : ''
-  const url = `${origin}/albuns/${id}`
+  const image = source ? `${origin}/og-album/${encodeURIComponent(id)}.jpg?v=${shareVersion(source)}` : ''
+  const url = `${origin}${palhaPublicAlbumPath(host, id)}`
 
   return {
     metadataBase: new URL(origin),

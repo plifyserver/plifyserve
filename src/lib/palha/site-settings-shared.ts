@@ -153,6 +153,15 @@ export function palhaPublicPrefix(pathname: string) {
   return pathname.startsWith('/palhaweddings') ? '/palhaweddings' : ''
 }
 
+export function palhaIsCustomHost(hostname: string) {
+  const host = hostname.split(':')[0].toLowerCase().replace(/^www\./, '')
+  return host === 'palhaweddings.plify360.com.br' || host === 'palhaweddings.localhost'
+}
+
+export function palhaPublicAlbumPath(hostname: string, albumId: string) {
+  return palhaIsCustomHost(hostname) ? `/albuns/${albumId}` : `/palhaweddings/albuns/${albumId}`
+}
+
 export function newPalhaId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 }

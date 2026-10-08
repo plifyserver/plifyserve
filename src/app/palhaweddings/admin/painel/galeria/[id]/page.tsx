@@ -7,7 +7,7 @@ import {
   DEFAULT_PALHA_SITE_SETTINGS,
   newPalhaId,
   palhaAdminPrefix,
-  palhaPublicPrefix,
+  palhaPublicAlbumPath,
   syncAlbumPasswordFlags,
   type PalhaAlbum,
   type PalhaGallery,
@@ -750,9 +750,7 @@ export default function PalhaAlbumStudioPage() {
   }
 
   async function copyPublicLink() {
-    const origin = window.location.origin
-    const livePrefix = window.location.pathname.startsWith('/palhaweddings') ? '/palhaweddings' : palhaPublicPrefix(pathname)
-    const href = `${origin}${livePrefix}/albuns/${albumId}`
+    const href = `${window.location.origin}${palhaPublicAlbumPath(window.location.hostname, albumId)}`
     try {
       await navigator.clipboard.writeText(href)
       setCopied(true)

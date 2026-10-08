@@ -44,6 +44,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      { source: "/og-album/:id.jpg", destination: "/api/palha/og/:id" },
+      { source: "/palhaweddings/og-album/:id.jpg", destination: "/api/palha/og/:id" },
+    ];
+  },
   async redirects() {
     return [
       { source: "/portfolio", destination: "/albuns", permanent: true },
