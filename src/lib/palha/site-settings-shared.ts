@@ -127,6 +127,8 @@ export type PalhaAlbum = {
   coverKind?: PalhaMediaKind
   coverPosterUrl?: string
   coverFrame?: number
+  /** Foto da prévia do link (WhatsApp). Independente da capa do álbum. */
+  shareImageUrl?: string
   theme: PalhaAlbumTheme
   subalbums: PalhaSubAlbum[]
   passwordProtected: boolean
@@ -162,6 +164,7 @@ export function createPalhaAlbum(name: string, eventDate: string): PalhaAlbum {
     eventDate,
     summary: '',
     coverUrl: '',
+    shareImageUrl: '',
     theme: { ...DEFAULT_PALHA_ALBUM_THEME },
     passwordProtected: false,
     passwordHash: '',
@@ -265,15 +268,9 @@ export function albumMediaCount(album: PalhaAlbum) {
 
 export function palhaAlbumShareImage(album: PalhaAlbum | null | undefined) {
   if (!album) return ''
+  if (album.shareImageUrl?.trim()) return album.shareImageUrl.trim()
+  if (album.coverKind !== 'video' && album.coverUrl.trim()) return album.coverUrl.trim()
   if (album.coverPosterUrl?.trim()) return album.coverPosterUrl.trim()
-  if (album.coverKind === 'video') {
-    for (const sub of album.subalbums) {
-      const photo = sub.items.find((item) => item.kind === 'image' && item.url)
-      if (photo?.url) return photo.url
-    }
-    return ''
-  }
-  if (album.coverUrl.trim()) return album.coverUrl.trim()
   for (const sub of album.subalbums) {
     const photo = sub.items.find((item) => item.kind === 'image' && item.url)
     if (photo?.url) return photo.url
@@ -289,6 +286,7 @@ export function collectPalhaMediaUrls(settings: PalhaSiteSettings) {
   for (const album of settings.gallery.albums) {
     if (album.coverUrl) urls.add(album.coverUrl)
     if (album.coverPosterUrl) urls.add(album.coverPosterUrl)
+    if (album.shareImageUrl) urls.add(album.shareImageUrl)
     for (const sub of album.subalbums) {
       for (const item of sub.items) {
         if (item.url) urls.add(item.url)
@@ -537,6 +535,7 @@ function mergeAlbum(raw: unknown, index: number): PalhaAlbum | null {
     coverKind,
     coverPosterUrl: String(data.coverPosterUrl || '').trim() || undefined,
     coverFrame: Number.isFinite(Number(data.coverFrame)) && Number(data.coverFrame) >= 0 ? Number(data.coverFrame) : undefined,
+    shareImageUrl: String(data.shareImageUrl || '').trim() || undefined,
     createdAt: String(data.createdAt || ''),
     theme: mergePalhaAlbumTheme(data.theme),
     passwordHash,

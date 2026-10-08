@@ -104,6 +104,51 @@ async function captureVideoFrame(source: File | string, time: number) {
 
 const ACCEPT = '.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.mp4,.webm,.mov,.m4v'
 
+type PalhaBatchUploadItem = {
+  id: string
+  bytes: number
+  percent: number
+  done: boolean
+  failed: boolean
+}
+
+function formatPalhaBytes(bytes: number) {
+  const value = Math.max(0, bytes)
+  const gb = 1024 ** 3
+  const mb = 1024 ** 2
+  if (value >= gb) {
+    const amount = value / gb
+    return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: amount >= 10 ? 1 : 2 }).format(amount)} GB`
+  }
+  if (value >= mb) {
+    const amount = value / mb
+    return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: amount >= 100 ? 0 : amount >= 10 ? 1 : 2 }).format(amount)} MB`
+  }
+  if (value >= 1024) {
+    return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(value / 1024)} KB`
+  }
+  return `${Math.round(value)} B`
+}
+
+function palhaBatchProgress(items: PalhaBatchUploadItem[]) {
+  const totalBytes = items.reduce((sum, item) => sum + Math.max(1, item.bytes), 0)
+  const loadedBytes = items.reduce((sum, item) => {
+    const percent = item.done ? 100 : Math.min(100, Math.max(0, item.percent))
+    return sum + Math.max(1, item.bytes) * (percent / 100)
+  }, 0)
+  const remainingBytes = Math.max(0, totalBytes - loadedBytes)
+  return {
+    percent: totalBytes ? Math.min(100, Math.round((loadedBytes / totalBytes) * 100)) : 0,
+    finished: items.filter((item) => item.done).length,
+    failed: items.filter((item) => item.failed).length,
+    total: items.length,
+    active: items.some((item) => !item.done),
+    loadedLabel: formatPalhaBytes(loadedBytes),
+    totalLabel: formatPalhaBytes(totalBytes),
+    remainingLabel: formatPalhaBytes(remainingBytes),
+  }
+}
+
 function updateAlbum(gallery: PalhaGallery, albumId: string, patch: PalhaAlbum): PalhaGallery {
   return {
     ...gallery,
@@ -124,10 +169,13 @@ export default function PalhaAlbumStudioPage() {
   const [pendingUploads, setPendingUploads] = useState<
     { id: string; preview: string; kind: PalhaMediaItem['kind']; percent: number; error?: string }[]
   >([])
+  const [batchUploads, setBatchUploads] = useState<PalhaBatchUploadItem[]>([])
+  const batchProgress = useMemo(() => palhaBatchProgress(batchUploads), [batchUploads])
   const [dragging, setDragging] = useState(false)
   const [subName, setSubName] = useState('')
   const [askSub, setAskSub] = useState(false)
   const [coverPicker, setCoverPicker] = useState(false)
+  const [sharePicker, setSharePicker] = useState(false)
   const [coverDraft, setCoverDraft] = useState<{ url: string; file?: File; posterUrl?: string; time?: number } | null>(null)
   const [videoFrameItem, setVideoFrameItem] = useState<PalhaMediaItem | null>(null)
   const [tab, setTab] = useState<'midia' | 'apresentacao'>('midia')
@@ -313,6 +361,12 @@ export default function PalhaAlbumStudioPage() {
     }, 250)
   }
 
+  useEffect(() => {
+    if (!batchUploads.length || batchUploads.some((item) => !item.done)) return
+    const timer = window.setTimeout(() => setBatchUploads([]), 1800)
+    return () => window.clearTimeout(timer)
+  }, [batchUploads])
+
   async function addFiles(files: FileList | File[]) {
     const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
     const currentSelected =
@@ -332,9 +386,30 @@ export default function PalhaAlbumStudioPage() {
       ...current,
       ...batch.map(({ id, preview, kind, percent }) => ({ id, preview, kind, percent })),
     ])
+    setBatchUploads((current) => [
+      ...(current.some((item) => !item.done) ? current : []),
+      ...batch.map((job) => ({
+        id: job.id,
+        bytes: job.file.size,
+        percent: 0,
+        done: false,
+        failed: false,
+      })),
+    ])
 
     const updateCard = (id: string, patch: { percent?: number; error?: string }) => {
       setPendingUploads((current) => current.map((card) => (card.id === id ? { ...card, ...patch } : card)))
+      if (typeof patch.percent === 'number') {
+        const percent = patch.percent
+        setBatchUploads((current) =>
+          current.map((item) => (item.id === id && !item.done ? { ...item, percent } : item)),
+        )
+      }
+    }
+    const finishBatchItem = (id: string, failed: boolean) => {
+      setBatchUploads((current) =>
+        current.map((item) => (item.id === id ? { ...item, percent: 100, done: true, failed } : item)),
+      )
     }
     const dropCard = (id: string, preview: string) => {
       URL.revokeObjectURL(preview)
@@ -394,6 +469,7 @@ export default function PalhaAlbumStudioPage() {
               ),
             })
             dropCard(job.id, job.preview)
+            finishBatchItem(job.id, false)
           }))
         } catch (err) {
           const raw = err instanceof Error ? err.message : 'Falha no envio.'
@@ -403,6 +479,7 @@ export default function PalhaAlbumStudioPage() {
               ? 'Este ficheiro não foi aceite. No Mac, use JPEG, PNG, MP4 ou MOV.'
               : raw,
           })
+          finishBatchItem(job.id, true)
         }
       }
     })
@@ -446,6 +523,37 @@ export default function PalhaAlbumStudioPage() {
       return
     }
     void pickCoverImage(item.url)
+  }
+
+  async function saveShareImage(url: string) {
+    const currentAlbum = settingsRef.current.gallery.albums.find((item) => item.id === albumId)
+    if (!currentAlbum || !url) return
+    setUploading('Salvando foto do link…')
+    try {
+      await patchAlbum({ ...currentAlbum, shareImageUrl: url })
+      setSharePicker(false)
+      setMessage('Foto do link salva. Ela aparece na prévia do WhatsApp.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar a foto do link.')
+    } finally {
+      setUploading('')
+    }
+  }
+
+  async function uploadShareImage(file: File | undefined) {
+    if (!album || !file) return
+    if (palhaFileKind(file) !== 'image') {
+      setError('A prévia do link precisa ser uma foto, não um vídeo.')
+      return
+    }
+    setUploading('Enviando foto do link…')
+    try {
+      const uploaded = await uploadPalhaMediaFile(file, `gallery/${album.id}/share`)
+      await saveShareImage(uploaded.url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao enviar a foto do link.')
+      setUploading('')
+    }
   }
 
   async function pickCoverImage(url: string) {
@@ -630,7 +738,8 @@ export default function PalhaAlbumStudioPage() {
 
   async function copyPublicLink() {
     const origin = window.location.origin
-    const href = `${origin}${palhaPublicPrefix(pathname)}/albuns/${albumId}`
+    const livePrefix = window.location.pathname.startsWith('/palhaweddings') ? '/palhaweddings' : palhaPublicPrefix(pathname)
+    const href = `${origin}${livePrefix}/albuns/${albumId}`
     try {
       await navigator.clipboard.writeText(href)
       setCopied(true)
@@ -802,6 +911,7 @@ export default function PalhaAlbumStudioPage() {
       {tab === 'midia' ? (
         <section className="palha-album-studio">
         <aside className="palha-album-side">
+          <div className="palha-album-side-covers">
           <button type="button" className="palha-album-cover" onClick={() => setCoverPicker(true)}>
             {album.coverUrl ? (
               <PalhaCoverMedia
@@ -815,6 +925,15 @@ export default function PalhaAlbumStudioPage() {
             )}
             <span className="palha-album-cover-overlay">Trocar capa</span>
           </button>
+          <button type="button" className="palha-album-cover is-share" onClick={() => setSharePicker(true)}>
+            {album.shareImageUrl ? (
+              <img src={album.shareImageUrl} alt="" className="palha-album-cover-media" />
+            ) : (
+              <span className="palha-album-cover-empty">Foto do link</span>
+            )}
+            <span className="palha-album-cover-overlay">Prévia do WhatsApp</span>
+          </button>
+          </div>
 
           <div className="palha-album-subhead">
             <span>Galerias</span>
@@ -832,6 +951,7 @@ export default function PalhaAlbumStudioPage() {
         </aside>
 
         <div className="palha-album-main">
+          <div className="palha-album-main-head">
           <header className="palha-album-main-bar">
             <input
               className="palha-album-sub-title"
@@ -869,6 +989,32 @@ export default function PalhaAlbumStudioPage() {
               </label>
             ) : null}
           </header>
+          {batchUploads.length ? (
+            <div className="palha-batch-upload" role="status" aria-live="polite">
+              <div className="palha-batch-upload-copy">
+                <strong>{batchProgress.percent}%</strong>
+                <span>
+                  {batchProgress.active
+                    ? `Enviando ${batchProgress.finished} de ${batchProgress.total} arquivo${batchProgress.total === 1 ? '' : 's'}`
+                    : batchProgress.failed
+                      ? `${batchProgress.total - batchProgress.failed} enviado${batchProgress.total - batchProgress.failed === 1 ? '' : 's'} · ${batchProgress.failed} falharam`
+                      : `${batchProgress.total} arquivo${batchProgress.total === 1 ? '' : 's'} enviado${batchProgress.total === 1 ? '' : 's'}`}
+                </span>
+              </div>
+              <div className="palha-batch-upload-size">
+                <span>
+                  {batchProgress.loadedLabel} de {batchProgress.totalLabel}
+                </span>
+                <span>
+                  {batchProgress.active ? `Faltam ${batchProgress.remainingLabel}` : `${batchProgress.totalLabel} no total`}
+                </span>
+              </div>
+              <div className="palha-batch-upload-track" aria-hidden="true">
+                <div className="palha-batch-upload-fill" style={{ width: `${batchProgress.percent}%` }} />
+              </div>
+            </div>
+          ) : null}
+          </div>
 
           <div
             className={`palha-album-drop${dragging ? ' is-over' : ''}`}
@@ -904,6 +1050,9 @@ export default function PalhaAlbumStudioPage() {
                       if (card) URL.revokeObjectURL(card.preview)
                       return current.filter((item) => item.id !== id)
                     })
+                    setBatchUploads((current) =>
+                      current.map((item) => (item.id === id ? { ...item, percent: 100, done: true, failed: true } : item)),
+                    )
                   }}
                 />
               </>
@@ -968,6 +1117,55 @@ export default function PalhaAlbumStudioPage() {
               </button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {sharePicker ? (
+        <div className="palha-modal-backdrop" onClick={() => !uploading && setSharePicker(false)}>
+          <div className="palha-modal palha-cover-picker" onClick={(e) => e.stopPropagation()}>
+            <h2 className="palha-label">Foto do link</h2>
+            <p className="palha-copy">
+              Esta foto aparece na prévia quando o link do álbum é enviado no WhatsApp. Não precisa ser a capa.
+            </p>
+            <label className="palha-btn palha-cover-picker-upload">
+              Enviar do computador
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif"
+                disabled={Boolean(uploading)}
+                onChange={(e) => {
+                  void uploadShareImage(e.target.files?.[0])
+                  e.currentTarget.value = ''
+                }}
+              />
+            </label>
+            <h3>Fotos do álbum</h3>
+            {albumMedia.some((media) => media.kind === 'image') ? (
+              <div className="palha-cover-picker-grid">
+                {albumMedia
+                  .filter((media) => media.kind === 'image')
+                  .map((media) => (
+                    <button
+                      key={media.id}
+                      type="button"
+                      className={media.url === album.shareImageUrl ? 'is-current' : undefined}
+                      disabled={Boolean(uploading)}
+                      onClick={() => void saveShareImage(media.url)}
+                    >
+                      <PalhaCoverMedia url={media.url} kind="image" className="palha-cover-picker-media" />
+                    </button>
+                  ))}
+              </div>
+            ) : (
+              <p className="palha-copy">Ainda não há fotos neste álbum. Envie uma do computador ou adicione mídia primeiro.</p>
+            )}
+            {uploading ? <p className="palha-copy">{uploading}</p> : null}
+            <div className="palha-modal-actions">
+              <button type="button" className="palha-btn" disabled={Boolean(uploading)} onClick={() => setSharePicker(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 

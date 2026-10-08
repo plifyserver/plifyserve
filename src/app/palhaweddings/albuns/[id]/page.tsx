@@ -35,6 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const url = `${origin}/albuns/${id}`
 
   return {
+    metadataBase: new URL(origin),
     title,
     description,
     alternates: { canonical: url },

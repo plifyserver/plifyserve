@@ -12,6 +12,7 @@ import {
   type PalhaAlbum,
   type PalhaMediaItem,
 } from '@/lib/palha/site-settings-shared'
+import { palhaLightboxImageSrc } from '@/lib/palha/display-url'
 import { downloadPalhaAlbumZip, palhaAlbumZipEntries } from './downloadAlbumZip'
 
 function fileNameFromUrl(url: string, fallback: string) {
@@ -159,6 +160,25 @@ export function PalhaAlbumPresentation({
     return () => {
       document.body.style.overflow = previous
       document.removeEventListener('keydown', onKey)
+    }
+  }, [viewer, selected?.items])
+
+  useEffect(() => {
+    if (!viewer) return
+    const items = selected?.items ?? []
+    if (items.length < 2) return
+    const around = [items[(viewer.index + 1) % items.length], items[(viewer.index - 1 + items.length) % items.length]]
+    const prefetched = around
+      .filter((item): item is PalhaMediaItem => Boolean(item && item.kind === 'image'))
+      .map((item) => {
+        const image = new Image()
+        image.src = palhaLightboxImageSrc(item.url)
+        return image
+      })
+    return () => {
+      prefetched.forEach((image) => {
+        image.src = ''
+      })
     }
   }, [viewer, selected?.items])
 
@@ -348,7 +368,16 @@ export function PalhaAlbumPresentation({
                 preload="metadata"
               />
             ) : (
-              <img key={viewer.item.id} src={viewer.item.url} alt={viewer.item.caption || album.name || ''} />
+              <img
+                key={viewer.item.id}
+                src={palhaLightboxImageSrc(viewer.item.url)}
+                alt={viewer.item.caption || album.name || ''}
+                decoding="async"
+                onError={(event) => {
+                  if (event.currentTarget.src === viewer.item.url) return
+                  event.currentTarget.src = viewer.item.url
+                }}
+              />
             )}
             <div className="palha-lightbox-tools">
               <span className="palha-lightbox-count">
