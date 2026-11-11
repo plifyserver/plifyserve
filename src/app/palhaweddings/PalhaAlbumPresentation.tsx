@@ -13,68 +13,7 @@ import {
   type PalhaMediaItem,
 } from '@/lib/palha/site-settings-shared'
 import { palhaLightboxImageSrc } from '@/lib/palha/display-url'
-import { downloadPalhaAlbumZip, palhaAlbumZipEntries } from './downloadAlbumZip'
-
-function fileNameFromUrl(url: string, fallback: string) {
-  try {
-    const name = decodeURIComponent(url.split('?')[0].split('/').pop() || fallback)
-    return name || fallback
-  } catch {
-    return fallback
-  }
-}
-
-function downloadHref(item: PalhaMediaItem, index: number) {
-  const fallback = item.kind === 'video' ? `video-${index + 1}.mp4` : `foto-${index + 1}.jpg`
-  const name = fileNameFromUrl(item.url, fallback)
-  return `/api/palha/download?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(name)}`
-}
-
-async function downloadMedia(item: PalhaMediaItem, index: number) {
-  const fallback = item.kind === 'video' ? `video-${index + 1}.mp4` : `foto-${index + 1}.jpg`
-  const name = fileNameFromUrl(item.url, fallback)
-  const endpoint = downloadHref(item, index)
-
-  const metaRes = await fetch(endpoint, { credentials: 'include', cache: 'no-store' })
-  const meta = (await metaRes.json()) as {
-    url?: string
-    filename?: string
-    contentType?: string
-    error?: string
-  }
-  if (!metaRes.ok || !meta.url) throw new Error(meta.error || 'download')
-
-  const filename = meta.filename || name
-  try {
-    const fileRes = await fetch(meta.url, { cache: 'no-store' })
-    if (!fileRes.ok) throw new Error('download')
-    const buffer = await fileRes.arrayBuffer()
-    const type = meta.contentType || fileRes.headers.get('content-type') || 'application/octet-stream'
-    const blob = new Blob([buffer], { type })
-    const file = new File([buffer], filename, { type })
-
-    if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: filename })
-        return
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return
-      }
-    }
-
-    const href = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = href
-    link.download = filename
-    link.rel = 'noopener'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    window.setTimeout(() => URL.revokeObjectURL(href), 4000)
-  } catch {
-    window.location.assign(meta.url)
-  }
-}
+import { downloadPalhaAlbumZip, downloadPalhaMediaFile, palhaAlbumZipEntries } from './downloadAlbumZip'
 
 export function PalhaAlbumPresentation({
   album,
@@ -189,7 +128,11 @@ export function PalhaAlbumPresentation({
     setZipError('')
     setZipping('Preparando…')
     try {
-      await downloadPalhaAlbumZip(album, (done, total) => {
+      await downloadPalhaAlbumZip(album, (done, total, label) => {
+        if (label) {
+          setZipping(label)
+          return
+        }
         setZipping(done >= total ? 'Gerando arquivo…' : `Baixando ${done + 1} de ${total}…`)
       })
     } catch (err) {
@@ -203,9 +146,9 @@ export function PalhaAlbumPresentation({
     if (savingId) return
     setSavingId(item.id)
     try {
-      await downloadMedia(item, index)
-    } catch {
-      // O fallback do download já tenta o arquivo original.
+      await downloadPalhaMediaFile(item, index)
+    } catch (err) {
+      setZipError(err instanceof Error ? err.message : 'Não foi possível baixar o arquivo.')
     } finally {
       setSavingId('')
     }
