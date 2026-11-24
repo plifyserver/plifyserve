@@ -7,12 +7,21 @@ export const maxDuration = 30
 
 const WIDTHS = new Set([360, 480, 640, 960, 1280, 1920])
 
-function redirectToSource(source: string) {
-  try {
-    return NextResponse.redirect(new URL(source), 302)
-  } catch {
-    return NextResponse.json({ error: 'Arquivo não encontrado' }, { status: 404 })
-  }
+/** JPEG 1×1 bege — nunca redireciona pro R2 (Firefox ORB / rede). */
+const PLACEHOLDER_JPEG = Buffer.from(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGP/9k=',
+  'base64',
+)
+
+function placeholderResponse() {
+  return new NextResponse(new Uint8Array(PLACEHOLDER_JPEG), {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'public, max-age=60',
+      'X-Palha-Thumb-Engine': 'placeholder',
+    },
+  })
 }
 
 async function resizeWithSharp(input: Buffer, width: number) {
@@ -56,11 +65,11 @@ export async function GET(request: NextRequest) {
     if (type.startsWith('video/')) {
       return NextResponse.json({ error: 'Vídeo' }, { status: 400 })
     }
-    if (!object.Body) return NextResponse.json({ error: 'Arquivo não encontrado' }, { status: 404 })
+    if (!object.Body) return debug ? NextResponse.json({ error: 'Sem body' }, { status: 404 }) : placeholderResponse()
 
     const input = Buffer.from(await object.Body.transformToByteArray())
     if (input.byteLength < 32) {
-      return NextResponse.json({ error: 'Arquivo vazio' }, { status: 404 })
+      return debug ? NextResponse.json({ error: 'Arquivo vazio' }, { status: 404 }) : placeholderResponse()
     }
 
     let result: { body: Buffer; contentType: string }
@@ -84,7 +93,7 @@ export async function GET(request: NextRequest) {
             { status: 502 },
           )
         }
-        return redirectToSource(source)
+        return placeholderResponse()
       }
     }
 
@@ -100,6 +109,6 @@ export async function GET(request: NextRequest) {
       const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
       return NextResponse.json({ error: 'Falha ao gerar prévia', message, key, width }, { status: 502 })
     }
-    return redirectToSource(source)
+    return placeholderResponse()
   }
 }

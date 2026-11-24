@@ -317,8 +317,9 @@ export function PalhaAlbumPresentation({
                 alt={viewer.item.caption || album.name || ''}
                 decoding="async"
                 onError={(event) => {
-                  if (event.currentTarget.src === viewer.item.url) return
-                  event.currentTarget.src = viewer.item.url
+                  const retrySrc = palhaLightboxImageSrc(viewer.item.url, 1)
+                  if (event.currentTarget.src.includes('&r=1')) return
+                  event.currentTarget.src = retrySrc
                 }}
               />
             )}

@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { PALHA_MEDIA_FRAMES, type PalhaGridStyle, type PalhaMediaFrame, type PalhaThumbSize } from '@/lib/palha/album-theme'
-import { palhaGridImageFallbackSrc, palhaGridImageSrc } from '@/lib/palha/display-url'
+import { palhaGridImageSrc } from '@/lib/palha/display-url'
 import { PALHA_GALLERY_MAX_WIDTH, layoutPalhaGrid } from '@/lib/palha/justified-grid'
 import type { PalhaMediaItem } from '@/lib/palha/site-settings-shared'
 import { PalhaVideoThumb } from './PalhaVideoThumb'
 
 /** Limita downloads simultâneos de prévia (Sharp + R2) para não saturar a rede. */
-const MAX_PARALLEL_THUMBS = 3
+const MAX_PARALLEL_THUMBS = 6
 let activeThumbs = 0
 const thumbWaitQueue: Array<() => void> = []
 
@@ -31,8 +31,8 @@ function releaseThumbSlot() {
   if (next) next()
 }
 
-const PREVIEW_ROOT_MARGIN = '160px 0px'
-const EAGER_COUNT = 2
+const PREVIEW_ROOT_MARGIN = '240px 0px'
+const EAGER_COUNT = 4
 
 function PalhaGridPhoto({
   item,
@@ -51,7 +51,7 @@ function PalhaGridPhoto({
   const [visible, setVisible] = useState(eager)
   const [src, setSrc] = useState('')
   const releasedRef = useRef(false)
-  const triedFallbackRef = useRef(false)
+  const retryRef = useRef(0)
 
   useEffect(() => {
     if (visible) return
@@ -116,11 +116,10 @@ function PalhaGridPhoto({
           }}
           onError={(event) => {
             finishSlot()
-            if (triedFallbackRef.current) return
-            const fallback = palhaGridImageFallbackSrc(item.url)
-            if (!fallback || event.currentTarget.src === fallback) return
-            triedFallbackRef.current = true
-            event.currentTarget.src = fallback
+            // Nunca cai no R2 direto (Firefox ORB / NS_ERROR_DOM_NETWORK_ERR).
+            if (retryRef.current >= 1) return
+            retryRef.current += 1
+            event.currentTarget.src = palhaGridImageSrc(item.url, displayWidth, retryRef.current)
           }}
           style={{ objectFit }}
         />
