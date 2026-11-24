@@ -7,33 +7,9 @@ import { PALHA_GALLERY_MAX_WIDTH, layoutPalhaGrid } from '@/lib/palha/justified-
 import type { PalhaMediaItem } from '@/lib/palha/site-settings-shared'
 import { PalhaVideoThumb } from './PalhaVideoThumb'
 
-/** Limita downloads simultâneos de prévia para não saturar a API. */
-const MAX_PARALLEL_THUMBS = 5
-let activeThumbs = 0
-const thumbWaitQueue: Array<() => void> = []
-
-function acquireThumbSlot(): Promise<void> {
-  if (activeThumbs < MAX_PARALLEL_THUMBS) {
-    activeThumbs += 1
-    return Promise.resolve()
-  }
-  return new Promise((resolve) => {
-    thumbWaitQueue.push(() => {
-      activeThumbs += 1
-      resolve()
-    })
-  })
-}
-
-function releaseThumbSlot() {
-  activeThumbs = Math.max(0, activeThumbs - 1)
-  const next = thumbWaitQueue.shift()
-  if (next) next()
-}
-
-const PREVIEW_ROOT_MARGIN = '320px 0px'
-const EAGER_COUNT = 4
-const MAX_THUMB_ATTEMPTS = 3
+/** Pré-carrega um pouco antes de entrar na tela — sem fila global (senão o meio espera o topo). */
+const PREVIEW_ROOT_MARGIN = '600px 0px'
+const EAGER_COUNT = 6
 
 function PalhaGridPhoto({
   item,
@@ -49,11 +25,9 @@ function PalhaGridPhoto({
   onReady?: (width: number, height: number) => void
 }) {
   const boxRef = useRef<HTMLSpanElement>(null)
-  const displayWidthRef = useRef(displayWidth)
   const [visible, setVisible] = useState(eager)
-  const [src, setSrc] = useState('')
-  const [loadKey, setLoadKey] = useState(0)
-  displayWidthRef.current = displayWidth
+  const [retry, setRetry] = useState(0)
+  const src = visible ? palhaGridImageSrc(item.url, displayWidth, retry) : ''
 
   useEffect(() => {
     if (visible) return
@@ -71,48 +45,6 @@ function PalhaGridPhoto({
     return () => observer.disconnect()
   }, [visible])
 
-  useEffect(() => {
-    if (!visible) return
-    let cancelled = false
-    let objectUrl = ''
-
-    async function load() {
-      await acquireThumbSlot()
-      try {
-        for (let attempt = 0; attempt < MAX_THUMB_ATTEMPTS; attempt++) {
-          if (cancelled) return
-          try {
-            const url = palhaGridImageSrc(item.url, displayWidthRef.current, attempt + loadKey)
-            const response = await fetch(url, { cache: 'no-store' })
-            if (!response.ok) throw new Error(`thumb ${response.status}`)
-            const blob = await response.blob()
-            // Rejeita JPEG/WebP “vazios” (ex.: falha antiga em cache / resposta inválida).
-            if (!blob.type.startsWith('image/') || blob.size < 200) {
-              throw new Error('thumb vazia')
-            }
-            if (cancelled) return
-            if (objectUrl) URL.revokeObjectURL(objectUrl)
-            objectUrl = URL.createObjectURL(blob)
-            setSrc(objectUrl)
-            return
-          } catch {
-            if (attempt < MAX_THUMB_ATTEMPTS - 1) {
-              await new Promise((resolve) => setTimeout(resolve, 280 * (attempt + 1)))
-            }
-          }
-        }
-      } finally {
-        releaseThumbSlot()
-      }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [visible, item.url, loadKey])
-
   const ratio = item.width && item.height ? `${item.width} / ${item.height}` : undefined
 
   return (
@@ -123,18 +55,18 @@ function PalhaGridPhoto({
           alt={item.caption || ''}
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"
-          fetchPriority={eager ? 'high' : 'low'}
+          fetchPriority={eager ? 'high' : 'auto'}
           onLoad={(event) => {
             if (event.currentTarget.naturalWidth < 8 || event.currentTarget.naturalHeight < 8) {
-              if (loadKey < 2) {
-                setSrc('')
-                setLoadKey((value) => value + 1)
-              }
+              if (retry < 3) setRetry((value) => value + 1)
               return
             }
             if (!onReady) return
             if (item.width && item.height) return
             onReady(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
+          }}
+          onError={() => {
+            if (retry < 3) setRetry((value) => value + 1)
           }}
           style={{ objectFit }}
         />
