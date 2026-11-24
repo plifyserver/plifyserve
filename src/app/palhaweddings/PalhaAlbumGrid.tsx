@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { PALHA_MEDIA_FRAMES, type PalhaGridStyle, type PalhaMediaFrame, type PalhaThumbSize } from '@/lib/palha/album-theme'
-import { palhaGridImageSrc } from '@/lib/palha/display-url'
+import { palhaGridImageFallbackSrc, palhaGridImageSrc } from '@/lib/palha/display-url'
 import { PALHA_GALLERY_MAX_WIDTH, layoutPalhaGrid } from '@/lib/palha/justified-grid'
 import type { PalhaMediaItem } from '@/lib/palha/site-settings-shared'
 import { PalhaVideoThumb } from './PalhaVideoThumb'
 
 /** Limita downloads simultâneos de prévia (Sharp + R2) para não saturar a rede. */
-const MAX_PARALLEL_THUMBS = 6
+const MAX_PARALLEL_THUMBS = 4
 let activeThumbs = 0
 const thumbWaitQueue: Array<() => void> = []
 
@@ -51,6 +51,7 @@ function PalhaGridPhoto({
   const [visible, setVisible] = useState(eager)
   const [src, setSrc] = useState('')
   const releasedRef = useRef(false)
+  const triedFallbackRef = useRef(false)
 
   useEffect(() => {
     if (visible) return
@@ -115,8 +116,11 @@ function PalhaGridPhoto({
           }}
           onError={(event) => {
             finishSlot()
-            if (!item.url || event.currentTarget.src === item.url) return
-            event.currentTarget.src = item.url
+            if (triedFallbackRef.current) return
+            const fallback = palhaGridImageFallbackSrc(item.url)
+            if (!fallback || event.currentTarget.src === fallback) return
+            triedFallbackRef.current = true
+            event.currentTarget.src = fallback
           }}
           style={{ objectFit }}
         />

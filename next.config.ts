@@ -32,7 +32,20 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
-  serverExternalPackages: ["sharp"],
+  serverExternalPackages: ["sharp", "@img/sharp-libvips-linux-x64", "@img/sharp-linux-x64"],
+  // Sharp 0.34+/0.35 carrega libvips via dlopen; o tracer do Next às vezes omite o .so no bundle da Vercel.
+  outputFileTracingIncludes: {
+    "/api/palha/thumb": [
+      "./node_modules/@img/sharp-libvips-linux-x64/**/*",
+      "./node_modules/@img/sharp-linux-x64/**/*",
+      "./node_modules/sharp/**/*",
+    ],
+    "/api/palha/og/*": [
+      "./node_modules/@img/sharp-libvips-linux-x64/**/*",
+      "./node_modules/@img/sharp-linux-x64/**/*",
+      "./node_modules/sharp/**/*",
+    ],
+  },
   experimental: {
     optimizePackageImports: ["lucide-react"],
     proxyClientMaxBodySize: "200mb",
