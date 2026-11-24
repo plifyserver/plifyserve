@@ -7,8 +7,8 @@ import { PALHA_GALLERY_MAX_WIDTH, layoutPalhaGrid } from '@/lib/palha/justified-
 import type { PalhaMediaItem } from '@/lib/palha/site-settings-shared'
 import { PalhaVideoThumb } from './PalhaVideoThumb'
 
-/** Limita downloads simultâneos de prévia (Sharp + R2) para não saturar a rede. */
-const MAX_PARALLEL_THUMBS = 6
+/** Limita downloads simultâneos de prévia para não saturar a API. */
+const MAX_PARALLEL_THUMBS = 5
 let activeThumbs = 0
 const thumbWaitQueue: Array<() => void> = []
 
@@ -31,8 +31,9 @@ function releaseThumbSlot() {
   if (next) next()
 }
 
-const PREVIEW_ROOT_MARGIN = '240px 0px'
+const PREVIEW_ROOT_MARGIN = '320px 0px'
 const EAGER_COUNT = 4
+const MAX_THUMB_ATTEMPTS = 3
 
 function PalhaGridPhoto({
   item,
@@ -48,10 +49,11 @@ function PalhaGridPhoto({
   onReady?: (width: number, height: number) => void
 }) {
   const boxRef = useRef<HTMLSpanElement>(null)
+  const displayWidthRef = useRef(displayWidth)
   const [visible, setVisible] = useState(eager)
   const [src, setSrc] = useState('')
-  const releasedRef = useRef(false)
-  const retryRef = useRef(0)
+  const [loadKey, setLoadKey] = useState(0)
+  displayWidthRef.current = displayWidth
 
   useEffect(() => {
     if (visible) return
@@ -70,32 +72,46 @@ function PalhaGridPhoto({
   }, [visible])
 
   useEffect(() => {
-    if (!visible || src) return
+    if (!visible) return
     let cancelled = false
-    let held = false
-    releasedRef.current = false
-    void acquireThumbSlot().then(() => {
-      if (cancelled) {
-        releaseThumbSlot()
-        return
-      }
-      held = true
-      setSrc(palhaGridImageSrc(item.url, displayWidth))
-    })
-    return () => {
-      cancelled = true
-      if (held && !releasedRef.current) {
-        releasedRef.current = true
+    let objectUrl = ''
+
+    async function load() {
+      await acquireThumbSlot()
+      try {
+        for (let attempt = 0; attempt < MAX_THUMB_ATTEMPTS; attempt++) {
+          if (cancelled) return
+          try {
+            const url = palhaGridImageSrc(item.url, displayWidthRef.current, attempt + loadKey)
+            const response = await fetch(url, { cache: 'no-store' })
+            if (!response.ok) throw new Error(`thumb ${response.status}`)
+            const blob = await response.blob()
+            // Rejeita JPEG/WebP “vazios” (ex.: falha antiga em cache / resposta inválida).
+            if (!blob.type.startsWith('image/') || blob.size < 200) {
+              throw new Error('thumb vazia')
+            }
+            if (cancelled) return
+            if (objectUrl) URL.revokeObjectURL(objectUrl)
+            objectUrl = URL.createObjectURL(blob)
+            setSrc(objectUrl)
+            return
+          } catch {
+            if (attempt < MAX_THUMB_ATTEMPTS - 1) {
+              await new Promise((resolve) => setTimeout(resolve, 280 * (attempt + 1)))
+            }
+          }
+        }
+      } finally {
         releaseThumbSlot()
       }
     }
-  }, [visible, src, item.url, displayWidth])
 
-  function finishSlot() {
-    if (releasedRef.current) return
-    releasedRef.current = true
-    releaseThumbSlot()
-  }
+    void load()
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [visible, item.url, loadKey])
 
   const ratio = item.width && item.height ? `${item.width} / ${item.height}` : undefined
 
@@ -109,25 +125,16 @@ function PalhaGridPhoto({
           decoding="async"
           fetchPriority={eager ? 'high' : 'low'}
           onLoad={(event) => {
-            // JPEG/WebP 1×1 (placeholder antigo) aparece como quadro “corrompido”.
             if (event.currentTarget.naturalWidth < 8 || event.currentTarget.naturalHeight < 8) {
-              finishSlot()
-              if (retryRef.current >= 2) return
-              retryRef.current += 1
-              event.currentTarget.src = palhaGridImageSrc(item.url, displayWidth, retryRef.current)
+              if (loadKey < 2) {
+                setSrc('')
+                setLoadKey((value) => value + 1)
+              }
               return
             }
-            finishSlot()
             if (!onReady) return
             if (item.width && item.height) return
             onReady(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
-          }}
-          onError={(event) => {
-            finishSlot()
-            // Nunca cai no R2 direto (Firefox ORB / NS_ERROR_DOM_NETWORK_ERR).
-            if (retryRef.current >= 2) return
-            retryRef.current += 1
-            event.currentTarget.src = palhaGridImageSrc(item.url, displayWidth, retryRef.current)
           }}
           style={{ objectFit }}
         />
