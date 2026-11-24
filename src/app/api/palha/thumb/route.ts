@@ -1,11 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import sharp from 'sharp'
 import { palhaApiAllowed, palhaApiForbidden } from '@/lib/palha/api-guard'
 import { getPalhaR2Object, isPalhaGalleryObjectKey, palhaR2KeyFromUrl } from '@/lib/palha/r2'
 
+export const runtime = 'nodejs'
 export const maxDuration = 30
 
 const WIDTHS = new Set([360, 480, 640, 960, 1280, 1920])
+
+function redirectToSource(source: string) {
+  try {
+    return NextResponse.redirect(new URL(source), 302)
+  } catch {
+    return NextResponse.json({ error: 'Arquivo não encontrado' }, { status: 404 })
+  }
+}
 
 export async function GET(request: NextRequest) {
   if (!palhaApiAllowed(request)) return palhaApiForbidden()
@@ -19,6 +27,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const sharp = (await import('sharp')).default
     const object = await getPalhaR2Object(key)
     const type = (object.ContentType || '').toLowerCase()
     if (type.startsWith('video/')) {
@@ -34,13 +43,14 @@ export async function GET(request: NextRequest) {
       .webp({ quality, effort: 2 })
       .toBuffer()
 
-    return new NextResponse(output, {
+    return new NextResponse(new Uint8Array(output), {
       headers: {
         'Content-Type': 'image/webp',
         'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
       },
     })
   } catch {
-    return NextResponse.json({ error: 'Falha ao gerar prévia' }, { status: 502 })
+    // Se Sharp/R2 falhar, devolve a original para o álbum não ficar em branco.
+    return redirectToSource(source)
   }
 }

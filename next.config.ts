@@ -32,6 +32,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  serverExternalPackages: ["sharp"],
   experimental: {
     optimizePackageImports: ["lucide-react"],
     proxyClientMaxBodySize: "200mb",

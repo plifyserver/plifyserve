@@ -113,8 +113,10 @@ function PalhaGridPhoto({
             if (item.width && item.height) return
             onReady(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
           }}
-          onError={() => {
+          onError={(event) => {
             finishSlot()
+            if (!item.url || event.currentTarget.src === item.url) return
+            event.currentTarget.src = item.url
           }}
           style={{ objectFit }}
         />

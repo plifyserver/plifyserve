@@ -1,6 +1,9 @@
 const GRID_THUMB_WIDTHS = [360, 480, 640, 960] as const
 const LIGHTBOX_THUMB_WIDTHS = [640, 960, 1280, 1920] as const
 
+/** Enquanto /api/palha/thumb estiver instável, o grid usa a URL pública do R2. */
+const USE_DIRECT_GRID_URLS = true
+
 function isDirectUrl(url: string) {
   return !url || url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('/')
 }
@@ -17,11 +20,13 @@ function palhaSizedSrc(url: string, width: number, widths: readonly number[]) {
 
 /** Prévia do grid: menor possível, com leve margem para retina. */
 export function palhaGridImageSrc(url: string, displayWidth = 360) {
+  if (USE_DIRECT_GRID_URLS || isDirectUrl(url)) return url
   const target = Math.min(960, Math.max(360, Math.ceil(displayWidth * 1.2)))
   return palhaSizedSrc(url, target, GRID_THUMB_WIDTHS)
 }
 
 /** Lightbox / zoom: qualidade maior. */
 export function palhaLightboxImageSrc(url: string) {
+  if (USE_DIRECT_GRID_URLS || isDirectUrl(url)) return url
   return palhaSizedSrc(url, 1600, LIGHTBOX_THUMB_WIDTHS)
 }
