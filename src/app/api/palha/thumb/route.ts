@@ -131,16 +131,12 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
+    const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    const missing = /NoSuchKey|not found|404/i.test(message)
     return fail(
-      502,
-      'Falha ao gerar prévia',
-      debug
-        ? {
-            message: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
-            key,
-            width,
-          }
-        : undefined,
+      missing ? 404 : 502,
+      missing ? 'Arquivo não encontrado no armazenamento' : 'Falha ao gerar prévia',
+      debug ? { message, key, width } : undefined,
     )
   }
 }

@@ -3664,6 +3664,20 @@
   background: #efe8dc;
 }
 
+.palha-ag-media.is-missing {
+  display: grid;
+  place-items: center;
+}
+
+.palha-ag-missing {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a8174;
+  padding: 0.5rem;
+  text-align: center;
+}
+
 .palha-ag-justified .palha-ag-media,
 .palha-ag-justified .palha-ag-media img {
   width: 100%;

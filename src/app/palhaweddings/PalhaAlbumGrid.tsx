@@ -27,7 +27,8 @@ function PalhaGridPhoto({
   const boxRef = useRef<HTMLSpanElement>(null)
   const [visible, setVisible] = useState(eager)
   const [retry, setRetry] = useState(0)
-  const src = visible ? palhaGridImageSrc(item.url, displayWidth, retry) : ''
+  const [failed, setFailed] = useState(false)
+  const src = visible && !failed ? palhaGridImageSrc(item.url, displayWidth, retry) : ''
 
   useEffect(() => {
     if (visible) return
@@ -48,7 +49,7 @@ function PalhaGridPhoto({
   const ratio = item.width && item.height ? `${item.width} / ${item.height}` : undefined
 
   return (
-    <span ref={boxRef} className="palha-ag-media" style={ratio ? { aspectRatio: ratio } : undefined}>
+    <span ref={boxRef} className={`palha-ag-media${failed ? ' is-missing' : ''}`} style={ratio ? { aspectRatio: ratio } : undefined}>
       {src ? (
         <img
           src={src}
@@ -58,7 +59,8 @@ function PalhaGridPhoto({
           fetchPriority={eager ? 'high' : 'auto'}
           onLoad={(event) => {
             if (event.currentTarget.naturalWidth < 8 || event.currentTarget.naturalHeight < 8) {
-              if (retry < 3) setRetry((value) => value + 1)
+              if (retry < 2) setRetry((value) => value + 1)
+              else setFailed(true)
               return
             }
             if (!onReady) return
@@ -66,11 +68,13 @@ function PalhaGridPhoto({
             onReady(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
           }}
           onError={() => {
-            if (retry < 3) setRetry((value) => value + 1)
+            if (retry < 2) setRetry((value) => value + 1)
+            else setFailed(true)
           }}
           style={{ objectFit }}
         />
       ) : null}
+      {failed ? <span className="palha-ag-missing">Foto indisponível</span> : null}
     </span>
   )
 }
