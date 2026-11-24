@@ -1,53 +1,25 @@
 import type { Metadata } from 'next'
-import { Fraunces, Outfit, Cormorant_Garamond, Oswald, Raleway, Great_Vibes } from 'next/font/google'
 import { PalhaChrome } from './PalhaChrome'
 import { getPalhaSiteSettings } from '@/lib/palha/site-settings'
 import { publicizeSiteSettings } from '@/lib/palha/site-settings-shared'
 import './palha.css'
 
-const display = Fraunces({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '700'],
-  style: ['normal', 'italic'],
-  variable: '--font-palha-display',
-  display: 'swap',
-})
-
-const sans = Outfit({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '700'],
-  variable: '--font-palha-sans',
-  display: 'swap',
-})
-
-const elegant = Cormorant_Garamond({
-  subsets: ['latin'],
-  weight: ['300', '400', '600'],
-  style: ['normal', 'italic'],
-  variable: '--font-palha-elegant',
-  display: 'swap',
-})
-
-const impact = Oswald({
-  subsets: ['latin'],
-  weight: ['500', '700'],
-  variable: '--font-palha-impact',
-  display: 'swap',
-})
-
-const airy = Raleway({
-  subsets: ['latin'],
-  weight: ['300', '400', '500'],
-  variable: '--font-palha-airy',
-  display: 'swap',
-})
-
-const scriptFill = Great_Vibes({
-  subsets: ['latin', 'latin-ext'],
-  weight: '400',
-  variable: '--font-palha-script-fill',
-  display: 'swap',
-})
+/**
+ * Evita next/font/google no build Turbopack: o Google às vezes devolve
+ * URLs /l/font?kit=...&skey=... que quebram com
+ * "next/font/google queries have exactly one entry".
+ */
+const GOOGLE_FONTS_HREF =
+  'https://fonts.googleapis.com/css2?' +
+  [
+    'family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600',
+    'family=Fraunces:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700',
+    'family=Great+Vibes',
+    'family=Oswald:wght@500;700',
+    'family=Outfit:wght@300;400;500;700',
+    'family=Raleway:wght@300;400;500',
+    'display=swap',
+  ].join('&')
 
 export const dynamic = 'force-dynamic'
 
@@ -70,8 +42,13 @@ export default async function PalhaWeddingsLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const settings = publicizeSiteSettings(await getPalhaSiteSettings())
   return (
-    <div className={`${display.variable} ${sans.variable} ${elegant.variable} ${impact.variable} ${airy.variable} ${scriptFill.variable}`}>
-      <PalhaChrome settings={settings}>{children}</PalhaChrome>
-    </div>
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href={GOOGLE_FONTS_HREF} rel="stylesheet" />
+      <div className="palha-font-root">
+        <PalhaChrome settings={settings}>{children}</PalhaChrome>
+      </div>
+    </>
   )
 }

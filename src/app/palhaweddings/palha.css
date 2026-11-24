@@ -8,6 +8,15 @@
   unicode-range: U+0000-007F, U+2026;
 }
 
+.palha-font-root {
+  --font-palha-display: 'Fraunces', 'Times New Roman', serif;
+  --font-palha-sans: 'Outfit', system-ui, sans-serif;
+  --font-palha-elegant: 'Cormorant Garamond', Georgia, serif;
+  --font-palha-impact: 'Oswald', system-ui, sans-serif;
+  --font-palha-airy: 'Raleway', system-ui, sans-serif;
+  --font-palha-script-fill: 'Great Vibes', cursive;
+}
+
 .palha-root {
   --palha-bg: #ffffff;
   --palha-ink: #323232;
