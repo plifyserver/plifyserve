@@ -26,6 +26,7 @@
     "framer-motion": "^11.18.2",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
+    "jimp": "1.6.0",
     "jspdf": "^4.1.0",
     "lucide-react": "^0.468.0",
     "next": "16.1.6",
@@ -43,6 +44,10 @@
     "sonner": "^2.0.7",
     "stripe": "^21.0.1",
     "tailwind-merge": "^3.5.0"
+  },
+  "optionalDependencies": {
+    "@img/sharp-libvips-linux-x64": "1.2.4",
+    "@img/sharp-linux-x64": "0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -8,7 +8,7 @@ import type { PalhaMediaItem } from '@/lib/palha/site-settings-shared'
 import { PalhaVideoThumb } from './PalhaVideoThumb'
 
 /** Limita downloads simultâneos de prévia (Sharp + R2) para não saturar a rede. */
-const MAX_PARALLEL_THUMBS = 4
+const MAX_PARALLEL_THUMBS = 3
 let activeThumbs = 0
 const thumbWaitQueue: Array<() => void> = []
 
@@ -31,8 +31,8 @@ function releaseThumbSlot() {
   if (next) next()
 }
 
-const PREVIEW_ROOT_MARGIN = '280px 0px'
-const EAGER_COUNT = 4
+const PREVIEW_ROOT_MARGIN = '160px 0px'
+const EAGER_COUNT = 2
 
 function PalhaGridPhoto({
   item,
