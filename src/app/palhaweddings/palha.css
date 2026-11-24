@@ -3646,6 +3646,8 @@
   break-inside: avoid;
   overflow: hidden;
   background: #efe8dc;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
 }
 
 .palha-ag-media {

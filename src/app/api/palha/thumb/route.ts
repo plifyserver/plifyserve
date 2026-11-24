@@ -5,14 +5,14 @@ import { getPalhaR2Object, isPalhaGalleryObjectKey, palhaR2KeyFromUrl } from '@/
 
 export const maxDuration = 30
 
-const WIDTHS = new Set([640, 960, 1280, 1920])
+const WIDTHS = new Set([360, 480, 640, 960, 1280, 1920])
 
 export async function GET(request: NextRequest) {
   if (!palhaApiAllowed(request)) return palhaApiForbidden()
 
   const source = request.nextUrl.searchParams.get('url') || ''
-  const wanted = Number(request.nextUrl.searchParams.get('w') || 640)
-  const width = WIDTHS.has(wanted) ? wanted : 640
+  const wanted = Number(request.nextUrl.searchParams.get('w') || 480)
+  const width = WIDTHS.has(wanted) ? wanted : 480
   const key = palhaR2KeyFromUrl(source)
   if (!key || !isPalhaGalleryObjectKey(key)) {
     return NextResponse.json({ error: 'Arquivo inválido' }, { status: 400 })
@@ -27,10 +27,11 @@ export async function GET(request: NextRequest) {
     if (!object.Body) return NextResponse.json({ error: 'Arquivo não encontrado' }, { status: 404 })
 
     const input = Buffer.from(await object.Body.transformToByteArray())
-    const image = sharp(input, { failOn: 'none', sequentialRead: true }).rotate()
-    const output = await image
+    const quality = width <= 640 ? 62 : width <= 960 ? 68 : 72
+    const output = await sharp(input, { failOn: 'none', sequentialRead: true })
+      .rotate()
       .resize({ width, withoutEnlargement: true })
-      .webp({ quality: 72, effort: 4 })
+      .webp({ quality, effort: 2 })
       .toBuffer()
 
     return new NextResponse(output, {
@@ -40,10 +41,6 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch {
-    try {
-      return NextResponse.redirect(new URL(source), 302)
-    } catch {
-      return NextResponse.json({ error: 'Arquivo não encontrado' }, { status: 404 })
-    }
+    return NextResponse.json({ error: 'Falha ao gerar prévia' }, { status: 502 })
   }
 }

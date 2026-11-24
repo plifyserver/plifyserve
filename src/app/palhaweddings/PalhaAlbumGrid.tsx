@@ -7,6 +7,33 @@ import { PALHA_GALLERY_MAX_WIDTH, layoutPalhaGrid } from '@/lib/palha/justified-
 import type { PalhaMediaItem } from '@/lib/palha/site-settings-shared'
 import { PalhaVideoThumb } from './PalhaVideoThumb'
 
+/** Limita downloads simultâneos de prévia (Sharp + R2) para não saturar a rede. */
+const MAX_PARALLEL_THUMBS = 6
+let activeThumbs = 0
+const thumbWaitQueue: Array<() => void> = []
+
+function acquireThumbSlot(): Promise<void> {
+  if (activeThumbs < MAX_PARALLEL_THUMBS) {
+    activeThumbs += 1
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => {
+    thumbWaitQueue.push(() => {
+      activeThumbs += 1
+      resolve()
+    })
+  })
+}
+
+function releaseThumbSlot() {
+  activeThumbs = Math.max(0, activeThumbs - 1)
+  const next = thumbWaitQueue.shift()
+  if (next) next()
+}
+
+const PREVIEW_ROOT_MARGIN = '280px 0px'
+const EAGER_COUNT = 4
+
 function PalhaGridPhoto({
   item,
   objectFit,
@@ -18,11 +45,12 @@ function PalhaGridPhoto({
   objectFit: 'cover' | 'contain'
   displayWidth: number
   eager?: boolean
-  onReady: (width: number, height: number) => void
+  onReady?: (width: number, height: number) => void
 }) {
   const boxRef = useRef<HTMLSpanElement>(null)
   const [visible, setVisible] = useState(eager)
-  const [src, setSrc] = useState(() => (eager ? palhaGridImageSrc(item.url, displayWidth) : ''))
+  const [src, setSrc] = useState('')
+  const releasedRef = useRef(false)
 
   useEffect(() => {
     if (visible) return
@@ -32,17 +60,43 @@ function PalhaGridPhoto({
       ([entry]) => {
         if (!entry?.isIntersecting) return
         setVisible(true)
-        setSrc(palhaGridImageSrc(item.url, displayWidth))
         observer.disconnect()
       },
-      { rootMargin: '1100px 0px', threshold: 0.01 },
+      { rootMargin: PREVIEW_ROOT_MARGIN, threshold: 0.01 },
     )
     observer.observe(el)
     return () => observer.disconnect()
-  }, [visible, item.url, displayWidth])
+  }, [visible])
 
-  const ratio =
-    item.width && item.height ? `${item.width} / ${item.height}` : undefined
+  useEffect(() => {
+    if (!visible || src) return
+    let cancelled = false
+    let held = false
+    releasedRef.current = false
+    void acquireThumbSlot().then(() => {
+      if (cancelled) {
+        releaseThumbSlot()
+        return
+      }
+      held = true
+      setSrc(palhaGridImageSrc(item.url, displayWidth))
+    })
+    return () => {
+      cancelled = true
+      if (held && !releasedRef.current) {
+        releasedRef.current = true
+        releaseThumbSlot()
+      }
+    }
+  }, [visible, src, item.url, displayWidth])
+
+  function finishSlot() {
+    if (releasedRef.current) return
+    releasedRef.current = true
+    releaseThumbSlot()
+  }
+
+  const ratio = item.width && item.height ? `${item.width} / ${item.height}` : undefined
 
   return (
     <span ref={boxRef} className="palha-ag-media" style={ratio ? { aspectRatio: ratio } : undefined}>
@@ -54,17 +108,61 @@ function PalhaGridPhoto({
           decoding="async"
           fetchPriority={eager ? 'high' : 'low'}
           onLoad={(event) => {
-            if (item.width && item.height) {
-              onReady(item.width, item.height)
-              return
-            }
+            finishSlot()
+            if (!onReady) return
+            if (item.width && item.height) return
             onReady(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
           }}
-          onError={(event) => {
-            if (event.currentTarget.src === item.url) return
-            event.currentTarget.src = item.url
+          onError={() => {
+            finishSlot()
           }}
           style={{ objectFit }}
+        />
+      ) : null}
+    </span>
+  )
+}
+
+function LazyVideoThumb({
+  item,
+  objectFit,
+  eager = false,
+  onReady,
+}: {
+  item: PalhaMediaItem
+  objectFit: 'cover' | 'contain'
+  eager?: boolean
+  onReady?: (width: number, height: number) => void
+}) {
+  const boxRef = useRef<HTMLSpanElement>(null)
+  const [visible, setVisible] = useState(eager)
+
+  useEffect(() => {
+    if (visible) return
+    const el = boxRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return
+        setVisible(true)
+        observer.disconnect()
+      },
+      { rootMargin: PREVIEW_ROOT_MARGIN, threshold: 0.01 },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [visible])
+
+  const ratio = item.width && item.height ? `${item.width} / ${item.height}` : undefined
+
+  return (
+    <span ref={boxRef} className="palha-ag-media" style={ratio ? { aspectRatio: ratio } : undefined}>
+      {visible ? (
+        <PalhaVideoThumb
+          url={item.url}
+          posterUrl={item.posterUrl}
+          objectFit={objectFit}
+          onReady={onReady}
         />
       ) : null}
     </span>
@@ -164,7 +262,12 @@ export function PalhaAlbumGrid({
     })
   }
 
-  function media(item: PalhaMediaItem, objectFit: 'cover' | 'contain' = 'cover', displayWidth = 420, eager = false) {
+  function media(item: PalhaMediaItem, objectFit: 'cover' | 'contain' = 'cover', displayWidth = 360, eager = false) {
+    const needsMeasure = !(item.width && item.height)
+    const onReady = needsMeasure
+      ? (w: number, h: number) => rememberSize(item.id, w, h)
+      : undefined
+
     if (item.kind === 'video') {
       if (item.posterUrl) {
         return (
@@ -173,18 +276,11 @@ export function PalhaAlbumGrid({
             objectFit={objectFit}
             displayWidth={displayWidth}
             eager={eager}
-            onReady={(w, h) => rememberSize(item.id, item.width || w, item.height || h)}
+            onReady={onReady}
           />
         )
       }
-      return (
-        <PalhaVideoThumb
-          url={item.url}
-          posterUrl={item.posterUrl}
-          objectFit={objectFit}
-          onReady={(w, h) => rememberSize(item.id, w, h)}
-        />
-      )
+      return <LazyVideoThumb item={item} objectFit={objectFit} eager={eager} onReady={onReady} />
     }
     return (
       <PalhaGridPhoto
@@ -192,7 +288,7 @@ export function PalhaAlbumGrid({
         objectFit={objectFit}
         displayWidth={displayWidth}
         eager={eager}
-        onReady={(w, h) => rememberSize(item.id, w, h)}
+        onReady={onReady}
       />
     )
   }
@@ -205,7 +301,7 @@ export function PalhaAlbumGrid({
           className={`palha-ag-item palha-ag-frame-${item.frame || 'auto'}${onOpen ? ' is-openable' : ''}`}
           onClick={onOpen ? () => onOpen(item, index) : undefined}
         >
-          {media(item, item.frame === 'inteira' ? 'contain' : 'cover', Math.min(width || 420, 640), index < 8)}
+          {media(item, item.frame === 'inteira' ? 'contain' : 'cover', Math.min(width || 360, 480), index < EAGER_COUNT)}
           {item.kind === 'video' ? <span className="palha-ag-play" aria-hidden="true" /> : null}
           {onFrameChange ? <FramePicker item={item} onChange={onFrameChange} /> : null}
           {renderActions ? <div className="palha-ag-actions">{renderActions(item, index)}</div> : null}
@@ -223,7 +319,7 @@ export function PalhaAlbumGrid({
               style={{ width: cell.width, height: cell.height }}
               onClick={onOpen ? () => onOpen(cell.item, cell.index) : undefined}
             >
-              {media(cell.item, cell.objectFit, cell.width, cell.index < 8)}
+              {media(cell.item, cell.objectFit, cell.width, cell.index < EAGER_COUNT)}
               {cell.item.kind === 'video' ? <span className="palha-ag-play" aria-hidden="true" /> : null}
               {onFrameChange ? <FramePicker item={cell.item} onChange={onFrameChange} /> : null}
               {renderActions ? <div className="palha-ag-actions">{renderActions(cell.item, cell.index)}</div> : null}
