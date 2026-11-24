@@ -1,10 +1,11 @@
 import { Zip, ZipPassThrough } from 'fflate'
 import type { PalhaAlbum, PalhaMediaItem } from '@/lib/palha/site-settings-shared'
 
-/** Chrome/Firefox rejeitam ArrayBufferView/Blob acima de 2 GB. Margem de segurança. */
-const MAX_PART_BYTES = Math.floor(1.4 * 1024 * 1024 * 1024)
-/** Vídeos acima disso não entram no ZIP: baixam por link direto, sem carregar na memória. */
-const MAX_ZIP_FILE_BYTES = Math.floor(180 * 1024 * 1024)
+/** Partes pequenas evitam UnknownError/DOMException ao montar Blob no navegador. */
+const MAX_PART_BYTES = 80 * 1024 * 1024
+const MAX_FILES_PER_PART = 35
+/** Arquivos acima disso saem do ZIP e baixam por link assinado. */
+const MAX_ZIP_FILE_BYTES = 40 * 1024 * 1024
 
 function fileNameFromUrl(url: string, fallback: string) {
   try {
@@ -38,6 +39,17 @@ function uniquePath(used: Set<string>, path: string) {
   return next
 }
 
+function errorMessage(err: unknown, fallback: string) {
+  if (err instanceof DOMException) {
+    if (err.name === 'UnknownError' || /unknownerror/i.test(err.message)) {
+      return 'O navegador ficou sem memória ao montar o ZIP. Tente de novo — o álbum será dividido em partes menores.'
+    }
+    return err.message || err.name || fallback
+  }
+  if (err instanceof Error) return err.message || fallback
+  return fallback
+}
+
 export function palhaAlbumZipEntries(album: PalhaAlbum) {
   const used = new Set<string>()
   const nested = album.subalbums.length > 1
@@ -62,21 +74,27 @@ function downloadHref(item: PalhaMediaItem, index: number, raw = false) {
 }
 
 async function signedDownload(item: PalhaMediaItem, index: number) {
-  const metaRes = await fetch(downloadHref(item, index), { credentials: 'include', cache: 'no-store' })
-  const meta = (await metaRes.json()) as {
-    url?: string
-    filename?: string
-    contentType?: string
-    bytes?: number
-    error?: string
+  let lastError = 'Não foi possível preparar o download.'
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const metaRes = await fetch(downloadHref(item, index), { credentials: 'include', cache: 'no-store' })
+      const meta = (await metaRes.json()) as {
+        url?: string
+        filename?: string
+        contentType?: string
+        bytes?: number
+        error?: string
+      }
+      if (metaRes.ok && meta.url) return meta
+      lastError = meta.error || lastError
+    } catch (err) {
+      lastError = errorMessage(err, lastError)
+    }
+    await wait(400 * (attempt + 1))
   }
-  if (!metaRes.ok || !meta.url) {
-    throw new Error(meta.error || 'Não foi possível preparar o download.')
-  }
-  return meta
+  throw new Error(lastError)
 }
 
-/** Baixa pelo link assinado sem carregar o arquivo inteiro na RAM (essencial para vídeo). */
 function saveByUrl(url: string, filename: string) {
   const link = document.createElement('a')
   link.href = url
@@ -102,15 +120,19 @@ async function fileBytes(item: PalhaMediaItem, index: number) {
 }
 
 function saveBlob(blob: Blob, filename: string) {
-  const href = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = href
-  link.download = filename
-  link.rel = 'noopener'
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  window.setTimeout(() => URL.revokeObjectURL(href), 4000)
+  try {
+    const href = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = href
+    link.download = filename
+    link.rel = 'noopener'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(href), 4000)
+  } catch (err) {
+    throw new Error(errorMessage(err, 'Falha ao salvar o ZIP no navegador.'))
+  }
 }
 
 function wait(ms: number) {
@@ -177,7 +199,11 @@ function createZipPartWriter(): ZipPartWriter {
         })
       }
       if (failed) throw failed
-      return new Blob(chunks as BlobPart[], { type: 'application/zip' })
+      try {
+        return new Blob(chunks as BlobPart[], { type: 'application/zip' })
+      } catch (err) {
+        throw new Error(errorMessage(err, 'Falha ao montar o ZIP.'))
+      }
     },
   }
 }
@@ -197,17 +223,21 @@ export async function downloadPalhaAlbumZip(
   const videos = entries.filter((entry) => isVideoEntry(entry.item))
   const total = entries.length
   let done = 0
+  let skipped = 0
 
   const baseName = safePart(album.name || 'album')
   let partIndex = 1
   let writer = createZipPartWriter()
   let partsSaved = 0
-  const multiLikely = images.length > 80
+  const multiLikely = images.length > MAX_FILES_PER_PART
 
   async function saveCurrentPart() {
     if (writer.fileCount() === 0) return
     const blob = await writer.finish()
-    if (blob.size <= 0) return
+    if (blob.size <= 0) {
+      writer = createZipPartWriter()
+      return
+    }
     partsSaved += 1
     const filename =
       multiLikely || partsSaved > 1 || partIndex > 1 || videos.length > 0
@@ -217,25 +247,38 @@ export async function downloadPalhaAlbumZip(
     saveBlob(blob, filename)
     partIndex += 1
     writer = createZipPartWriter()
-    await wait(800)
+    await wait(700)
   }
 
   for (const entry of images) {
-    onProgress?.(done, total, `Baixando foto ${done + 1} de ${total}…`)
-    const bytes = await fileBytes(entry.item, entry.index)
+    onProgress?.(done + skipped, total, `Baixando foto ${done + skipped + 1} de ${total}…`)
+    let bytes: Uint8Array
+    try {
+      bytes = await fileBytes(entry.item, entry.index)
+    } catch {
+      skipped += 1
+      continue
+    }
 
     if (bytes.byteLength > MAX_ZIP_FILE_BYTES || bytes.byteLength > MAX_PART_BYTES) {
       await saveCurrentPart()
-      const meta = await signedDownload(entry.item, entry.index)
-      onProgress?.(done, total, `Salvando arquivo grande…`)
-      saveByUrl(meta.url!, safePart(entry.path.split('/').pop() || entry.path))
-      done += 1
-      await wait(600)
+      try {
+        const meta = await signedDownload(entry.item, entry.index)
+        onProgress?.(done + skipped, total, `Salvando arquivo grande…`)
+        saveByUrl(meta.url!, safePart(entry.path.split('/').pop() || entry.path))
+        done += 1
+        await wait(500)
+      } catch {
+        skipped += 1
+      }
       continue
     }
 
     const projected = writer.bytesWritten() + bytes.byteLength + 128 * 1024
-    if (writer.fileCount() > 0 && projected > MAX_PART_BYTES) {
+    if (
+      writer.fileCount() > 0 &&
+      (projected > MAX_PART_BYTES || writer.fileCount() >= MAX_FILES_PER_PART)
+    ) {
       await saveCurrentPart()
     }
 
@@ -243,26 +286,29 @@ export async function downloadPalhaAlbumZip(
     done += 1
   }
 
-  onProgress?.(done, total, images.length ? 'Finalizando fotos…' : 'Preparando vídeos…')
+  onProgress?.(done + skipped, total, images.length ? 'Finalizando fotos…' : 'Preparando vídeos…')
   await saveCurrentPart()
 
   for (let i = 0; i < videos.length; i += 1) {
     const entry = videos[i]
-    onProgress?.(done, total, `Baixando vídeo ${i + 1} de ${videos.length}…`)
-    const meta = await signedDownload(entry.item, entry.index)
-    const filename = meta.filename || safePart(entry.path.split('/').pop() || `video-${i + 1}.mp4`)
-    // Link assinado: o navegador baixa o vídeo sem ArrayBuffer na página.
-    saveByUrl(meta.url!, filename)
-    done += 1
-    partsSaved += 1
-    await wait(900)
+    onProgress?.(done + skipped, total, `Baixando vídeo ${i + 1} de ${videos.length}…`)
+    try {
+      const meta = await signedDownload(entry.item, entry.index)
+      const filename = meta.filename || safePart(entry.path.split('/').pop() || `video-${i + 1}.mp4`)
+      saveByUrl(meta.url!, filename)
+      done += 1
+      partsSaved += 1
+      await wait(800)
+    } catch {
+      skipped += 1
+    }
   }
 
-  if (partsSaved === 0 && images.length === 0 && videos.length === 0) {
+  if (partsSaved === 0 && done === 0) {
     throw new Error('Não foi possível montar o download do álbum.')
   }
-  if (partsSaved === 0 && images.length > 0) {
-    throw new Error('Não foi possível montar o download do álbum.')
+  if (skipped > 0 && done === 0) {
+    throw new Error(`Nenhuma mídia pôde ser baixada (${skipped} falharam). Tente de novo.`)
   }
 }
 
@@ -272,7 +318,6 @@ export async function downloadPalhaMediaFile(item: PalhaMediaItem, index: number
   const fallback = item.kind === 'video' ? `video-${index + 1}.mp4` : `foto-${index + 1}.jpg`
   const filename = meta.filename || fileNameFromUrl(item.url, fallback)
 
-  // Vídeos e arquivos grandes: baixar direto pelo R2, sem Blob na memória.
   const knownBytes = typeof meta.bytes === 'number' ? meta.bytes : 0
   if (isVideoEntry(item) || knownBytes > MAX_ZIP_FILE_BYTES) {
     saveByUrl(meta.url!, filename)
@@ -288,7 +333,6 @@ export async function downloadPalhaMediaFile(item: PalhaMediaItem, index: number
       return
     }
     const type = meta.contentType || fileRes.headers.get('content-type') || 'application/octet-stream'
-    // Evita passar um único ArrayBufferView gigante para Blob/File.
     const blob = new Blob([new Uint8Array(buffer)], { type })
     saveBlob(blob, filename)
   } catch {

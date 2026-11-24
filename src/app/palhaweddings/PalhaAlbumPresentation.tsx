@@ -136,7 +136,13 @@ export function PalhaAlbumPresentation({
         setZipping(done >= total ? 'Gerando arquivo…' : `Baixando ${done + 1} de ${total}…`)
       })
     } catch (err) {
-      setZipError(err instanceof Error ? err.message : 'Não foi possível baixar o álbum.')
+      const message =
+        err instanceof DOMException && (err.name === 'UnknownError' || /unknownerror/i.test(err.message))
+          ? 'O navegador ficou sem memória ao montar o ZIP. Tente de novo — o álbum será dividido em partes menores.'
+          : err instanceof Error
+            ? err.message
+            : 'Não foi possível baixar o álbum.'
+      setZipError(message)
     } finally {
       setZipping('')
     }

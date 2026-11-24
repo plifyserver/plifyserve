@@ -109,6 +109,14 @@ function PalhaGridPhoto({
           decoding="async"
           fetchPriority={eager ? 'high' : 'low'}
           onLoad={(event) => {
+            // JPEG/WebP 1×1 (placeholder antigo) aparece como quadro “corrompido”.
+            if (event.currentTarget.naturalWidth < 8 || event.currentTarget.naturalHeight < 8) {
+              finishSlot()
+              if (retryRef.current >= 2) return
+              retryRef.current += 1
+              event.currentTarget.src = palhaGridImageSrc(item.url, displayWidth, retryRef.current)
+              return
+            }
             finishSlot()
             if (!onReady) return
             if (item.width && item.height) return
@@ -117,7 +125,7 @@ function PalhaGridPhoto({
           onError={(event) => {
             finishSlot()
             // Nunca cai no R2 direto (Firefox ORB / NS_ERROR_DOM_NETWORK_ERR).
-            if (retryRef.current >= 1) return
+            if (retryRef.current >= 2) return
             retryRef.current += 1
             event.currentTarget.src = palhaGridImageSrc(item.url, displayWidth, retryRef.current)
           }}
